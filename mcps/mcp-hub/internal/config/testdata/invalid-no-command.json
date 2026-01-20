@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "no_command": {
-      "transport": "stdio",
-      "args": ["test"],
-      "enable": true
-    }
-  }
-}

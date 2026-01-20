@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "grep": {
-      "transport": "http",
-      "url": "https://mcp.grep.app",
-      "enable": true
-    }
-  }
-}

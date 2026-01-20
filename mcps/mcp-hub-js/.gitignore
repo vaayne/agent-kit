@@ -1,4 +1,0 @@
-dist/
-node_modules/
-src/tools/
-src/runtime/call-mcp-tool.ts
