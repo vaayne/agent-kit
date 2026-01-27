@@ -76,9 +76,8 @@ Specialized agents for delegation via the subagent extension.
 ```
 agent-kit/
 ├── skills/           # Task-specific instructions (Pi, Claude Code)
+├── extensions/       # Pi extensions
 ├── agents/           # Subagent definitions (Pi)
-├── pi/
-│   └── extensions/   # Pi extensions
 ├── claude-plugins/   # Claude Code slash commands
 ├── mcps/             # MCP servers
 └── package.json      # Pi package manifest

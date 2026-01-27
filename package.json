@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "pi": {
-    "extensions": ["pi/extensions"],
+    "extensions": ["extensions"],
     "skills": ["skills"]
   },
   "peerDependencies": {
