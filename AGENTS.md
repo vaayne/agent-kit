@@ -7,8 +7,9 @@
 ## Architecture
 
 - `plugins/` — Claude Code plugins
+- `extensions/` — pi extensions
 - `mcps/` — MCP servers
-- `skills/` — Agent skills (codex-analyze, gemini-analyze, python-script, specs-dev)
+- `skills/` — Agent skills
 
 ## Marketplace
 

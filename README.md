@@ -33,43 +33,43 @@ mise run sync:codex:skills  # Sync to ~/.codex/skills
 
 Task-specific instructions that guide AI agents on how to approach different problems.
 
-| Skill | Description |
-|-------|-------------|
-| **changelog-automation** | Automate changelog generation from commits and PRs |
-| **document-writer** | Craft clear technical documentation and README files |
-| **frontend-design** | Create production-grade UI with high design quality |
-| **mcp-context7-docs** | Query up-to-date library documentation |
-| **mcp-exa-search** | Web search and company research via Exa AI |
-| **mcp-grep-code** | Search real-world code examples from GitHub |
-| **mcp-jetbrains-ide** | Control JetBrains IDEs via MCP |
-| **mcp-skill-gen** | Generate skills from MCP servers |
-| **python-script** | Create robust Python automation scripts |
-| **react-best-practices** | React/Next.js performance optimization guidelines |
-| **specs-dev** | Plan-first development with review gates |
-| **ui-skills** | Opinionated constraints for building better interfaces |
-| **web-fetch** | Fetch and extract content from URLs |
+| Skill                    | Description                                            |
+| ------------------------ | ------------------------------------------------------ |
+| **changelog-automation** | Automate changelog generation from commits and PRs     |
+| **document-writer**      | Craft clear technical documentation and README files   |
+| **frontend-design**      | Create production-grade UI with high design quality    |
+| **mcp-context7-docs**    | Query up-to-date library documentation                 |
+| **mcp-exa-search**       | Web search and company research via Exa AI             |
+| **mcp-grep-code**        | Search real-world code examples from GitHub            |
+| **mcp-jetbrains-ide**    | Control JetBrains IDEs via MCP                         |
+| **mcp-skill-gen**        | Generate skills from MCP servers                       |
+| **python-script**        | Create robust Python automation scripts                |
+| **react-best-practices** | React/Next.js performance optimization guidelines      |
+| **specs-dev**            | Plan-first development with review gates               |
+| **ui-skills**            | Opinionated constraints for building better interfaces |
+| **web-fetch**            | Fetch and extract content from URLs                    |
 
 ### Extensions (4)
 
 Pi extensions that add new capabilities to the agent.
 
-| Extension | Description |
-|-----------|-------------|
-| **mcp** | MCP client integration with tool orchestration |
-| **subagent** | Delegate tasks to specialized subagents |
-| **notify** | System notifications for long-running tasks |
+| Extension            | Description                                       |
+| -------------------- | ------------------------------------------------- |
+| **mcp**              | MCP client integration with tool orchestration    |
+| **subagent**         | Delegate tasks to specialized subagents           |
+| **notify**           | System notifications for long-running tasks       |
 | **powerline-status** | Rich status line with git, time, and context info |
 
 ### Subagents (4)
 
 Specialized agents for delegation via the subagent extension.
 
-| Agent | Description |
-|-------|-------------|
-| **librarian** | Code research across repositories and documentation |
-| **oracle** | Architecture decisions and deep technical analysis |
-| **ui-engineer** | Visual/UI/UX implementation specialist |
-| **worker** | General-purpose task execution |
+| Agent           | Description                                         |
+| --------------- | --------------------------------------------------- |
+| **librarian**   | Code research across repositories and documentation |
+| **oracle**      | Architecture decisions and deep technical analysis  |
+| **ui-engineer** | Visual/UI/UX implementation specialist              |
+| **worker**      | General-purpose task execution                      |
 
 ## Project Structure
 
