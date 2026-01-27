@@ -10,6 +10,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.49.1"
+    "@mariozechner/pi-coding-agent": "^0.50"
   }
 }

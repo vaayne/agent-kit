@@ -51,8 +51,9 @@ done
 
 rsync -av --delete ./agents/ ~/.pi/agent/agents/
 rsync -av --delete ./prompts/ ~/.pi/agent/prompts/
-rsync -av --delete ./skills/ ~/.pi/agent/skills/
-rsync -av --delete ./pi/extensions/ ~/.pi/agent/extensions/
+# rsync -av --delete ./skills/ ~/.pi/agent/skills/
+rsync -av ./skills/ ~/.pi/agent/skills/
+# rsync -av --delete ./pi/extensions/ ~/.pi/agent/extensions/
 rsync -av ./_AGENTS.md ~/.pi/agent/AGENTS.md
 
 echo "Synced Pi components to ~/.pi/agent"
