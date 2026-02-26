@@ -1,0 +1,39 @@
+{
+  "name": "@vaayne/pi-rules",
+  "version": "0.1.0",
+  "description": "Pi extension that scans .claude/rules/ and .agents/rules/ folders for project rules",
+  "author": "Vaayne <liu.vaayne@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vaayne/agent-kit.git",
+    "directory": "extensions/rules"
+  },
+  "homepage": "https://github.com/vaayne/agent-kit/tree/main/extensions/rules",
+  "bugs": {
+    "url": "https://github.com/vaayne/agent-kit/issues"
+  },
+  "keywords": ["pi-package", "pi-extension", "rules", "claude", "agents", "ai"],
+  "type": "module",
+  "files": [
+    "*.ts",
+    "*.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "scripts": {
+    "lint": "biome lint --write .",
+    "format": "biome format --write ."
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "typescript": "^5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@mariozechner/pi-coding-agent": "^0.51.0",
+    "@types/bun": "latest"
+  }
+}
