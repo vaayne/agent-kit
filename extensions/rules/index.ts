@@ -8,8 +8,6 @@
  * Scanned locations:
  * - .claude/rules/  — Claude Code rule files
  * - .agents/rules/  — Agent rule files
- * - CLAUDE.md       — Root-level Claude rules
- * - AGENTS.md       — Root-level agent rules
  *
  * Best practices:
  * - Keep rules focused: each file should cover one topic
@@ -20,29 +18,21 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { type RuleFile, type ScanResult, scanProjectRules } from "./scanner.js";
 
+
 function formatRulesForPrompt(scan: ScanResult): string {
   if (scan.rules.length === 0) {
     return "";
   }
 
-  const rootRules = scan.rules.filter((r) => r.source === "root");
-  const dirRules = scan.rules.filter((r) => r.source !== "root");
-
-  const sections: string[] = [];
-
-  if (rootRules.length > 0) {
-    const list = rootRules.map((r) => `- ${r.displayPath}`).join("\n");
-    sections.push(`Root-level rules:\n${list}`);
-  }
-
-  // Group directory rules by source
+  // Group rules by source directory
   const bySource = new Map<string, RuleFile[]>();
-  for (const rule of dirRules) {
+  for (const rule of scan.rules) {
     const existing = bySource.get(rule.source) ?? [];
     existing.push(rule);
     bySource.set(rule.source, existing);
   }
 
+  const sections: string[] = [];
   for (const [source, rules] of bySource) {
     const list = rules.map((r) => `- ${r.displayPath}`).join("\n");
     sections.push(`Rules in ${source}/:\n${list}`);

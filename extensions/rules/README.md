@@ -1,6 +1,6 @@
 # Rules Extension
 
-A Pi extension that scans project rule files from `.claude/rules/`, `.agents/rules/`, and root-level `CLAUDE.md` / `AGENTS.md` files, then surfaces them in the system prompt.
+A Pi extension that scans project rule files from `.claude/rules/` and `.agents/rules/` folders, then surfaces them in the system prompt.
 
 ## How It Works
 
@@ -12,8 +12,6 @@ On session start, the extension scans the project directory for rule files. Foun
 | --- | --- |
 | `.claude/rules/` | Claude Code rule files (recursive) |
 | `.agents/rules/` | Agent rule files (recursive) |
-| `CLAUDE.md` | Root-level Claude rules |
-| `AGENTS.md` | Root-level agent rules |
 
 All `.md` files in the rule directories are discovered recursively, supporting subdirectory organization.
 
@@ -36,8 +34,7 @@ my-project/
 │       ├── release.md
 │       └── frontend/
 │           └── components.md
-├── AGENTS.md
-└── CLAUDE.md
+└── ...
 ```
 
 ## Installation
