@@ -25,10 +25,15 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Install semver
+        run: npm install -g semver
+
       - name: Check extensions for version changes
         id: check
         run: |
           extensions="[]"
+          has_error=false
+
           for pkg in extensions/*/package.json; do
             dir=$(dirname "$pkg")
             name=$(jq -r '.name' "$pkg")
@@ -40,26 +45,31 @@ jobs:
             if [ $exit_code -ne 0 ]; then
               if echo "$npm_output" | grep -qi "404\|not found\|E404"; then
                 echo "🆕 $name@$local_version (new package, will publish)"
-                published_version=""
+                extensions=$(echo "$extensions" | jq -c --arg dir "$dir" --arg name "$name" --arg version "$local_version" '. + [{"dir": $dir, "name": $name, "version": $version}]')
+                continue
               else
-                echo "❌ $name: npm registry lookup failed, skipping"
+                echo "❌ $name: npm registry lookup failed"
                 echo "   Error: $npm_output"
+                has_error=true
                 continue
               fi
-            else
-              published_version="$npm_output"
             fi
 
-            # Compare versions: only publish if local is strictly newer
-            if [ -z "$published_version" ]; then
-              extensions=$(echo "$extensions" | jq -c --arg dir "$dir" --arg name "$name" --arg version "$local_version" '. + [{"dir": $dir, "name": $name, "version": $version}]')
-            elif [ "$(printf '%s\n%s' "$published_version" "$local_version" | sort -V | tail -1)" = "$local_version" ] && [ "$local_version" != "$published_version" ]; then
+            published_version="$npm_output"
+
+            # Compare versions using semver: only publish if local is strictly newer
+            if semver "$local_version" -r ">$published_version" > /dev/null 2>&1; then
               echo "📦 $name: $published_version -> $local_version (will publish)"
               extensions=$(echo "$extensions" | jq -c --arg dir "$dir" --arg name "$name" --arg version "$local_version" '. + [{"dir": $dir, "name": $name, "version": $version}]')
             else
               echo "✓ $name@$local_version (up to date)"
             fi
           done
+
+          if [ "$has_error" = true ]; then
+            echo "::error::One or more npm registry lookups failed. Check logs above."
+            exit 1
+          fi
 
           echo "extensions=$extensions" >> "$GITHUB_OUTPUT"
           echo ""
