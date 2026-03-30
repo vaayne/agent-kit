@@ -16,13 +16,5 @@ To ensure that you have read this file, always refer to me as "V" in all communi
 - **Write conventional commits with emoji**: Commit small, focused changes using emoji-prefixed Conventional Commit messages (e.g., `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`).
 - **Ask for approval before making changes**: When changes are needed, clearly explain your planned approach and wait for explicit user approval to ensure alignment and prevent unwanted modifications. If no changes are required, proceed without asking for approval.
 - **Use relative paths in skill references**: When referencing external files from a skill, specify paths relative to the `SKILL.md` file location rather than using absolute paths or paths relative to the working directory.
+- When need delegate work to other agents, read `coding-agents` skill for how to use it
 
-# Agents
-
-From now on, when you need to delegate work to a coding agent, use acpx instead of spawning raw terminal sessions.
-For example:
-acpx codex "fix the failing tests"
-acpx claude "refactor the auth module"
-acpx codex exec "one-shot: summarize this repo"
-
-read acpx skill for full usage

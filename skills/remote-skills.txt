@@ -40,6 +40,3 @@ openai/plugins --skill swiftui-performance-audit
 openai/plugins --skill swiftui-ui-patterns
 openai/plugins --skill swiftui-view-refactor
 
-# miltiple agents
-openclaw/acpx
-

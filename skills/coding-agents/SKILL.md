@@ -1,6 +1,6 @@
 ---
 name: coding-agents
-description: Guide for invoking external coding agents via acpx (Agent Client Protocol CLI). Use when the user wants to delegate work to another AI agent, run code reviews, get second opinions, or manage persistent agent sessions.
+description: Invoke external coding agents via acpx with preset roles (oracle, reviewer, worker, ui-engineer, librarian) for delegation, code review, second opinions, and persistent agent sessions.
 metadata:
   os:
     - darwin
@@ -136,6 +136,52 @@ bunx acpx codex set-mode auto        # auto-approve
 bunx acpx codex set thought_level high
 ```
 
+## Preset Roles
+
+Role prompts live in `references/agents/` relative to this skill. Prepend them to your task prompt for structured delegation.
+
+| Role            | File                                       | Purpose                                |
+| --------------- | ------------------------------------------ | -------------------------------------- |
+| `oracle`        | [oracle.md](./references/agents/oracle.md) | Architecture advice, critique, planning |
+| `reviewer`      | [reviewer.md](./references/agents/reviewer.md) | Code review with structured feedback |
+| `worker`        | [worker.md](./references/agents/worker.md) | General-purpose task execution         |
+| `ui-engineer`   | [ui-engineer.md](./references/agents/ui-engineer.md) | Visual/UI design and implementation |
+| `librarian`     | [librarian.md](./references/agents/librarian.md) | Code search, docs lookup, examples |
+
+### Using a preset role
+
+Read the role file and prepend it to the task prompt:
+
+```bash
+# Code review with reviewer role
+bunx acpx codex exec "$(cat {skill_dir}/references/agents/reviewer.md)
+
+Review the changes in src/auth/ for security issues"
+
+# Architecture advice with oracle role
+bunx acpx claude exec "$(cat {skill_dir}/references/agents/oracle.md)
+
+Review this architecture and recommend improvements"
+
+# General task with worker role
+bunx acpx codex exec "$(cat {skill_dir}/references/agents/worker.md)
+
+Refactor the logger module to use structured logging"
+
+# Pipe role + task via stdin
+(cat {skill_dir}/references/agents/reviewer.md; echo; echo "Review uncommitted changes") | bunx acpx claude exec
+```
+
+### Model selection guide
+
+| Task Type                          | Recommended Tier                 |
+| ---------------------------------- | -------------------------------- |
+| Complex reasoning, critique        | Best (opus, pro, codex)          |
+| Coding tasks                       | GPT codex variants, Claude opus  |
+| General purpose                    | Balanced (sonnet, codex default) |
+| Fast, cheap, high-volume           | Fast (haiku, flash)              |
+| Vision / image understanding       | Gemini flash                     |
+
 ## Tips
 
 - **Second opinion**: Use a different agent for the same review to eliminate model self-bias
@@ -143,4 +189,5 @@ bunx acpx codex set thought_level high
 - **Named sessions**: Use `-s <name>` for parallel workstreams in the same repo
 - **Cost control**: Use `--max-turns` to limit agentic loops
 - **Raw adapter**: `bunx acpx --agent ./custom-acp-server "run checks"` for custom agents
+- **Preset roles**: Combine any role with any agent — e.g., oracle + claude for architecture, reviewer + codex for reviews
 
