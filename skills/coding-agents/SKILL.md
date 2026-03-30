@@ -13,6 +13,10 @@ metadata:
 
 ```bash
 bunx acpx
+
+# Get real-time help info
+bunx acpx --help
+bunx acpx codex --help
 ```
 
 ## Agent Overview
