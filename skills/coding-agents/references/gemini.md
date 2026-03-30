@@ -2,6 +2,8 @@
 
 Google's Gemini CLI agent for code exploration and one-shot tasks.
 
+> **Prefer acpx**: Most tasks can use `acpx gemini exec "..."` or `acpx gemini "..."` for unified session management. Use direct CLI below for advanced features (include-directories, Vertex AI auth).
+
 ## Installation
 
 ```bash

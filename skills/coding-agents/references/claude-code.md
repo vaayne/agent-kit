@@ -2,6 +2,8 @@
 
 Canonical command: `claude`. Local alias `cc` wraps it with Bedrock + bypass permissions.
 
+> **Prefer acpx**: Most tasks can use `acpx claude exec "..."` or `acpx claude "..."` for unified session management. Use direct CLI below for advanced features (worktree mode, session forking, permission modes, MCP tools).
+
 ## Local cc Alias
 
 ```bash

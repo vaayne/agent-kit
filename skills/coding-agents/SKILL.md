@@ -1,69 +1,155 @@
 ---
 name: coding-agents
-description: Guide for invoking external coding agents (Codex, Claude Code, Gemini) from the CLI to review code, perform tasks, or get second opinions. Use when the user wants to delegate work to another AI agent, run code reviews externally, or needs help choosing between available coding agents.
+description: Guide for invoking external coding agents via acpx (Agent Client Protocol CLI). Use when the user wants to delegate work to another AI agent, run code reviews, get second opinions, or manage persistent agent sessions.
 metadata:
   os:
     - darwin
     - linux
 ---
 
-# Coding Agents CLI Guide
+# Coding Agents via acpx
+
+## Prerequisites
+
+```bash
+# Preferred: global install for session reuse
+npm i -g acpx
+
+# Fallback: run without installing
+bunx acpx
+```
+
+> All examples below use `acpx`. Substitute `bunx acpx` if not globally installed.
 
 ## Agent Overview
 
-| Agent       | Command  | Default Model | Best For                            |
-| ----------- | -------- | ------------- | ----------------------------------- |
-| Codex       | `codex`  | gpt-5.4       | Code review, sandboxed exec         |
-| Claude Code | `claude` | Opus 4.6      | Multi-file tasks, agentic workflows |
-| Gemini      | `gemini` | Gemini 2.5    | One-shot prompts (not installed)    |
+| Agent     | Command             | Best For                                 |
+| --------- | ------------------- | ---------------------------------------- |
+| Codex     | `acpx codex`        | Code review, sandboxed exec (default)    |
+| Claude    | `acpx claude`       | Multi-file tasks, agentic workflows      |
+| Gemini    | `acpx gemini`       | Fast one-shot prompts, free tier         |
+| Pi        | `acpx pi`           | Extensible, skill-driven tasks           |
+| Cursor    | `acpx cursor`       | IDE-integrated agent                     |
+| Copilot   | `acpx copilot`      | GitHub Copilot agent                     |
+| Droid     | `acpx droid`        | Factory Droid agent                      |
+| Kimi      | `acpx kimi`         | Kimi agent                               |
+| Kiro      | `acpx kiro`         | Kiro agent                               |
+| Kilocode  | `acpx kilocode`     | Kilocode agent                           |
+| OpenCode  | `acpx opencode`     | OpenCode agent                           |
+| Qwen      | `acpx qwen`         | Qwen agent                               |
 
-> `cc` is a local shell alias for `claude` with Bedrock + bypass permissions. Use `claude` when `cc` is unavailable.
-
-## Claude Code Models (`claude --model`)
-
-| Alias    | Use When                                    |
-| -------- | ------------------------------------------- |
-| `opus`   | Complex refactors, architecture, multi-file |
-| `sonnet` | Default — 80% of tasks, good speed/quality  |
-| `haiku`  | Simple lookups, boilerplate, bulk queries   |
+> Default agent (when omitted) is `codex`.
 
 ## Quick Reference
 
 ```bash
+# One-shot tasks (temporary session, no state saved)
+acpx exec "summarize this repo"
+acpx codex exec "fix the failing test"
+acpx claude exec "explain what src/index.ts does"
+acpx gemini exec "list all TODO comments"
+
+# Persistent session (auto-resumes prior conversation)
+acpx codex "inspect failing tests and propose a fix"
+acpx claude "refactor the auth module"
+
 # Code review
-codex review --uncommitted            # Independent review
-codex review --base main              # Review against branch
-claude -p "Review uncommitted changes"
+acpx codex exec "review uncommitted changes for bugs"
+acpx claude exec "review the diff against main branch"
+git diff main | acpx codex exec "review this diff"
 
-# One-shot tasks
-codex exec "Fix the failing test"
-claude -p "Explain what src/index.ts does"
-claude --model haiku -p "Summarize this file"
+# Second opinion (different model family)
+acpx codex exec "review uncommitted changes"
+acpx claude exec "review uncommitted changes"
 
-# Interactive
-codex --full-auto                     # Sandboxed, approval on-request
-claude
-claude --model sonnet
+# Model override
+acpx codex --model gpt-5.4 exec "refactor the auth module"
+acpx claude --model sonnet exec "quick summary of this file"
 
-# Resume / continue sessions
-codex resume --last                   # Resume last Codex session
-claude -c                             # Continue last Claude session
-claude -r                             # Pick a Claude session to resume
+# Output formats
+acpx --format quiet exec "summarize repo in 3 lines"
+acpx --format json codex exec "list all API endpoints"
+```
 
-# Piping
-git diff | claude -p "Review this diff"
-git diff | codex review -
+## Session Workflows
+
+```bash
+# Create a new session
+acpx codex sessions new
+
+# Named parallel sessions
+acpx codex -s backend "fix API pagination bug"
+acpx codex -s docs "draft changelog entry"
+
+# Queue a follow-up without waiting
+acpx codex "run full test suite"
+acpx codex --no-wait "after tests, summarize failures"
+
+# List / inspect / close sessions
+acpx codex sessions list
+acpx codex sessions show
+acpx codex sessions history --limit 20
+acpx codex sessions close
+
+# Cross-repo work
+acpx --cwd ~/repos/other-project codex "fix lint errors"
+```
+
+## Permissions
+
+| Flag              | Behavior                                      |
+| ----------------- | --------------------------------------------- |
+| `--approve-all`   | Auto-approve all permission requests           |
+| `--approve-reads` | Auto-approve reads, prompt for writes (default)|
+| `--deny-all`      | Deny all permission requests                   |
+
+```bash
+acpx --approve-all codex "fix all lint errors and commit"
+acpx --deny-all claude exec "explain the architecture"
+```
+
+## Output Formats
+
+| Format  | Use Case                         |
+| ------- | -------------------------------- |
+| `text`  | Human-readable stream (default)  |
+| `json`  | NDJSON event stream for scripts  |
+| `quiet` | Final assistant text only        |
+
+```bash
+# Machine-readable for pipelines
+acpx --format json codex exec "review changes" | jq -r 'select(.type=="tool_call")'
+
+# Clean output for scripts
+result=$(acpx --format quiet exec "summarize this repo")
+```
+
+## Session Control
+
+```bash
+# Cancel an in-flight prompt
+acpx codex cancel
+
+# Change session mode
+acpx codex set-mode plan        # read-only
+acpx codex set-mode auto        # auto-approve
+
+# Adjust reasoning
+acpx codex set thought_level high
 ```
 
 ## Tips
 
-- **Second opinion**: `codex review --uncommitted` — different model family eliminates self-bias
-- **Model override**: `codex -m gpt-5.4`, `claude --model opus/sonnet/haiku`. Codex models depend on account type.
-- **Cost control**: `claude -p --max-budget-usd 1.00` caps spending
-- **Turn limit**: `claude -p --max-turns 3` limits agentic loops in print mode
+- **Second opinion**: Use a different agent for the same review to eliminate model self-bias
+- **Queue follow-ups**: Use `--no-wait` to fire-and-forget while a session is busy
+- **Named sessions**: Use `-s <name>` for parallel workstreams in the same repo
+- **Cost control**: Use `--max-turns` to limit agentic loops
+- **Raw adapter**: `acpx --agent ./custom-acp-server "run checks"` for custom agents
 
-## Detailed References
+## Direct CLI Fallback
 
-- [Codex CLI](./references/codex.md)
-- [Claude Code CLI](./references/claude-code.md)
-- [Gemini CLI](./references/gemini.md)
+When you need agent-specific features not exposed through acpx (e.g., Codex sandbox policies, Claude worktree mode), use the direct CLI:
+
+- [Codex CLI](./references/codex.md) — sandbox modes, approval policies, review command
+- [Claude Code CLI](./references/claude-code.md) — worktree mode, permission modes, session forking
+- [Gemini CLI](./references/gemini.md) — include-directories, Vertex AI auth

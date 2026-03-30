@@ -2,6 +2,8 @@
 
 OpenAI's Codex CLI agent for code review and autonomous task execution.
 
+> **Prefer acpx**: Most tasks can use `acpx codex exec "..."` or `acpx codex "..."` for unified session management. Use direct CLI below for advanced features (sandbox policies, review command, MCP).
+
 ## Commands
 
 | Command                 | Description                          |
