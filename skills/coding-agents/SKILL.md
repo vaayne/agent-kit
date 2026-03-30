@@ -146,10 +146,3 @@ acpx codex set thought_level high
 - **Cost control**: Use `--max-turns` to limit agentic loops
 - **Raw adapter**: `acpx --agent ./custom-acp-server "run checks"` for custom agents
 
-## Direct CLI Fallback
-
-When you need agent-specific features not exposed through acpx (e.g., Codex sandbox policies, Claude worktree mode), use the direct CLI:
-
-- [Codex CLI](./references/codex.md) — sandbox modes, approval policies, review command
-- [Claude Code CLI](./references/claude-code.md) — worktree mode, permission modes, session forking
-- [Gemini CLI](./references/gemini.md) — include-directories, Vertex AI auth
