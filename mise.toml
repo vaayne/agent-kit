@@ -36,11 +36,14 @@ if [ -f ./skills/remote-skills.txt ]; then
   echo "Remote skills synced"
 fi
 
-# Claude reads skills from ~/.claude/skills — symlink to shared location
-if [ -d ~/.claude/skills ] && [ ! -L ~/.claude/skills ]; then
-  rm -rf ~/.claude/skills
-fi
-ln -sfn ~/.agents/skills ~/.claude/skills
+# Symlink each framework's skills dir to the shared location
+for dir in ~/.claude/skills ~/.factory/skills ~/.pi/skills ~/.codex/skills ~/.config/amp/skills; do
+  if [ -d "$dir" ] && [ ! -L "$dir" ]; then
+    rm -rf "$dir"
+  fi
+  mkdir -p "$(dirname "$dir")"
+  ln -sfn ~/.agents/skills "$dir"
+done
 
 mise run format
 echo "Synced all skills to ~/.agents/skills"
