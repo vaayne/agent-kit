@@ -23,6 +23,7 @@ Correctness of the work outranks the impulse to seek confirmation at every step.
 Only stop for **genuine ambiguity where continuing would produce output contrary to the user's intent**.
 
 Do NOT stop to:
+
 - Ask about reversible implementation details — just do it; if wrong, fix it
 - Ask "should I do the next step" — if it's part of the task, do it
 - Present style choices you could make yourself as "options"
