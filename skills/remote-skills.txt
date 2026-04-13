@@ -11,8 +11,12 @@
 #   https://github.com/anthropics/skills --skill skill-creator
 
 anthropics/skills --skill skill-creator
+
+# UI frontend-design
+google-labs-code/stitch-skills
 # anthropics/skills --skill frontend-design
 # nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max
+
 vaayne/mcphub --skill find-skills
 vaayne/mcphub --skill mcp-skill-gen
 blader/humanizer --skill humanizer
