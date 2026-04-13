@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "description": "Google Stitch MCP for generating and editing UI screens and design systems.",
+      "baseUrl": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${STITCH_API_KEY}"
+      }
+    }
+  },
+  "imports": []
+}

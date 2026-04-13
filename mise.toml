@@ -20,7 +20,7 @@ depends = ["sync:skills", "sync:agents"]
 
 [tasks."sync:skills"]
 description = "Sync all skills (local + remote) to ~/.agents/skills"
-#depends = ["sync:impeccable"]
+# depends = ["sync:impeccable"]
 run = """
 mkdir -p ~/.agents/skills
 rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt

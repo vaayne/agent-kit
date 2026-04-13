@@ -41,8 +41,6 @@ Do NOT stop to:
 - **Prefer CLI-first workflows**: If a command-line tool is available for a task, use it before other interfaces.
   - **Code search**: Use `ast-grep` for pattern searches when it exists; otherwise fall back to `rg` (ripgrep) or `grep`, using `fd` to scope paths when helpful.
   - **GitHub**: Use `gh` for issues, pull requests, or workflows, and record the fallback if it is not available.
-  - **Atlassian Jira**: Use `jira` cli for Atlassian Jira, use `jira --help` if you not sure how to use it.
 - **Write conventional commits with emoji**: Commit small, focused changes using emoji-prefixed Conventional Commit messages (e.g., `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`).
 - **Use relative paths in skill references**: When referencing external files from a skill, specify paths relative to the `SKILL.md` file location rather than using absolute paths or paths relative to the working directory.
-- **Delegate to coding agents via acpx**: When you need to delegate work to another coding agent, use `bunx acpx --model <model> pi` as described in the `coding-agents` skill. Pick a preset role and its recommended model. Never spawn raw agent CLIs directly.
 - **Clone repositories to `~/workspace`**: When cloning repositories locally, clone them under `~/workspace`. If the repository already exists there, reuse it instead of re-cloning.
