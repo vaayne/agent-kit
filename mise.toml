@@ -20,7 +20,7 @@ depends = ["sync:skills", "sync:agents"]
 
 [tasks."sync:skills"]
 description = "Sync all skills (local + remote) to ~/.agents/skills"
-depends = ["sync:impeccable"]
+#depends = ["sync:impeccable"]
 run = """
 mkdir -p ~/.agents/skills
 rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
@@ -86,6 +86,7 @@ echo "Saved steering commands to $DEST/frontend-improver/references/"
 description = "Sync _AGENTS.md to all agent frameworks"
 run = """
 rsync -av ./_AGENTS.md ~/.pi/agent/AGENTS.md
+rsync -av --delete ./agents/ ~/.pi/agent/agents/
 rsync -av ./_AGENTS.md ~/.codex/AGENTS.md
 rsync -av ./_AGENTS.md ~/.claude/CLAUDE.md
 rsync -av ./_AGENTS.md ~/.factory/AGENTS.md
