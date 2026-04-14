@@ -8,6 +8,22 @@ A Pi extension that delegates tasks to specialized agents in isolated contexts.
 
 Delegate tasks to specialized agents. Spawns a separate `pi` process for each invocation with isolated context.
 
+## Slash Commands
+
+The extension also registers command shortcuts for quick single-agent execution:
+
+- `/agents <agent> <task>`
+- `/agents:<agent> <task>` for agent names containing only letters, numbers, `.`, `_`, or `-`
+
+Examples:
+
+```text
+/agents reviewer Audit the current diff for correctness risks
+/agents:worker Implement a changelog entry for the latest feature
+```
+
+These shortcuts discover both user and project-local agents. Project-local agents still require confirmation in the TUI before they run.
+
 ## Modes
 
 ### Single Mode
