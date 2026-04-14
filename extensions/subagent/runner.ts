@@ -8,10 +8,10 @@ import type { AgentConfig } from "./agents.js";
 import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 
-interface JsonEvent {
+type JsonEvent = {
 	type?: string;
 	message?: Message;
-}
+};
 
 export type OnUpdateCallback = (
 	partial: AgentToolResult<SubagentDetails>,
@@ -41,15 +41,20 @@ function splitModelThinking(model: string | undefined): {
 	};
 }
 
-function resolveRunModel(agent: AgentConfig, overrides?: {
-	model?: string;
-	thinking?: ThinkingLevel;
-}): { model?: string; thinking?: ThinkingLevel; label?: string } {
+function resolveRunModel(
+	agent: AgentConfig,
+	overrides?: {
+		model?: string;
+		thinking?: ThinkingLevel;
+	},
+): { model?: string; thinking?: ThinkingLevel; label?: string } {
 	const base = splitModelThinking(overrides?.model ?? agent.model);
-	const model = base.model;
 	const thinking = overrides?.thinking ?? base.thinking ?? agent.thinking;
-	const label = model ? `${model}${thinking ? `:${thinking}` : ""}` : undefined;
-	return { model, thinking, label };
+	const label = base.model
+		? `${base.model}${thinking ? `:${thinking}` : ""}`
+		: undefined;
+
+	return { model: base.model, thinking, label };
 }
 
 export async function runSingleAgent(
@@ -133,6 +138,28 @@ export async function runSingleAgent(
 			});
 			let buffer = "";
 
+			function applyAssistantMessage(message: Message): void {
+				const usage = message.usage;
+				currentResult.usage.turns++;
+				if (usage) {
+					currentResult.usage.input += usage.input || 0;
+					currentResult.usage.output += usage.output || 0;
+					currentResult.usage.cacheRead += usage.cacheRead || 0;
+					currentResult.usage.cacheWrite += usage.cacheWrite || 0;
+					currentResult.usage.cost += usage.cost?.total || 0;
+					currentResult.usage.contextTokens = usage.totalTokens || 0;
+				}
+				if (!currentResult.model && message.model) {
+					currentResult.model = message.model;
+				}
+				if (message.stopReason) {
+					currentResult.stopReason = message.stopReason;
+				}
+				if (message.errorMessage) {
+					currentResult.errorMessage = message.errorMessage;
+				}
+			}
+
 			function processLine(line: string): void {
 				if (!line.trim()) return;
 
@@ -143,34 +170,20 @@ export async function runSingleAgent(
 					return;
 				}
 
-				if (event.type === "message_end" && event.message) {
-					const message = event.message as Message;
-					currentResult.messages.push(message);
-					if (message.role === "assistant") {
-						const usage = message.usage;
-						currentResult.usage.turns++;
-						if (usage) {
-							currentResult.usage.input += usage.input || 0;
-							currentResult.usage.output += usage.output || 0;
-							currentResult.usage.cacheRead += usage.cacheRead || 0;
-							currentResult.usage.cacheWrite += usage.cacheWrite || 0;
-							currentResult.usage.cost += usage.cost?.total || 0;
-							currentResult.usage.contextTokens = usage.totalTokens || 0;
-						}
-						if (!currentResult.model && message.model)
-							currentResult.model = message.model;
-						if (message.stopReason)
-							currentResult.stopReason = message.stopReason;
-						if (message.errorMessage)
-							currentResult.errorMessage = message.errorMessage;
-					}
-					emitUpdate();
+				if (!event.message) {
+					return;
 				}
 
-				if (event.type === "tool_result_end" && event.message) {
-					currentResult.messages.push(event.message as Message);
-					emitUpdate();
+				if (event.type !== "message_end" && event.type !== "tool_result_end") {
+					return;
 				}
+
+				const message = event.message as Message;
+				currentResult.messages.push(message);
+				if (event.type === "message_end" && message.role === "assistant") {
+					applyAssistantMessage(message);
+				}
+				emitUpdate();
 			}
 
 			process.stdout.on("data", (data) => {
@@ -185,7 +198,12 @@ export async function runSingleAgent(
 			});
 
 			process.on("close", (code) => {
-				if (buffer.trim()) processLine(buffer);
+				if (abortHandler && signal) {
+					signal.removeEventListener("abort", abortHandler);
+				}
+				if (buffer.trim()) {
+					processLine(buffer);
+				}
 				resolve(code ?? 0);
 			});
 
@@ -193,16 +211,23 @@ export async function runSingleAgent(
 				resolve(1);
 			});
 
+			let abortHandler: (() => void) | undefined;
 			if (signal) {
-				function killProcess(): void {
+				abortHandler = () => {
 					wasAborted = true;
 					process.kill("SIGTERM");
 					setTimeout(() => {
-						if (!process.killed) process.kill("SIGKILL");
+						if (!process.killed) {
+							process.kill("SIGKILL");
+						}
 					}, 5000);
+				};
+
+				if (signal.aborted) {
+					abortHandler();
+				} else {
+					signal.addEventListener("abort", abortHandler, { once: true });
 				}
-				if (signal.aborted) killProcess();
-				else signal.addEventListener("abort", killProcess, { once: true });
 			}
 		});
 

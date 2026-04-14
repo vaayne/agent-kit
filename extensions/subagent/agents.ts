@@ -10,7 +10,7 @@ import type { ThinkingLevel } from "./types.js";
 
 export type AgentScope = "user" | "project" | "both";
 
-export interface AgentConfig {
+export type AgentConfig = {
 	name: string;
 	description: string;
 	tools?: string[];
@@ -19,12 +19,12 @@ export interface AgentConfig {
 	systemPrompt: string;
 	source: "user" | "project";
 	filePath: string;
-}
+};
 
-export interface AgentDiscoveryResult {
+export type AgentDiscoveryResult = {
 	agents: AgentConfig[];
 	projectAgentsDir: string | null;
-}
+};
 
 function loadAgentsFromDir(
 	dir: string,

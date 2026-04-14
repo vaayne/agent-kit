@@ -29,7 +29,8 @@
 	"type": "module",
 	"scripts": {
 		"lint": "biome lint --write .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"format:pnpm": "pnpm dlx @biomejs/biome format --write ."
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.4",
