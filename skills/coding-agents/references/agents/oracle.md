@@ -1,7 +1,7 @@
 ---
 name: oracle
 description: Strategic technical advisor for architecture and implementation planning
-model: gpt-5.4
+model: openai-codex/gpt-5.4
 thinking: high
 ---
 
