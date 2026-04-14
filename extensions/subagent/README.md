@@ -8,21 +8,26 @@ A Pi extension that delegates work to specialized agents in isolated contexts.
 
 Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context.
 
-## Slash Commands
+## Slash Command
 
-The extension also registers command shortcuts for quick single-agent execution:
+The extension registers one slash command:
 
 - `/agent <name> <prompt>`
-- `/agent:<name> <prompt>` for agent names containing only letters, numbers, `.`, `_`, or `-`
 
-Examples:
+Example:
 
 ```text
 /agent reviewer Audit the current diff for correctness risks
-/agent:worker Implement a changelog entry for the latest feature
 ```
 
-These shortcuts discover both user and project-local agents. Project-local agents still require confirmation in the TUI before they run.
+This command does not run the subagent directly. Instead, it sends a user message that instructs the main agent to:
+
+- rewrite the raw request into a self-contained, context-aware subagent prompt
+- include relevant conversation, repository, working-directory, file, and constraint context
+- call the `agent` tool with `options.scope: "both"`
+- integrate the subagent result back into the normal conversation flow
+
+This keeps the UI consistent with normal tool usage and ensures subagent output returns through the main agent.
 
 ## Modes
 
@@ -65,21 +70,21 @@ Run agents sequentially, passing output to the next step via `{previous}`.
 
 ## Parameters
 
-| Name       | Type   | Required | Description |
-|------------|--------|----------|-------------|
-| `name`     | string | No       | Agent name for a single run |
-| `prompt`   | string | No       | Prompt for a single run |
-| `parallel` | array  | No       | Array of `{name, prompt}` for parallel execution |
+| Name       | Type   | Required | Description                                        |
+| ---------- | ------ | -------- | -------------------------------------------------- |
+| `name`     | string | No       | Agent name for a single run                        |
+| `prompt`   | string | No       | Prompt for a single run                            |
+| `parallel` | array  | No       | Array of `{name, prompt}` for parallel execution   |
 | `sequence` | array  | No       | Array of `{name, prompt}` for sequential execution |
-| `options`  | object | No       | Optional configuration |
+| `options`  | object | No       | Optional configuration                             |
 
 ### `options`
 
-| Name             | Type    | Required | Description |
-|------------------|---------|----------|-------------|
-| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`) |
+| Name             | Type    | Required | Description                                            |
+| ---------------- | ------- | -------- | ------------------------------------------------------ |
+| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`)         |
 | `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`) |
-| `cwd`            | string  | No       | Working directory for a single run |
+| `cwd`            | string  | No       | Working directory for a single run                     |
 
 ## Agent Discovery
 
