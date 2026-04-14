@@ -40,23 +40,32 @@ jobs:
             name=$(jq -r '.name' "$pkg")
             local_version=$(jq -r '.version' "$pkg")
 
-            # Get published version from npm, distinguishing "not found" from real errors
-            npm_output=$(npm view "$name" version 2>&1) && exit_code=0 || exit_code=$?
+            # Get published version from the public npm registry, distinguishing
+            # "not found" from real network/API failures.
+            encoded_name=$(node -p 'encodeURIComponent(process.argv[1])' "$name")
+            registry_url="https://registry.npmjs.org/$encoded_name"
+            registry_output=$(curl -fsSL "$registry_url" 2>&1) && exit_code=0 || exit_code=$?
 
             if [ $exit_code -ne 0 ]; then
-              if echo "$npm_output" | grep -qi "404\|not found\|E404"; then
+              if echo "$registry_output" | grep -qi "404"; then
                 echo "🆕 $name@$local_version (new package, will publish)"
                 extensions=$(echo "$extensions" | jq -c --arg dir "$dir" --arg name "$name" --arg version "$local_version" '. + [{"dir": $dir, "name": $name, "version": $version}]')
                 continue
               else
                 echo "❌ $name: npm registry lookup failed"
-                echo "   Error: $npm_output"
+                echo "   Error: $registry_output"
                 has_error=true
                 continue
               fi
             fi
 
-            published_version="$npm_output"
+            published_version=$(echo "$registry_output" | jq -r '."dist-tags".latest // empty')
+
+            if [ -z "$published_version" ]; then
+              echo "❌ $name: npm registry response missing dist-tags.latest"
+              has_error=true
+              continue
+            fi
 
             # Compare versions using semver: only publish if local is strictly newer
             if semver "$local_version" -r ">$published_version" > /dev/null 2>&1; then
