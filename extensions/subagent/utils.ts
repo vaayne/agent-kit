@@ -5,7 +5,7 @@ import type { DisplayItem, SingleResult, UsageStats } from "./types.js";
 export const COLLAPSED_ITEM_COUNT = 10;
 
 export function formatAgentCommandName(agentName: string): string {
-	return `/agents:${agentName}`;
+	return `/agent:${agentName}`;
 }
 
 export function truncateText(text: string, maxLength: number): string {

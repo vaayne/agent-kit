@@ -1,79 +1,85 @@
-# Subagent Extension
+# Agent Extension
 
-A Pi extension that delegates tasks to specialized agents in isolated contexts.
+A Pi extension that delegates work to specialized agents in isolated contexts.
 
 ## Tool
 
-### `subagent`
+### `agent`
 
-Delegate tasks to specialized agents. Spawns a separate `pi` process for each invocation with isolated context.
+Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context.
 
 ## Slash Commands
 
 The extension also registers command shortcuts for quick single-agent execution:
 
-- `/agents <agent> <task>`
-- `/agents:<agent> <task>` for agent names containing only letters, numbers, `.`, `_`, or `-`
+- `/agent <name> <prompt>`
+- `/agent:<name> <prompt>` for agent names containing only letters, numbers, `.`, `_`, or `-`
 
 Examples:
 
 ```text
-/agents reviewer Audit the current diff for correctness risks
-/agents:worker Implement a changelog entry for the latest feature
+/agent reviewer Audit the current diff for correctness risks
+/agent:worker Implement a changelog entry for the latest feature
 ```
 
 These shortcuts discover both user and project-local agents. Project-local agents still require confirmation in the TUI before they run.
 
 ## Modes
 
-### Single Mode
+### Single Run
 
-Run one agent with one task.
+Run one agent with one prompt.
 
 ```json
 {
-  "agent": "worker",
-  "task": "List all files in the current directory"
+  "name": "worker",
+  "prompt": "List all files in the current directory"
 }
 ```
 
-### Parallel Mode
+### Parallel Runs
 
 Run multiple agents concurrently.
 
 ```json
 {
-  "tasks": [
-    { "agent": "worker", "task": "Task 1" },
-    { "agent": "worker", "task": "Task 2" }
+  "parallel": [
+    { "name": "worker", "prompt": "Task 1" },
+    { "name": "reviewer", "prompt": "Task 2" }
   ]
 }
 ```
 
-### Chain Mode
+### Sequence Runs
 
-Run agents sequentially, passing output to the next step via `{previous}` placeholder.
+Run agents sequentially, passing output to the next step via `{previous}`.
 
 ```json
 {
-  "chain": [
-    { "agent": "worker", "task": "Generate a list of items" },
-    { "agent": "worker", "task": "Process these items: {previous}" }
+  "sequence": [
+    { "name": "worker", "prompt": "Generate a list of items" },
+    { "name": "reviewer", "prompt": "Process these items: {previous}" }
   ]
 }
 ```
 
 ## Parameters
 
-| Name                   | Type    | Required | Description                                            |
-| ---------------------- | ------- | -------- | ------------------------------------------------------ |
-| `agent`                | string  | No       | Agent name (for single mode)                           |
-| `task`                 | string  | No       | Task description (for single mode)                     |
-| `tasks`                | array   | No       | Array of `{agent, task}` (for parallel mode)           |
-| `chain`                | array   | No       | Array of `{agent, task}` (for chain mode)              |
-| `cwd`                  | string  | No       | Working directory for the agent                        |
-| `agentScope`           | string  | No       | `user`, `project`, or `both` (default: `user`)         |
-| `confirmProjectAgents` | boolean | No       | Prompt before running project agents (default: `true`) |
+| Name       | Type   | Required | Description |
+|------------|--------|----------|-------------|
+| `name`     | string | No       | Agent name for a single run |
+| `prompt`   | string | No       | Prompt for a single run |
+| `parallel` | array  | No       | Array of `{name, prompt}` for parallel execution |
+| `sequence` | array  | No       | Array of `{name, prompt}` for sequential execution |
+| `options`  | object | No       | Optional configuration |
+
+### `options`
+
+| Name             | Type    | Required | Description |
+|------------------|---------|----------|-------------|
+| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`) |
+| `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`) |
+| `cwd`            | string  | No       | Working directory for a single run |
 
 ## Agent Discovery
 

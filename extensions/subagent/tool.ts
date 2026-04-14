@@ -5,9 +5,9 @@ import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 import { type OnUpdateCallback, runSingleAgent } from "./runner.js";
 import {
+	AgentToolParams,
 	MAX_CONCURRENCY,
 	MAX_PARALLEL_TASKS,
-	SubagentParams,
 } from "./schemas.js";
 import type { SingleResult, SubagentDetails } from "./types.js";
 import {
@@ -38,11 +38,11 @@ interface RenderableResult {
 }
 
 interface RenderableArgs {
-	agentScope?: AgentScope;
-	chain?: Array<{ agent: string; task: string }>;
-	tasks?: Array<{ agent: string; task: string }>;
-	agent?: string;
-	task?: string;
+	options?: { scope?: AgentScope };
+	sequence?: Array<{ name: string; prompt: string }>;
+	parallel?: Array<{ name: string; prompt: string }>;
+	name?: string;
+	prompt?: string;
 }
 
 function getResultIcon(
@@ -75,21 +75,21 @@ function getParallelStatus(
 	if (failCount > 0) {
 		return {
 			icon: theme.fg("warning", "◐"),
-			text: `${successCount}/${total} tasks`,
+			text: `${successCount}/${total} runs`,
 		};
 	}
 	return {
 		icon: theme.fg("success", "✓"),
-		text: `${successCount}/${total} tasks`,
+		text: `${successCount}/${total} runs`,
 	};
 }
 
 function getCurrentMode(
-	hasChain: boolean,
-	hasTasks: boolean,
+	hasSequence: boolean,
+	hasParallel: boolean,
 ): "single" | "parallel" | "chain" {
-	if (hasChain) return "chain";
-	if (hasTasks) return "parallel";
+	if (hasSequence) return "chain";
+	if (hasParallel) return "parallel";
 	return "single";
 }
 
@@ -102,20 +102,20 @@ function getAvailableAgentsText(agents: AgentConfig[]): string {
 
 function confirmRequestedProjectAgents(
 	params: {
-		chain?: Array<{ agent: string }>;
-		tasks?: Array<{ agent: string }>;
-		agent?: string;
+		sequence?: Array<{ name: string }>;
+		parallel?: Array<{ name: string }>;
+		name?: string;
 	},
 	agents: AgentConfig[],
 ): AgentConfig[] {
 	const requestedAgentNames = new Set<string>();
-	if (params.chain) {
-		for (const step of params.chain) requestedAgentNames.add(step.agent);
+	if (params.sequence) {
+		for (const step of params.sequence) requestedAgentNames.add(step.name);
 	}
-	if (params.tasks) {
-		for (const task of params.tasks) requestedAgentNames.add(task.agent);
+	if (params.parallel) {
+		for (const task of params.parallel) requestedAgentNames.add(task.name);
 	}
-	if (params.agent) requestedAgentNames.add(params.agent);
+	if (params.name) requestedAgentNames.add(params.name);
 
 	return Array.from(requestedAgentNames)
 		.map((name) => agents.find((agent) => agent.name === name))
@@ -132,9 +132,9 @@ async function confirmProjectAgentsIfNeeded(
 	agents: AgentConfig[],
 	projectAgentsDir: string | null,
 	params: {
-		chain?: Array<{ agent: string }>;
-		tasks?: Array<{ agent: string }>;
-		agent?: string;
+		sequence?: Array<{ name: string }>;
+		parallel?: Array<{ name: string }>;
+		name?: string;
 	},
 ): Promise<boolean> {
 	if (
@@ -178,7 +178,7 @@ function createRunningResult(agent: string, task: string): SingleResult {
 
 async function executeChainMode(
 	ctx: { cwd: string },
-	params: { chain: Array<{ agent: string; task: string; cwd?: string }> },
+	params: { sequence: Array<{ name: string; prompt: string; cwd?: string }> },
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
@@ -187,9 +187,12 @@ async function executeChainMode(
 	const results: SingleResult[] = [];
 	let previousOutput = "";
 
-	for (let index = 0; index < params.chain.length; index++) {
-		const step = params.chain[index];
-		const taskWithContext = step.task.replace(/\{previous\}/g, previousOutput);
+	for (let index = 0; index < params.sequence.length; index++) {
+		const step = params.sequence[index];
+		const taskWithContext = step.prompt.replace(
+			/\{previous\}/g,
+			previousOutput,
+		);
 		const chainUpdate: OnUpdateCallback | undefined = onUpdate
 			? (partial) => {
 					const currentResult = partial.details?.results[0];
@@ -204,7 +207,7 @@ async function executeChainMode(
 		const result = await runSingleAgent(
 			ctx.cwd,
 			agents,
-			step.agent,
+			step.name,
 			taskWithContext,
 			step.cwd,
 			index + 1,
@@ -218,7 +221,7 @@ async function executeChainMode(
 				content: [
 					{
 						type: "text",
-						text: `Chain stopped at step ${index + 1} (${step.agent}): ${getResultOutput(result)}`,
+						text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}`,
 					},
 				],
 				details: makeDetails(results),
@@ -242,26 +245,26 @@ async function executeChainMode(
 
 async function executeParallelMode(
 	ctx: { cwd: string },
-	params: { tasks: Array<{ agent: string; task: string; cwd?: string }> },
+	params: { parallel: Array<{ name: string; prompt: string; cwd?: string }> },
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
 ) {
-	if (params.tasks.length > MAX_PARALLEL_TASKS) {
+	if (params.parallel.length > MAX_PARALLEL_TASKS) {
 		return {
 			content: [
 				{
 					type: "text",
-					text: `Too many parallel tasks (${params.tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
+					text: `Too many parallel runs (${params.parallel.length}). Max is ${MAX_PARALLEL_TASKS}.`,
 				},
 			],
 			details: makeDetails([]),
 		};
 	}
 
-	const allResults = params.tasks.map((task) =>
-		createRunningResult(task.agent, task.task),
+	const allResults = params.parallel.map((task) =>
+		createRunningResult(task.name, task.prompt),
 	);
 
 	function emitParallelUpdate(): void {
@@ -282,14 +285,14 @@ async function executeParallelMode(
 	}
 
 	const results = await mapWithConcurrencyLimit(
-		params.tasks,
+		params.parallel,
 		MAX_CONCURRENCY,
 		async (task, index) => {
 			const result = await runSingleAgent(
 				ctx.cwd,
 				agents,
-				task.agent,
-				task.task,
+				task.name,
+				task.prompt,
 				task.cwd,
 				undefined,
 				signal,
@@ -328,7 +331,7 @@ async function executeParallelMode(
 
 async function executeSingleMode(
 	ctx: { cwd: string },
-	params: { agent: string; task: string; cwd?: string },
+	params: { name: string; prompt: string; cwd?: string },
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
@@ -337,8 +340,8 @@ async function executeSingleMode(
 	const result = await runSingleAgent(
 		ctx.cwd,
 		agents,
-		params.agent,
-		params.task,
+		params.name,
+		params.prompt,
 		params.cwd,
 		undefined,
 		signal,
@@ -366,46 +369,46 @@ async function executeSingleMode(
 }
 
 function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
-	const scope: AgentScope = args.agentScope ?? "user";
-	if (args.chain?.length > 0) {
+	const scope: AgentScope = args.options?.scope ?? "user";
+	if (args.sequence?.length > 0) {
 		let text =
-			theme.fg("toolTitle", theme.bold("subagent ")) +
-			theme.fg("accent", `chain (${args.chain.length} steps)`) +
+			theme.fg("toolTitle", theme.bold("agent ")) +
+			theme.fg("accent", `sequence (${args.sequence.length} steps)`) +
 			theme.fg("muted", ` [${scope}]`);
-		for (let index = 0; index < Math.min(args.chain.length, 3); index++) {
-			const step = args.chain[index];
-			const cleanTask = step.task.replace(/\{previous\}/g, "").trim();
+		for (let index = 0; index < Math.min(args.sequence.length, 3); index++) {
+			const step = args.sequence[index];
+			const cleanTask = step.prompt.replace(/\{previous\}/g, "").trim();
 			const preview = truncateText(cleanTask, 40);
 			text +=
 				"\n  " +
 				theme.fg("muted", `${index + 1}.`) +
 				" " +
-				theme.fg("accent", step.agent) +
+				theme.fg("accent", step.name) +
 				theme.fg("dim", ` ${preview}`);
 		}
-		if (args.chain.length > 3) {
-			text += `\n  ${theme.fg("muted", `... +${args.chain.length - 3} more`)}`;
+		if (args.sequence.length > 3) {
+			text += `\n  ${theme.fg("muted", `... +${args.sequence.length - 3} more`)}`;
 		}
 		return new Text(text, 0, 0);
 	}
-	if (args.tasks?.length > 0) {
+	if (args.parallel?.length > 0) {
 		let text =
-			theme.fg("toolTitle", theme.bold("subagent ")) +
-			theme.fg("accent", `parallel (${args.tasks.length} tasks)`) +
+			theme.fg("toolTitle", theme.bold("agent ")) +
+			theme.fg("accent", `parallel (${args.parallel.length} runs)`) +
 			theme.fg("muted", ` [${scope}]`);
-		for (const task of args.tasks.slice(0, 3)) {
-			const preview = truncateText(task.task, 40);
-			text += `\n  ${theme.fg("accent", task.agent)}${theme.fg("dim", ` ${preview}`)}`;
+		for (const task of args.parallel.slice(0, 3)) {
+			const preview = truncateText(task.prompt, 40);
+			text += `\n  ${theme.fg("accent", task.name)}${theme.fg("dim", ` ${preview}`)}`;
 		}
-		if (args.tasks.length > 3) {
-			text += `\n  ${theme.fg("muted", `... +${args.tasks.length - 3} more`)}`;
+		if (args.parallel.length > 3) {
+			text += `\n  ${theme.fg("muted", `... +${args.parallel.length - 3} more`)}`;
 		}
 		return new Text(text, 0, 0);
 	}
-	const agentName = args.agent || "...";
-	const preview = args.task ? truncateText(args.task, 60) : "...";
+	const agentName = args.name || "...";
+	const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
 	let text =
-		theme.fg("toolTitle", theme.bold("subagent ")) +
+		theme.fg("toolTitle", theme.bold("agent ")) +
 		theme.fg("accent", agentName) +
 		theme.fg("muted", ` [${scope}]`);
 	text += `\n  ${theme.fg("dim", preview)}`;
@@ -458,7 +461,7 @@ function renderSingleResult(
 			);
 		}
 		container.addChild(new Spacer(1));
-		container.addChild(new Text(theme.fg("muted", "─── Task ───"), 0, 0));
+		container.addChild(new Text(theme.fg("muted", "─── Prompt ───"), 0, 0));
 		container.addChild(new Text(theme.fg("dim", result.task), 0, 0));
 		container.addChild(new Spacer(1));
 		container.addChild(new Text(theme.fg("muted", "─── Output ───"), 0, 0));
@@ -528,7 +531,7 @@ function renderChainResult(
 			new Text(
 				icon +
 					" " +
-					theme.fg("toolTitle", theme.bold("chain ")) +
+					theme.fg("toolTitle", theme.bold("sequence ")) +
 					theme.fg("accent", `${successCount}/${details.results.length} steps`),
 				0,
 				0,
@@ -548,7 +551,7 @@ function renderChainResult(
 			);
 			container.addChild(
 				new Text(
-					theme.fg("muted", "Task: ") + theme.fg("dim", result.task),
+					theme.fg("muted", "Prompt: ") + theme.fg("dim", result.task),
 					0,
 					0,
 				),
@@ -587,7 +590,7 @@ function renderChainResult(
 	let text =
 		icon +
 		" " +
-		theme.fg("toolTitle", theme.bold("chain ")) +
+		theme.fg("toolTitle", theme.bold("sequence ")) +
 		theme.fg("accent", `${successCount}/${details.results.length} steps`);
 	for (const result of details.results) {
 		const resultIcon = getResultIcon(theme, result);
@@ -652,7 +655,7 @@ function renderParallelResult(
 			);
 			container.addChild(
 				new Text(
-					theme.fg("muted", "Task: ") + theme.fg("dim", result.task),
+					theme.fg("muted", "Prompt: ") + theme.fg("dim", result.task),
 					0,
 					0,
 				),
@@ -730,27 +733,28 @@ function renderToolResult(
 	return new Text(getTextContent(result.content), 0, 0);
 }
 
-export function registerSubagentTool(pi: ExtensionAPI): void {
+export function registerAgentTool(pi: ExtensionAPI): void {
 	pi.registerTool({
-		name: "subagent",
-		label: "Subagent",
+		name: "agent",
+		label: "Agent",
 		description: [
-			"Delegate tasks to specialized subagents with isolated context.",
-			"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
-			'Default agent scope is "user" (from ~/.pi/agent/agents).',
-			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+			"Delegate work to specialized agents with isolated context.",
+			"Modes: single (name + prompt), parallel (parallel array), sequence (sequence array with {previous}).",
+			'Default scope is "user" (from ~/.pi/agent/agents).',
+			'To enable project-local agents in .pi/agents, set options.scope to "both" (or "project").',
 		].join(" "),
-		parameters: SubagentParams,
+		parameters: AgentToolParams,
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const agentScope: AgentScope = params.agentScope ?? "user";
+			const agentScope: AgentScope = params.options?.scope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;
-			const confirmProjectAgents = params.confirmProjectAgents ?? true;
-			const hasChain = (params.chain?.length ?? 0) > 0;
-			const hasTasks = (params.tasks?.length ?? 0) > 0;
-			const hasSingle = Boolean(params.agent && params.task);
-			const modeCount = Number(hasChain) + Number(hasTasks) + Number(hasSingle);
-			const currentMode = getCurrentMode(hasChain, hasTasks);
+			const confirmProjectAgents = params.options?.confirmProject ?? true;
+			const hasSequence = (params.sequence?.length ?? 0) > 0;
+			const hasParallel = (params.parallel?.length ?? 0) > 0;
+			const hasSingle = Boolean(params.name && params.prompt);
+			const modeCount =
+				Number(hasSequence) + Number(hasParallel) + Number(hasSingle);
+			const currentMode = getCurrentMode(hasSequence, hasParallel);
 
 			if (modeCount !== 1) {
 				return {
@@ -792,20 +796,20 @@ export function registerSubagentTool(pi: ExtensionAPI): void {
 				};
 			}
 
-			if (params.chain?.length) {
+			if (params.sequence?.length) {
 				return await executeChainMode(
 					ctx,
-					{ chain: params.chain },
+					{ sequence: params.sequence },
 					agents,
 					signal,
 					onUpdate,
 					createDetailsFactory("chain", agentScope, discovery.projectAgentsDir),
 				);
 			}
-			if (params.tasks?.length) {
+			if (params.parallel?.length) {
 				return await executeParallelMode(
 					ctx,
-					{ tasks: params.tasks },
+					{ parallel: params.parallel },
 					agents,
 					signal,
 					onUpdate,
@@ -816,10 +820,14 @@ export function registerSubagentTool(pi: ExtensionAPI): void {
 					),
 				);
 			}
-			if (params.agent && params.task) {
+			if (params.name && params.prompt) {
 				return await executeSingleMode(
 					ctx,
-					{ agent: params.agent, task: params.task, cwd: params.cwd },
+					{
+						name: params.name,
+						prompt: params.prompt,
+						cwd: params.options?.cwd,
+					},
 					agents,
 					signal,
 					onUpdate,

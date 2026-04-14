@@ -4,18 +4,18 @@ import { Type } from "@sinclair/typebox";
 export const MAX_PARALLEL_TASKS = 8;
 export const MAX_CONCURRENCY = 4;
 
-const TaskItem = Type.Object({
-	agent: Type.String({ description: "Name of the agent to invoke" }),
-	task: Type.String({ description: "Task to delegate to the agent" }),
+const AgentRunItem = Type.Object({
+	name: Type.String({ description: "Name of the agent to invoke" }),
+	prompt: Type.String({ description: "Prompt to send to the agent" }),
 	cwd: Type.Optional(
 		Type.String({ description: "Working directory for the agent process" }),
 	),
 });
 
-const ChainItem = Type.Object({
-	agent: Type.String({ description: "Name of the agent to invoke" }),
-	task: Type.String({
-		description: "Task with optional {previous} placeholder for prior output",
+const SequenceItem = Type.Object({
+	name: Type.String({ description: "Name of the agent to invoke" }),
+	prompt: Type.String({
+		description: "Prompt with optional {previous} placeholder for prior output",
 	}),
 	cwd: Type.Optional(
 		Type.String({ description: "Working directory for the agent process" }),
@@ -31,27 +31,9 @@ export const AgentScopeSchema = StringEnum(
 	},
 );
 
-export const SubagentParams = Type.Object({
-	agent: Type.Optional(
-		Type.String({
-			description: "Name of the agent to invoke (for single mode)",
-		}),
-	),
-	task: Type.Optional(
-		Type.String({ description: "Task to delegate (for single mode)" }),
-	),
-	tasks: Type.Optional(
-		Type.Array(TaskItem, {
-			description: "Array of {agent, task} for parallel execution",
-		}),
-	),
-	chain: Type.Optional(
-		Type.Array(ChainItem, {
-			description: "Array of {agent, task} for sequential execution",
-		}),
-	),
-	agentScope: Type.Optional(AgentScopeSchema),
-	confirmProjectAgents: Type.Optional(
+const AgentOptions = Type.Object({
+	scope: Type.Optional(AgentScopeSchema),
+	confirmProject: Type.Optional(
 		Type.Boolean({
 			description: "Prompt before running project-local agents. Default: true.",
 			default: true,
@@ -62,4 +44,28 @@ export const SubagentParams = Type.Object({
 			description: "Working directory for the agent process (single mode)",
 		}),
 	),
+});
+
+export const AgentToolParams = Type.Object({
+	name: Type.Optional(
+		Type.String({
+			description: "Name of the agent to invoke (for single run)",
+		}),
+	),
+	prompt: Type.Optional(
+		Type.String({
+			description: "Prompt to send to the agent (for single run)",
+		}),
+	),
+	parallel: Type.Optional(
+		Type.Array(AgentRunItem, {
+			description: "Array of {name, prompt} for parallel execution",
+		}),
+	),
+	sequence: Type.Optional(
+		Type.Array(SequenceItem, {
+			description: "Array of {name, prompt} for sequential execution",
+		}),
+	),
+	options: Type.Optional(AgentOptions),
 });

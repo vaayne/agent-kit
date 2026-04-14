@@ -64,7 +64,7 @@ async function confirmProjectAgentIfNeeded(
 function renderProgressLines(result: SingleResult): string[] {
 	const lines = [
 		`${formatAgentCommandName(result.agent)} running…`,
-		`Task: ${truncateText(result.task, 160)}`,
+		`Prompt: ${truncateText(result.task, 160)}`,
 	];
 	const displayItems = getDisplayItems(result.messages).slice(-8);
 
@@ -86,15 +86,15 @@ function updateCommandProgress(
 	result: SingleResult,
 ): void {
 	ctx.ui.setStatus?.(
-		"subagent-command",
+		"agent-command",
 		`${formatAgentCommandName(result.agent)} running…`,
 	);
-	ctx.ui.setWidget?.("subagent-command", renderProgressLines(result));
+	ctx.ui.setWidget?.("agent-command", renderProgressLines(result));
 }
 
 function clearCommandProgress(ctx: CommandContext): void {
-	ctx.ui.setStatus?.("subagent-command", undefined);
-	ctx.ui.setWidget?.("subagent-command", undefined);
+	ctx.ui.setStatus?.("agent-command", undefined);
+	ctx.ui.setWidget?.("agent-command", undefined);
 }
 
 function sendAgentCommandResult(
@@ -104,7 +104,7 @@ function sendAgentCommandResult(
 ): void {
 	const output = getResultOutput(result);
 	pi.sendMessage({
-		customType: "subagent-command",
+		customType: "agent-command",
 		content: output,
 		display: true,
 		details: {
@@ -165,9 +165,9 @@ async function runNamedAgentCommand(
 	}
 }
 
-export function registerSubagentCommandRenderer(pi: ExtensionAPI): void {
+export function registerAgentCommandRenderer(pi: ExtensionAPI): void {
 	pi.registerMessageRenderer(
-		"subagent-command",
+		"agent-command",
 		(message, { expanded }, theme) => {
 			const details = message.details as AgentCommandResultDetails | undefined;
 			if (!details) {
@@ -185,7 +185,7 @@ export function registerSubagentCommandRenderer(pi: ExtensionAPI): void {
 				const container = new Container();
 				container.addChild(new Text(header, 0, 0));
 				container.addChild(new Spacer(1));
-				container.addChild(new Text(theme.fg("muted", "Task:"), 0, 0));
+				container.addChild(new Text(theme.fg("muted", "Prompt:"), 0, 0));
 				container.addChild(new Text(theme.fg("dim", details.task), 0, 0));
 				if (isError && details.errorMessage) {
 					container.addChild(new Spacer(1));
@@ -219,7 +219,7 @@ export function registerSubagentCommandRenderer(pi: ExtensionAPI): void {
 	);
 }
 
-export function registerSubagentCommands(
+export function registerAgentCommands(
 	pi: ExtensionAPI,
 	getDiscoveredAgents: () => AgentConfig[],
 ): void {
@@ -229,7 +229,7 @@ export function registerSubagentCommands(
 		const discovery = discoverAgents(cwd, "both");
 		for (const agent of discovery.agents) {
 			if (!isCommandSafeAgentName(agent.name)) continue;
-			const commandName = `agents:${agent.name}`;
+			const commandName = `agent:${agent.name}`;
 			if (registeredAgentCommands.has(commandName)) continue;
 			registeredAgentCommands.add(commandName);
 			pi.registerCommand(commandName, {
@@ -237,7 +237,7 @@ export function registerSubagentCommands(
 				handler: async (args, ctx) => {
 					const task = args.trim();
 					if (!task) {
-						ctx.ui.notify(`Usage: /${commandName} <task>`, "warning");
+						ctx.ui.notify(`Usage: /${commandName} <prompt>`, "warning");
 						return;
 					}
 					await runNamedAgentCommand(pi, ctx, agent.name, task);
@@ -246,9 +246,9 @@ export function registerSubagentCommands(
 		}
 	}
 
-	pi.registerCommand("agents", {
+	pi.registerCommand("agent", {
 		description:
-			"Run a task with a named subagent: /agents <agent> <task>. Agent completions include each agent description.",
+			"Run a task with a named agent: /agent <name> <prompt>. Agent completions include each agent description.",
 		getArgumentCompletions: (prefix) => {
 			const items = getDiscoveredAgents()
 				.map((agent) => ({
@@ -266,7 +266,7 @@ export function registerSubagentCommands(
 						.map((agent) => agent.name)
 						.join(", ") || "none";
 				ctx.ui.notify(
-					`Usage: /agents <agent> <task>\nAvailable: ${available}`,
+					`Usage: /agent <name> <prompt>\nAvailable: ${available}`,
 					"warning",
 				);
 				return;
