@@ -44,13 +44,13 @@ Do NOT stop to:
 - **Write conventional commits with emoji**: Use small, focused commits with emoji-prefixed Conventional Commit messages (e.g., `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`).
   - AI agents MUST NOT add `Signed-off-by`; only humans may certify DCO.
   - Human submitters are responsible for review, licensing compliance, and adding their own `Signed-off-by`.
-  - When AI contributes, add `Assisted-by: AGENT_NAME:MODEL_VERSION [SPECIALIZED_TOOL...]`.
+  - When AI contributes, add `Assisted-by: AGENT_NAME:MODEL_VERSION [SPECIALIZED_TOOL...]` using the agent and model actually running in the current session; never guess or reuse another tool's identity.
   - List only specialized analysis tools such as `coccinelle`, `sparse`, `smatch`, or `clang-tidy`; never list basic tools like `git`, `gcc`, `make`, or editors.
   - Example:
     ```
     ✨ feat: add foo support
 
-    Assisted-by: ClaudeCode:claude-sonnet-4 coccinelle sparse
+    Assisted-by: pi:gpt-5.4
     ```
 - **Use relative paths in skill references**: When referencing external files from a skill, specify paths relative to the `SKILL.md` file location rather than using absolute paths or paths relative to the working directory.
 - **Clone repositories to `~/workspace`**: When cloning repositories locally, clone them under `~/workspace`. If the repository already exists there, reuse it instead of re-cloning.
