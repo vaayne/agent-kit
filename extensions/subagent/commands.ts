@@ -30,6 +30,37 @@ function buildAgentDelegationPrompt(agentName: string, task: string): string {
 	].join("\n");
 }
 
+function buildSwarmDelegationPrompt(task: string): string {
+	return [
+		"Run a lightweight multi-agent implementation swarm for this task.",
+		"",
+		"Use the current repository and conversation context. Do not ask for approval unless a genuine ambiguity would cause work contrary to user intent.",
+		"",
+		"Workflow:",
+		"1. Use the `agent` tool with `oracle` to create a concise implementation plan split into multiple phases.",
+		"2. Create a handoff file named `handoff-<slug>.md` in the repository root before implementation starts.",
+		"3. Record the plan, phase list, assumptions, constraints, and current status in that handoff file.",
+		"4. For each phase:",
+		"   - use `worker` to implement the phase",
+		"   - require the worker to read and update the handoff file with what changed, files touched, tests run, open issues, and next-step context",
+		"   - use `reviewer` to review the resulting changes using the updated handoff file as context",
+		"   - if reviewer finds issues, fix them before proceeding",
+		"   - update the handoff file again with review outcome and final phase status",
+		"   - commit the phase with a small focused emoji Conventional Commit message",
+		"5. Continue phase-by-phase until the whole task is complete.",
+		"6. At the end, update the handoff file with final status, validation performed, remaining follow-ups, and a concise summary.",
+		"",
+		"Requirements:",
+		"- Every subagent prompt must explicitly tell the subagent to read the current handoff file first and update it before finishing.",
+		"- Preserve context continuity through the handoff file so the next agent can continue without needing the full prior conversation.",
+		"- Keep this lighter than a full specs-driven workflow: concise plan, practical phase breakdown, no extra ceremony.",
+		'- Use `options.scope: "both"` for agent calls.',
+		"- Integrate results yourself and drive the loop to completion.",
+		"",
+		`Task: ${task}`,
+	].join("\n");
+}
+
 function getAvailableAgentsText(
 	getDiscoveredAgents: () => AgentConfig[],
 ): string {
@@ -94,6 +125,20 @@ export function registerAgentCommands(
 				ctx,
 				buildAgentDelegationPrompt(parsed.agent, parsed.task),
 			);
+		},
+	});
+
+	pi.registerCommand("agents-swarm", {
+		description:
+			"Run a lightweight oracle → worker → reviewer implementation swarm coordinated through a handoff-*.md file.",
+		handler: async (args, ctx) => {
+			const task = args.trim();
+			if (!task) {
+				ctx.ui.notify("Usage: /agents-swarm <task>", "warning");
+				return;
+			}
+
+			sendDelegationPrompt(pi, ctx, buildSwarmDelegationPrompt(task));
 		},
 	});
 }
