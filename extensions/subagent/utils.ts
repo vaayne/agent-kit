@@ -4,6 +4,23 @@ import type { DisplayItem, SingleResult, UsageStats } from "./types.js";
 
 export const COLLAPSED_ITEM_COUNT = 10;
 
+export function formatAgentCommandName(agentName: string): string {
+	return `/agents:${agentName}`;
+}
+
+export function truncateText(text: string, maxLength: number): string {
+	if (text.length <= maxLength) return text;
+	return `${text.slice(0, maxLength)}...`;
+}
+
+export function getTextContent(
+	content: Array<{ type: string; text?: string }> | undefined,
+): string {
+	const firstContent = content?.[0];
+	if (firstContent?.type !== "text") return "(no output)";
+	return firstContent.text ?? "(no output)";
+}
+
 export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
 	if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -46,17 +63,17 @@ export function formatToolCall(
 ): string {
 	function shortenPath(filePath: string): string {
 		const home = os.homedir();
-		return filePath.startsWith(home)
-			? `~${filePath.slice(home.length)}`
-			: filePath;
+		if (!filePath.startsWith(home)) return filePath;
+		return `~${filePath.slice(home.length)}`;
 	}
 
 	switch (toolName) {
 		case "bash": {
 			const command = (args.command as string) || "...";
-			const preview =
-				command.length > 60 ? `${command.slice(0, 60)}...` : command;
-			return themeFg("muted", "$ ") + themeFg("toolOutput", preview);
+			return (
+				themeFg("muted", "$ ") +
+				themeFg("toolOutput", truncateText(command, 60))
+			);
 		}
 		case "read": {
 			const rawPath = (args.file_path || args.path || "...") as string;
@@ -113,9 +130,10 @@ export function formatToolCall(
 		}
 		default: {
 			const argsText = JSON.stringify(args);
-			const preview =
-				argsText.length > 50 ? `${argsText.slice(0, 50)}...` : argsText;
-			return themeFg("accent", toolName) + themeFg("dim", ` ${preview}`);
+			return (
+				themeFg("accent", toolName) +
+				themeFg("dim", ` ${truncateText(argsText, 50)}`)
+			);
 		}
 	}
 }

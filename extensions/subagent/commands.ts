@@ -10,11 +10,13 @@ import type {
 	SubagentDetails,
 } from "./types.js";
 import {
+	formatAgentCommandName,
 	formatUsageStats,
 	getDisplayItems,
-	getFinalOutput,
+	getResultOutput,
 	isCommandSafeAgentName,
 	splitAgentTask,
+	truncateText,
 } from "./utils.js";
 
 interface CommandContext {
@@ -47,15 +49,6 @@ function createCommandDetails(
 	};
 }
 
-function getCommandResultOutput(result: SingleResult): string {
-	return (
-		getFinalOutput(result.messages) ||
-		result.errorMessage ||
-		result.stderr ||
-		"(no output)"
-	);
-}
-
 async function confirmProjectAgentIfNeeded(
 	ctx: CommandContext,
 	agent: AgentConfig,
@@ -70,8 +63,8 @@ async function confirmProjectAgentIfNeeded(
 
 function renderProgressLines(result: SingleResult): string[] {
 	const lines = [
-		`/${`agents:${result.agent}`} running…`,
-		`Task: ${result.task}`,
+		`${formatAgentCommandName(result.agent)} running…`,
+		`Task: ${truncateText(result.task, 160)}`,
 	];
 	const displayItems = getDisplayItems(result.messages).slice(-8);
 
@@ -94,7 +87,7 @@ function updateCommandProgress(
 ): void {
 	ctx.ui.setStatus?.(
 		"subagent-command",
-		`/${`agents:${result.agent}`} running…`,
+		`${formatAgentCommandName(result.agent)} running…`,
 	);
 	ctx.ui.setWidget?.("subagent-command", renderProgressLines(result));
 }
@@ -109,7 +102,7 @@ function sendAgentCommandResult(
 	result: SingleResult,
 	task: string,
 ): void {
-	const output = getCommandResultOutput(result);
+	const output = getResultOutput(result);
 	pi.sendMessage({
 		customType: "subagent-command",
 		content: output,
@@ -166,7 +159,6 @@ async function runNamedAgentCommand(
 			},
 			(results) => createCommandDetails(discovery.projectAgentsDir, results),
 		);
-		clearCommandProgress(ctx);
 		sendAgentCommandResult(pi, result, task);
 	} finally {
 		clearCommandProgress(ctx);
@@ -187,7 +179,7 @@ export function registerSubagentCommandRenderer(pi: ExtensionAPI): void {
 				details.stopReason === "error" ||
 				details.stopReason === "aborted";
 			const icon = isError ? theme.fg("error", "✗") : theme.fg("success", "✓");
-			const header = `${icon} ${theme.fg("toolTitle", theme.bold(`/agents:${details.agent}`))}${theme.fg("muted", ` (${details.agentSource})`)}`;
+			const header = `${icon} ${theme.fg("toolTitle", theme.bold(formatAgentCommandName(details.agent)))}${theme.fg("muted", ` (${details.agentSource})`)}`;
 
 			if (expanded) {
 				const container = new Container();
@@ -213,13 +205,13 @@ export function registerSubagentCommandRenderer(pi: ExtensionAPI): void {
 				return container;
 			}
 
+			const trimmedOutput = details.output.trim();
 			const previewLines =
-				details.output.trim().split("\n").slice(0, 6).join("\n") ||
-				"(no output)";
+				trimmedOutput.split("\n").slice(0, 6).join("\n") || "(no output)";
 			let text = `${header}\n${theme.fg("toolOutput", previewLines)}`;
 			const usage = formatUsageStats(details.usage, details.model);
 			if (usage) text += `\n${theme.fg("dim", usage)}`;
-			if (details.output.trim().split("\n").length > 6) {
+			if (trimmedOutput.split("\n").length > 6) {
 				text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
 			}
 			return new Text(text, 0, 0);

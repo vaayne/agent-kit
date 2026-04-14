@@ -19,8 +19,10 @@ import {
 	getDisplayItems,
 	getFinalOutput,
 	getResultOutput,
+	getTextContent,
 	isResultError,
 	mapWithConcurrencyLimit,
+	truncateText,
 } from "./utils.js";
 
 type ToolUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
@@ -41,6 +43,54 @@ interface RenderableArgs {
 	tasks?: Array<{ agent: string; task: string }>;
 	agent?: string;
 	task?: string;
+}
+
+function getResultIcon(
+	theme: ThemeLike,
+	result: Pick<SingleResult, "exitCode" | "stopReason">,
+): string {
+	return isResultError(result)
+		? theme.fg("error", "✗")
+		: theme.fg("success", "✓");
+}
+
+function getParallelResultIcon(theme: ThemeLike, result: SingleResult): string {
+	if (result.exitCode === -1) return theme.fg("warning", "⏳");
+	return getResultIcon(theme, result);
+}
+
+function getParallelStatus(
+	theme: ThemeLike,
+	running: number,
+	successCount: number,
+	failCount: number,
+	total: number,
+): { icon: string; text: string } {
+	if (running > 0) {
+		return {
+			icon: theme.fg("warning", "⏳"),
+			text: `${successCount + failCount}/${total} done, ${running} running`,
+		};
+	}
+	if (failCount > 0) {
+		return {
+			icon: theme.fg("warning", "◐"),
+			text: `${successCount}/${total} tasks`,
+		};
+	}
+	return {
+		icon: theme.fg("success", "✓"),
+		text: `${successCount}/${total} tasks`,
+	};
+}
+
+function getCurrentMode(
+	hasChain: boolean,
+	hasTasks: boolean,
+): "single" | "parallel" | "chain" {
+	if (hasChain) return "chain";
+	if (hasTasks) return "parallel";
+	return "single";
 }
 
 function getAvailableAgentsText(agents: AgentConfig[]): string {
@@ -260,8 +310,9 @@ async function executeParallelMode(
 	const successCount = results.filter((result) => result.exitCode === 0).length;
 	const summaries = results.map((result) => {
 		const output = getFinalOutput(result.messages);
-		const preview = output.slice(0, 100) + (output.length > 100 ? "..." : "");
-		return `[${result.agent}] ${result.exitCode === 0 ? "completed" : "failed"}: ${preview || "(no output)"}`;
+		const preview = truncateText(output, 100);
+		const status = result.exitCode === 0 ? "completed" : "failed";
+		return `[${result.agent}] ${status}: ${preview || "(no output)"}`;
 	});
 
 	return {
@@ -324,8 +375,7 @@ function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 		for (let index = 0; index < Math.min(args.chain.length, 3); index++) {
 			const step = args.chain[index];
 			const cleanTask = step.task.replace(/\{previous\}/g, "").trim();
-			const preview =
-				cleanTask.length > 40 ? `${cleanTask.slice(0, 40)}...` : cleanTask;
+			const preview = truncateText(cleanTask, 40);
 			text +=
 				"\n  " +
 				theme.fg("muted", `${index + 1}.`) +
@@ -344,8 +394,7 @@ function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 			theme.fg("accent", `parallel (${args.tasks.length} tasks)`) +
 			theme.fg("muted", ` [${scope}]`);
 		for (const task of args.tasks.slice(0, 3)) {
-			const preview =
-				task.task.length > 40 ? `${task.task.slice(0, 40)}...` : task.task;
+			const preview = truncateText(task.task, 40);
 			text += `\n  ${theme.fg("accent", task.agent)}${theme.fg("dim", ` ${preview}`)}`;
 		}
 		if (args.tasks.length > 3) {
@@ -354,11 +403,7 @@ function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 		return new Text(text, 0, 0);
 	}
 	const agentName = args.agent || "...";
-	const preview = args.task
-		? args.task.length > 60
-			? `${args.task.slice(0, 60)}...`
-			: args.task
-		: "...";
+	const preview = args.task ? truncateText(args.task, 60) : "...";
 	let text =
 		theme.fg("toolTitle", theme.bold("subagent ")) +
 		theme.fg("accent", agentName) +
@@ -397,7 +442,7 @@ function renderSingleResult(
 ) {
 	const result = details.results[0];
 	const isError = isResultError(result);
-	const icon = isError ? theme.fg("error", "✗") : theme.fg("success", "✓");
+	const icon = getResultIcon(theme, result);
 	const displayItems = getDisplayItems(result.messages);
 	const finalOutput = getFinalOutput(result.messages);
 
@@ -490,10 +535,7 @@ function renderChainResult(
 			),
 		);
 		for (const result of details.results) {
-			const resultIcon =
-				result.exitCode === 0
-					? theme.fg("success", "✓")
-					: theme.fg("error", "✗");
+			const resultIcon = getResultIcon(theme, result);
 			const displayItems = getDisplayItems(result.messages);
 			const finalOutput = getFinalOutput(result.messages);
 			container.addChild(new Spacer(1));
@@ -548,8 +590,7 @@ function renderChainResult(
 		theme.fg("toolTitle", theme.bold("chain ")) +
 		theme.fg("accent", `${successCount}/${details.results.length} steps`);
 	for (const result of details.results) {
-		const resultIcon =
-			result.exitCode === 0 ? theme.fg("success", "✓") : theme.fg("error", "✗");
+		const resultIcon = getResultIcon(theme, result);
 		const displayItems = getDisplayItems(result.messages);
 		text += `\n\n${theme.fg("muted", `─── Step ${result.step}: `)}${theme.fg("accent", result.agent)} ${resultIcon}`;
 		text +=
@@ -578,14 +619,15 @@ function renderParallelResult(
 		(result) => result.exitCode > 0,
 	).length;
 	const isRunning = running > 0;
-	const icon = isRunning
-		? theme.fg("warning", "⏳")
-		: failCount > 0
-			? theme.fg("warning", "◐")
-			: theme.fg("success", "✓");
-	const status = isRunning
-		? `${successCount + failCount}/${details.results.length} done, ${running} running`
-		: `${successCount}/${details.results.length} tasks`;
+	const parallelStatus = getParallelStatus(
+		theme,
+		running,
+		successCount,
+		failCount,
+		details.results.length,
+	);
+	const icon = parallelStatus.icon;
+	const status = parallelStatus.text;
 
 	if (expanded && !isRunning) {
 		const container = new Container();
@@ -597,10 +639,7 @@ function renderParallelResult(
 			),
 		);
 		for (const result of details.results) {
-			const resultIcon =
-				result.exitCode === 0
-					? theme.fg("success", "✓")
-					: theme.fg("error", "✗");
+			const resultIcon = getResultIcon(theme, result);
 			const displayItems = getDisplayItems(result.messages);
 			const finalOutput = getFinalOutput(result.messages);
 			container.addChild(new Spacer(1));
@@ -651,16 +690,13 @@ function renderParallelResult(
 
 	let text = `${icon} ${theme.fg("toolTitle", theme.bold("parallel "))}${theme.fg("accent", status)}`;
 	for (const result of details.results) {
-		const resultIcon =
-			result.exitCode === -1
-				? theme.fg("warning", "⏳")
-				: result.exitCode === 0
-					? theme.fg("success", "✓")
-					: theme.fg("error", "✗");
+		const resultIcon = getParallelResultIcon(theme, result);
 		const displayItems = getDisplayItems(result.messages);
 		text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", result.agent)} ${resultIcon}`;
 		if (displayItems.length === 0) {
-			text += `\n${theme.fg("muted", result.exitCode === -1 ? "(running...)" : "(no output)")}`;
+			const emptyState =
+				result.exitCode === -1 ? "(running...)" : "(no output)";
+			text += `\n${theme.fg("muted", emptyState)}`;
 		} else {
 			text += `\n${renderDisplayItems(displayItems, expanded, theme, 5)}`;
 		}
@@ -680,12 +716,7 @@ function renderToolResult(
 ) {
 	const details = result.details as SubagentDetails | undefined;
 	if (!details || details.results.length === 0) {
-		const content = result.content[0];
-		return new Text(
-			content?.type === "text" ? content.text : "(no output)",
-			0,
-			0,
-		);
+		return new Text(getTextContent(result.content), 0, 0);
 	}
 	if (details.mode === "single" && details.results.length === 1) {
 		return renderSingleResult(details, options.expanded, theme);
@@ -696,12 +727,7 @@ function renderToolResult(
 	if (details.mode === "parallel") {
 		return renderParallelResult(details, options.expanded, theme);
 	}
-	const content = result.content[0];
-	return new Text(
-		content?.type === "text" ? content.text : "(no output)",
-		0,
-		0,
-	);
+	return new Text(getTextContent(result.content), 0, 0);
 }
 
 export function registerSubagentTool(pi: ExtensionAPI): void {
@@ -724,7 +750,7 @@ export function registerSubagentTool(pi: ExtensionAPI): void {
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
 			const hasSingle = Boolean(params.agent && params.task);
 			const modeCount = Number(hasChain) + Number(hasTasks) + Number(hasSingle);
-			const currentMode = hasChain ? "chain" : hasTasks ? "parallel" : "single";
+			const currentMode = getCurrentMode(hasChain, hasTasks);
 
 			if (modeCount !== 1) {
 				return {
