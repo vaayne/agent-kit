@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
+import type { ThinkingLevel } from "./types.js";
 
 export type AgentScope = "user" | "project" | "both";
 
@@ -14,6 +15,7 @@ export interface AgentConfig {
 	description: string;
 	tools?: string[];
 	model?: string;
+	thinking?: ThinkingLevel;
 	systemPrompt: string;
 	source: "user" | "project";
 	filePath: string;
@@ -53,8 +55,13 @@ function loadAgentsFromDir(
 			continue;
 		}
 
-		const { frontmatter, body } =
-			parseFrontmatter<Record<string, string>>(content);
+		const { frontmatter, body } = parseFrontmatter<{
+			name?: string;
+			description?: string;
+			tools?: string;
+			model?: string;
+			thinking?: ThinkingLevel;
+		}>(content);
 
 		if (!frontmatter.name || !frontmatter.description) {
 			continue;
@@ -70,6 +77,7 @@ function loadAgentsFromDir(
 			description: frontmatter.description,
 			tools: tools && tools.length > 0 ? tools : undefined,
 			model: frontmatter.model,
+			thinking: frontmatter.thinking,
 			systemPrompt: body,
 			source,
 			filePath,

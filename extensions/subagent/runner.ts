@@ -5,7 +5,7 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
-import type { SingleResult, SubagentDetails } from "./types.js";
+import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 
 interface JsonEvent {
@@ -28,6 +28,30 @@ function writePromptToTempFile(
 	return { dir: tempDir, filePath };
 }
 
+function splitModelThinking(model: string | undefined): {
+	model: string | undefined;
+	thinking: ThinkingLevel | undefined;
+} {
+	if (!model) return { model: undefined, thinking: undefined };
+	const match = model.match(/^(.*):(off|minimal|low|medium|high|xhigh)$/);
+	if (!match) return { model, thinking: undefined };
+	return {
+		model: match[1],
+		thinking: match[2] as ThinkingLevel,
+	};
+}
+
+function resolveRunModel(agent: AgentConfig, overrides?: {
+	model?: string;
+	thinking?: ThinkingLevel;
+}): { model?: string; thinking?: ThinkingLevel; label?: string } {
+	const base = splitModelThinking(overrides?.model ?? agent.model);
+	const model = base.model;
+	const thinking = overrides?.thinking ?? base.thinking ?? agent.thinking;
+	const label = model ? `${model}${thinking ? `:${thinking}` : ""}` : undefined;
+	return { model, thinking, label };
+}
+
 export async function runSingleAgent(
 	defaultCwd: string,
 	agents: AgentConfig[],
@@ -38,6 +62,7 @@ export async function runSingleAgent(
 	signal: AbortSignal | undefined,
 	onUpdate: OnUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	overrides?: { model?: string; thinking?: ThinkingLevel },
 ): Promise<SingleResult> {
 	const agent = agents.find((candidate) => candidate.name === agentName);
 	if (!agent) {
@@ -53,8 +78,10 @@ export async function runSingleAgent(
 		};
 	}
 
+	const resolvedModel = resolveRunModel(agent, overrides);
 	const args: string[] = ["--mode", "json", "-p", "--no-session"];
-	if (agent.model) args.push("--model", agent.model);
+	if (resolvedModel.model) args.push("--model", resolvedModel.model);
+	if (resolvedModel.thinking) args.push("--thinking", resolvedModel.thinking);
 	if (agent.tools && agent.tools.length > 0) {
 		args.push("--tools", agent.tools.join(","));
 	}
@@ -67,7 +94,7 @@ export async function runSingleAgent(
 		messages: [],
 		stderr: "",
 		usage: createEmptyUsageStats(),
-		model: agent.model,
+		model: resolvedModel.label,
 		step,
 	};
 

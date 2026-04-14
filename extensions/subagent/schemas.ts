@@ -4,12 +4,24 @@ import { Type } from "@sinclair/typebox";
 export const MAX_PARALLEL_TASKS = 8;
 export const MAX_CONCURRENCY = 4;
 
+export const ThinkingLevelSchema = StringEnum(
+	["off", "minimal", "low", "medium", "high", "xhigh"] as const,
+	{
+		description:
+			"Thinking level override: off, minimal, low, medium, high, or xhigh.",
+	},
+);
+
 const AgentRunItem = Type.Object({
 	name: Type.String({ description: "Name of the agent to invoke" }),
 	prompt: Type.String({ description: "Prompt to send to the agent" }),
 	cwd: Type.Optional(
 		Type.String({ description: "Working directory for the agent process" }),
 	),
+	model: Type.Optional(
+		Type.String({ description: "Model override for this run" }),
+	),
+	thinking: Type.Optional(ThinkingLevelSchema),
 });
 
 const SequenceItem = Type.Object({
@@ -20,6 +32,10 @@ const SequenceItem = Type.Object({
 	cwd: Type.Optional(
 		Type.String({ description: "Working directory for the agent process" }),
 	),
+	model: Type.Optional(
+		Type.String({ description: "Model override for this step" }),
+	),
+	thinking: Type.Optional(ThinkingLevelSchema),
 });
 
 export const AgentScopeSchema = StringEnum(
@@ -44,6 +60,13 @@ const AgentOptions = Type.Object({
 			description: "Working directory for the agent process (single mode)",
 		}),
 	),
+	model: Type.Optional(
+		Type.String({
+			description:
+				"Default model override for all runs in this tool call. Per-run model wins.",
+		}),
+	),
+	thinking: Type.Optional(ThinkingLevelSchema),
 });
 
 export const AgentToolParams = Type.Object({

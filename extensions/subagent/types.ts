@@ -1,6 +1,14 @@
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentScope } from "./agents.js";
 
+export type ThinkingLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
 export interface UsageStats {
   input: number;
   output: number;

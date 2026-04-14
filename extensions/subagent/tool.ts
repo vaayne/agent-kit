@@ -9,7 +9,7 @@ import {
 	MAX_CONCURRENCY,
 	MAX_PARALLEL_TASKS,
 } from "./schemas.js";
-import type { SingleResult, SubagentDetails } from "./types.js";
+import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import {
 	aggregateUsage,
 	COLLAPSED_ITEM_COUNT,
@@ -164,7 +164,11 @@ function createDetailsFactory(
 	return (results) => ({ mode, agentScope, projectAgentsDir, results });
 }
 
-function createRunningResult(agent: string, task: string): SingleResult {
+function createRunningResult(
+	agent: string,
+	task: string,
+	overrides?: { model?: string; thinking?: ThinkingLevel },
+): SingleResult {
 	return {
 		agent,
 		agentSource: "unknown",
@@ -173,16 +177,28 @@ function createRunningResult(agent: string, task: string): SingleResult {
 		messages: [],
 		stderr: "",
 		usage: createEmptyUsageStats(),
+		model: overrides?.model
+			? `${overrides.model}${overrides.thinking ? `:${overrides.thinking}` : ""}`
+			: undefined,
 	};
 }
 
 async function executeChainMode(
 	ctx: { cwd: string },
-	params: { sequence: Array<{ name: string; prompt: string; cwd?: string }> },
+	params: {
+		sequence: Array<{
+			name: string;
+			prompt: string;
+			cwd?: string;
+			model?: string;
+			thinking?: ThinkingLevel;
+		}>;
+	},
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	defaultOverrides?: { model?: string; thinking?: ThinkingLevel },
 ) {
 	const results: SingleResult[] = [];
 	let previousOutput = "";
@@ -214,6 +230,10 @@ async function executeChainMode(
 			signal,
 			chainUpdate,
 			makeDetails,
+			{
+				model: step.model ?? defaultOverrides?.model,
+				thinking: step.thinking ?? defaultOverrides?.thinking,
+			},
 		);
 		results.push(result);
 		if (isResultError(result)) {
@@ -245,11 +265,20 @@ async function executeChainMode(
 
 async function executeParallelMode(
 	ctx: { cwd: string },
-	params: { parallel: Array<{ name: string; prompt: string; cwd?: string }> },
+	params: {
+		parallel: Array<{
+			name: string;
+			prompt: string;
+			cwd?: string;
+			model?: string;
+			thinking?: ThinkingLevel;
+		}>;
+	},
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	defaultOverrides?: { model?: string; thinking?: ThinkingLevel },
 ) {
 	if (params.parallel.length > MAX_PARALLEL_TASKS) {
 		return {
@@ -264,7 +293,10 @@ async function executeParallelMode(
 	}
 
 	const allResults = params.parallel.map((task) =>
-		createRunningResult(task.name, task.prompt),
+		createRunningResult(task.name, task.prompt, {
+			model: task.model ?? defaultOverrides?.model,
+			thinking: task.thinking ?? defaultOverrides?.thinking,
+		}),
 	);
 
 	function emitParallelUpdate(): void {
@@ -303,6 +335,10 @@ async function executeParallelMode(
 					emitParallelUpdate();
 				},
 				makeDetails,
+				{
+					model: task.model ?? defaultOverrides?.model,
+					thinking: task.thinking ?? defaultOverrides?.thinking,
+				},
 			);
 			allResults[index] = result;
 			emitParallelUpdate();
@@ -331,7 +367,13 @@ async function executeParallelMode(
 
 async function executeSingleMode(
 	ctx: { cwd: string },
-	params: { name: string; prompt: string; cwd?: string },
+	params: {
+		name: string;
+		prompt: string;
+		cwd?: string;
+		model?: string;
+		thinking?: ThinkingLevel;
+	},
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
@@ -347,6 +389,7 @@ async function executeSingleMode(
 		signal,
 		onUpdate,
 		makeDetails,
+		{ model: params.model, thinking: params.thinking },
 	);
 	if (isResultError(result)) {
 		return {
@@ -370,13 +413,14 @@ async function executeSingleMode(
 
 function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 	const scope: AgentScope = args.options?.scope ?? "user";
-	if (args.sequence?.length > 0) {
+	const sequence = args.sequence;
+	if (sequence && sequence.length > 0) {
 		let text =
 			theme.fg("toolTitle", theme.bold("agent ")) +
-			theme.fg("accent", `sequence (${args.sequence.length} steps)`) +
+			theme.fg("accent", `sequence (${sequence.length} steps)`) +
 			theme.fg("muted", ` [${scope}]`);
-		for (let index = 0; index < Math.min(args.sequence.length, 3); index++) {
-			const step = args.sequence[index];
+		for (let index = 0; index < Math.min(sequence.length, 3); index++) {
+			const step = sequence[index];
 			const cleanTask = step.prompt.replace(/\{previous\}/g, "").trim();
 			const preview = truncateText(cleanTask, 40);
 			text +=
@@ -386,22 +430,23 @@ function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 				theme.fg("accent", step.name) +
 				theme.fg("dim", ` ${preview}`);
 		}
-		if (args.sequence.length > 3) {
-			text += `\n  ${theme.fg("muted", `... +${args.sequence.length - 3} more`)}`;
+		if (sequence.length > 3) {
+			text += `\n  ${theme.fg("muted", `... +${sequence.length - 3} more`)}`;
 		}
 		return new Text(text, 0, 0);
 	}
-	if (args.parallel?.length > 0) {
+	const parallel = args.parallel;
+	if (parallel && parallel.length > 0) {
 		let text =
 			theme.fg("toolTitle", theme.bold("agent ")) +
-			theme.fg("accent", `parallel (${args.parallel.length} runs)`) +
+			theme.fg("accent", `parallel (${parallel.length} runs)`) +
 			theme.fg("muted", ` [${scope}]`);
-		for (const task of args.parallel.slice(0, 3)) {
+		for (const task of parallel.slice(0, 3)) {
 			const preview = truncateText(task.prompt, 40);
 			text += `\n  ${theme.fg("accent", task.name)}${theme.fg("dim", ` ${preview}`)}`;
 		}
-		if (args.parallel.length > 3) {
-			text += `\n  ${theme.fg("muted", `... +${args.parallel.length - 3} more`)}`;
+		if (parallel.length > 3) {
+			text += `\n  ${theme.fg("muted", `... +${parallel.length - 3} more`)}`;
 		}
 		return new Text(text, 0, 0);
 	}
@@ -742,6 +787,7 @@ export function registerAgentTool(pi: ExtensionAPI): void {
 			"Modes: single (name + prompt), parallel (parallel array), sequence (sequence array with {previous}).",
 			'Default scope is "user" (from ~/.pi/agent/agents).',
 			'To enable project-local agents in .pi/agents, set options.scope to "both" (or "project").',
+			"You can override an agent's default model and thinking level at runtime via options.model/options.thinking or per-run fields.",
 		].join(" "),
 		parameters: AgentToolParams,
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
@@ -804,6 +850,10 @@ export function registerAgentTool(pi: ExtensionAPI): void {
 					signal,
 					onUpdate,
 					createDetailsFactory("chain", agentScope, discovery.projectAgentsDir),
+					{
+						model: params.options?.model,
+						thinking: params.options?.thinking,
+					},
 				);
 			}
 			if (params.parallel?.length) {
@@ -818,6 +868,10 @@ export function registerAgentTool(pi: ExtensionAPI): void {
 						agentScope,
 						discovery.projectAgentsDir,
 					),
+					{
+						model: params.options?.model,
+						thinking: params.options?.thinking,
+					},
 				);
 			}
 			if (params.name && params.prompt) {
@@ -827,6 +881,8 @@ export function registerAgentTool(pi: ExtensionAPI): void {
 						name: params.name,
 						prompt: params.prompt,
 						cwd: params.options?.cwd,
+						model: params.options?.model,
+						thinking: params.options?.thinking,
 					},
 					agents,
 					signal,

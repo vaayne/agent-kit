@@ -42,6 +42,19 @@ Run one agent with one prompt.
 }
 ```
 
+Override the agent's default model at runtime:
+
+```json
+{
+  "name": "reviewer",
+  "prompt": "Audit the current diff for correctness risks",
+  "options": {
+    "model": "openai-codex/gpt-5.4",
+    "thinking": "high"
+  }
+}
+```
+
 ### Parallel Runs
 
 Run multiple agents concurrently.
@@ -51,6 +64,27 @@ Run multiple agents concurrently.
   "parallel": [
     { "name": "worker", "prompt": "Task 1" },
     { "name": "reviewer", "prompt": "Task 2" }
+  ]
+}
+```
+
+Per-run overrides are also supported in parallel mode:
+
+```json
+{
+  "parallel": [
+    {
+      "name": "worker",
+      "prompt": "Task 1",
+      "model": "google/gemini-2.5-pro",
+      "thinking": "medium"
+    },
+    {
+      "name": "reviewer",
+      "prompt": "Task 2",
+      "model": "openai-codex/gpt-5.4",
+      "thinking": "high"
+    }
   ]
 }
 ```
@@ -70,23 +104,27 @@ Run agents sequentially, passing output to the next step via `{previous}`.
 
 ## Parameters
 
-| Name       | Type   | Required | Description                                        |
-| ---------- | ------ | -------- | -------------------------------------------------- |
-| `name`     | string | No       | Agent name for a single run                        |
-| `prompt`   | string | No       | Prompt for a single run                            |
-| `parallel` | array  | No       | Array of `{name, prompt}` for parallel execution   |
-| `sequence` | array  | No       | Array of `{name, prompt}` for sequential execution |
-| `options`  | object | No       | Optional configuration                             |
+| Name       | Type   | Required | Description                                                            |
+| ---------- | ------ | -------- | ---------------------------------------------------------------------- |
+| `name`     | string | No       | Agent name for a single run                                            |
+| `prompt`   | string | No       | Prompt for a single run                                                |
+| `parallel` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs   |
+| `sequence` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs |
+| `options`  | object | No       | Optional configuration                                                 |
 
 ### `options`
 
-| Name             | Type    | Required | Description                                            |
-| ---------------- | ------- | -------- | ------------------------------------------------------ |
-| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`)         |
-| `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`) |
-| `cwd`            | string  | No       | Working directory for a single run                     |
+| Name             | Type    | Required | Description                                                   |
+| ---------------- | ------- | -------- | ------------------------------------------------------------- |
+| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`)                |
+| `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`)        |
+| `cwd`            | string  | No       | Working directory for a single run                            |
+| `model`          | string  | No       | Default model override for the whole tool call                |
+| `thinking`       | string  | No       | Default thinking override: `off|minimal|low|medium|high|xhigh` |
 
 ## Agent Discovery
+
+Agent frontmatter may define default `model` and `thinking`, but both can now be overridden at runtime through tool parameters.
 
 Agents are discovered from:
 
