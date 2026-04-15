@@ -101,7 +101,7 @@ function buildSavedSession(
 		sessionId,
 		agent: config.agent,
 		agentSource: config.agentSource,
-		cwd: config.cwd,
+		cwd: path.resolve(config.cwd),
 		model: config.model,
 		thinking: config.thinking,
 		tools: config.tools,

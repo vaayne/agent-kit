@@ -3,18 +3,35 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { SavedSubagentSession } from "./types.js";
 
+// UUID pattern for session ID validation (prevents path traversal)
+const SESSION_ID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidSessionId(sessionId: string): boolean {
+	return SESSION_ID_PATTERN.test(sessionId);
+}
+
 function getSessionStoreDir(): string {
 	return path.join(os.homedir(), ".pi", "agent", "subagent-sessions");
 }
 
-function getSessionStorePath(sessionId: string): string {
+function getSessionStorePath(sessionId: string): string | null {
+	if (!isValidSessionId(sessionId)) {
+		return null;
+	}
 	return path.join(getSessionStoreDir(), `${sessionId}.json`);
 }
 
 export function saveSubagentSession(metadata: SavedSubagentSession): void {
+	if (!isValidSessionId(metadata.sessionId)) {
+		throw new Error(`Invalid session ID format: ${metadata.sessionId}`);
+	}
 	const dir = getSessionStoreDir();
 	fs.mkdirSync(dir, { recursive: true });
 	const filePath = getSessionStorePath(metadata.sessionId);
+	if (!filePath) {
+		throw new Error(`Invalid session ID: ${metadata.sessionId}`);
+	}
 	const tempPath = `${filePath}.tmp`;
 	fs.writeFileSync(tempPath, JSON.stringify(metadata, null, 2), "utf-8");
 	fs.renameSync(tempPath, filePath);
@@ -23,8 +40,11 @@ export function saveSubagentSession(metadata: SavedSubagentSession): void {
 export function loadSubagentSession(
 	sessionId: string,
 ): SavedSubagentSession | null {
+	if (!isValidSessionId(sessionId)) {
+		return null;
+	}
 	const filePath = getSessionStorePath(sessionId);
-	if (!fs.existsSync(filePath)) {
+	if (!filePath || !fs.existsSync(filePath)) {
 		return null;
 	}
 
