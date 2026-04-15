@@ -30,6 +30,29 @@ function buildAgentDelegationPrompt(agentName: string, task: string): string {
 	].join("\n");
 }
 
+function buildResumeDelegationPrompt(sessionId: string, task: string): string {
+	return [
+		"Use the `agent` tool to resume a prior subagent session.",
+		"",
+		"Do not pass the raw slash-command prompt through unchanged.",
+		"First rewrite it into a self-contained follow-up prompt that is aware of the current session context, including:",
+		"- the current conversation and user goal",
+		"- the current repository and working directory",
+		"- files already discussed, inspected, or modified",
+		"- constraints, preferences, and decisions already established",
+		"- the expected output from the resumed subagent",
+		"",
+		"Keep the rewritten prompt concise, but include enough context for the subagent to continue effectively without seeing the full conversation.",
+		"",
+		"Then call the `agent` tool with:",
+		`{ "sessionId": "${sessionId}", "prompt": "<your rewritten prompt>", "options": { "scope": "both" } }`,
+		"",
+		"After the tool returns, continue normally and integrate the resumed subagent result into your response.",
+		"",
+		`Raw slash-command request: ${task}`,
+	].join("\n");
+}
+
 function buildSwarmDelegationPrompt(task: string): string {
 	return [
 		"Run a lightweight multi-agent implementation swarm for this task.",
@@ -124,6 +147,32 @@ export function registerAgentCommands(
 				pi,
 				ctx,
 				buildAgentDelegationPrompt(parsed.agent, parsed.task),
+			);
+		},
+	});
+
+	pi.registerCommand("agent-resume", {
+		description:
+			"Resume a saved subagent session via the main agent: /agent-resume <session-id> <prompt>.",
+		handler: async (args, ctx) => {
+			const trimmed = args.trim();
+			const firstSpace = trimmed.search(/\s/);
+			if (!trimmed || firstSpace === -1) {
+				ctx.ui.notify("Usage: /agent-resume <session-id> <prompt>", "warning");
+				return;
+			}
+
+			const sessionId = trimmed.slice(0, firstSpace).trim();
+			const task = trimmed.slice(firstSpace).trim();
+			if (!sessionId || !task) {
+				ctx.ui.notify("Usage: /agent-resume <session-id> <prompt>", "warning");
+				return;
+			}
+
+			sendDelegationPrompt(
+				pi,
+				ctx,
+				buildResumeDelegationPrompt(sessionId, task),
 			);
 		},
 	});

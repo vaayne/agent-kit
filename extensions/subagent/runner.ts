@@ -5,13 +5,32 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
-import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
+import { saveSubagentSession } from "./session-store.js";
+import type {
+	SavedSubagentSession,
+	SingleResult,
+	SubagentDetails,
+	ThinkingLevel,
+} from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 
 type JsonEvent = {
 	type?: string;
 	message?: Message;
 	id?: string;
+};
+
+type RunConfig = {
+	agent: string;
+	agentSource: "user" | "project" | "unknown";
+	task: string;
+	cwd: string;
+	model?: string;
+	thinking?: ThinkingLevel;
+	tools?: string[];
+	systemPrompt: string;
+	step?: number;
+	resumeSessionId?: string;
 };
 
 export type OnUpdateCallback = (
@@ -57,52 +76,56 @@ function resolveRunModel(
 	return { model: base.model, thinking, label };
 }
 
-export async function runSingleAgent(
-	defaultCwd: string,
-	agents: AgentConfig[],
-	agentName: string,
-	task: string,
-	cwd: string | undefined,
-	step: number | undefined,
-	signal: AbortSignal | undefined,
-	onUpdate: OnUpdateCallback | undefined,
-	makeDetails: (results: SingleResult[]) => SubagentDetails,
-	overrides?: { model?: string; thinking?: ThinkingLevel },
-): Promise<SingleResult> {
-	const agent = agents.find((candidate) => candidate.name === agentName);
-	if (!agent) {
-		return {
-			agent: agentName,
-			agentSource: "unknown",
-			task,
-			exitCode: 1,
-			messages: [],
-			stderr: `Unknown agent: ${agentName}`,
-			usage: createEmptyUsageStats(),
-			step,
-		};
-	}
-
-	const resolvedModel = resolveRunModel(agent, overrides);
-	const args: string[] = ["--mode", "json", "-p"];
-	if (resolvedModel.model) args.push("--model", resolvedModel.model);
-	if (resolvedModel.thinking) args.push("--thinking", resolvedModel.thinking);
-	if (agent.tools && agent.tools.length > 0) {
-		args.push("--tools", agent.tools.join(","));
-	}
-
-	const currentResult: SingleResult = {
-		agent: agentName,
-		agentSource: agent.source,
-		task,
+function createResult(config: RunConfig): SingleResult {
+	return {
+		agent: config.agent,
+		agentSource: config.agentSource,
+		task: config.task,
 		exitCode: 0,
 		messages: [],
 		stderr: "",
 		usage: createEmptyUsageStats(),
-		model: resolvedModel.label,
-		step,
+		model: config.model
+			? `${config.model}:${config.thinking ?? "medium"}`
+			: undefined,
+		step: config.step,
+		sessionId: config.resumeSessionId,
 	};
+}
 
+function buildSavedSession(
+	config: RunConfig,
+	sessionId: string,
+): SavedSubagentSession {
+	return {
+		sessionId,
+		agent: config.agent,
+		agentSource: config.agentSource,
+		cwd: config.cwd,
+		model: config.model,
+		thinking: config.thinking,
+		tools: config.tools,
+		systemPrompt: config.systemPrompt,
+	};
+}
+
+async function runConfiguredAgent(
+	config: RunConfig,
+	signal: AbortSignal | undefined,
+	onUpdate: OnUpdateCallback | undefined,
+	makeDetails: (results: SingleResult[]) => SubagentDetails,
+): Promise<SingleResult> {
+	const args: string[] = ["--mode", "json", "-p"];
+	if (config.resumeSessionId) {
+		args.push("--session", config.resumeSessionId);
+	}
+	if (config.model) args.push("--model", config.model);
+	if (config.thinking) args.push("--thinking", config.thinking);
+	if (config.tools && config.tools.length > 0) {
+		args.push("--tools", config.tools.join(","));
+	}
+
+	const currentResult = createResult(config);
 	let tempPromptDir: string | null = null;
 	let tempPromptPath: string | null = null;
 
@@ -120,19 +143,22 @@ export async function runSingleAgent(
 	}
 
 	try {
-		if (agent.systemPrompt.trim()) {
-			const tempPrompt = writePromptToTempFile(agent.name, agent.systemPrompt);
+		if (config.systemPrompt.trim()) {
+			const tempPrompt = writePromptToTempFile(
+				config.agent,
+				config.systemPrompt,
+			);
 			tempPromptDir = tempPrompt.dir;
 			tempPromptPath = tempPrompt.filePath;
 			args.push("--append-system-prompt", tempPromptPath);
 		}
 
-		args.push(`Task: ${task}`);
+		args.push(`Task: ${config.task}`);
 		let wasAborted = false;
 
 		const exitCode = await new Promise<number>((resolve) => {
 			const process = spawn("pi", args, {
-				cwd: cwd ?? defaultCwd,
+				cwd: config.cwd,
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
@@ -170,8 +196,9 @@ export async function runSingleAgent(
 					return;
 				}
 
-				if (event.type === "session") {
+				if (event.type === "session" && event.id) {
 					currentResult.sessionId = event.id;
+					saveSubagentSession(buildSavedSession(config, event.id));
 					emitUpdate();
 					return;
 				}
@@ -184,7 +211,7 @@ export async function runSingleAgent(
 					return;
 				}
 
-				const message = event.message as Message;
+				const message = event.message;
 				currentResult.messages.push(message);
 				if (event.type === "message_end" && message.role === "assistant") {
 					applyAssistantMessage(message);
@@ -256,4 +283,70 @@ export async function runSingleAgent(
 			}
 		}
 	}
+}
+
+export async function runSingleAgent(
+	defaultCwd: string,
+	agents: AgentConfig[],
+	agentName: string,
+	task: string,
+	cwd: string | undefined,
+	step: number | undefined,
+	signal: AbortSignal | undefined,
+	onUpdate: OnUpdateCallback | undefined,
+	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	overrides?: { model?: string; thinking?: ThinkingLevel },
+): Promise<SingleResult> {
+	const agent = agents.find((candidate) => candidate.name === agentName);
+	if (!agent) {
+		return {
+			agent: agentName,
+			agentSource: "unknown",
+			task,
+			exitCode: 1,
+			messages: [],
+			stderr: `Unknown agent: ${agentName}`,
+			usage: createEmptyUsageStats(),
+			step,
+		};
+	}
+
+	const resolvedModel = resolveRunModel(agent, overrides);
+	return await runConfiguredAgent(
+		{
+			agent: agentName,
+			agentSource: agent.source,
+			task,
+			cwd: cwd ?? defaultCwd,
+			model: resolvedModel.model,
+			thinking: resolvedModel.thinking,
+			tools: agent.tools,
+			systemPrompt: agent.systemPrompt,
+			step,
+		},
+		signal,
+		onUpdate,
+		makeDetails,
+	);
+}
+
+export async function resumeAgentSession(
+	metadata: SavedSubagentSession,
+	task: string,
+	step: number | undefined,
+	signal: AbortSignal | undefined,
+	onUpdate: OnUpdateCallback | undefined,
+	makeDetails: (results: SingleResult[]) => SubagentDetails,
+): Promise<SingleResult> {
+	return await runConfiguredAgent(
+		{
+			...metadata,
+			task,
+			step,
+			resumeSessionId: metadata.sessionId,
+		},
+		signal,
+		onUpdate,
+		makeDetails,
+	);
 }

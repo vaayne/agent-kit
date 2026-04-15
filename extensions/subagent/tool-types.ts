@@ -35,6 +35,7 @@ export type RenderableArgs = {
 		thinking?: ThinkingLevel;
 	}>;
 	name?: string;
+	sessionId?: string;
 	prompt?: string;
 	model?: string;
 	thinking?: ThinkingLevel;

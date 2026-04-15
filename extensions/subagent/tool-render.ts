@@ -454,6 +454,16 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 		return new Text(text, 0, 0);
 	}
 
+	if (args.sessionId) {
+		const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
+		let text =
+			theme.fg("toolTitle", theme.bold("agent ")) +
+			theme.fg("accent", "resume") +
+			theme.fg("muted", ` (${args.sessionId}) [${scope}]`);
+		text += `\n  ${theme.fg("dim", preview)}`;
+		return new Text(text, 0, 0);
+	}
+
 	const agentName = args.name || "...";
 	const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
 	let text =
@@ -476,7 +486,10 @@ export function renderToolResult(
 	if (!details || details.results.length === 0) {
 		return new Text(getTextContent(result.content), 0, 0);
 	}
-	if (details.mode === "single" && details.results.length === 1) {
+	if (
+		(details.mode === "single" || details.mode === "resume") &&
+		details.results.length === 1
+	) {
 		return renderSingleResult(details, options.expanded, theme);
 	}
 	if (details.mode === "chain") {
