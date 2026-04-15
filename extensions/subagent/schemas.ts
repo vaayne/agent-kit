@@ -75,9 +75,15 @@ export const AgentToolParams = Type.Object({
 			description: "Name of the agent to invoke (for single run)",
 		}),
 	),
+	sessionId: Type.Optional(
+		Type.String({
+			description: "Saved subagent session ID to resume",
+		}),
+	),
 	prompt: Type.Optional(
 		Type.String({
-			description: "Prompt to send to the agent (for single run)",
+			description:
+				"Prompt to send to the agent (for single run or resumed session)",
 		}),
 	),
 	parallel: Type.Optional(

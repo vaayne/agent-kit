@@ -1,6 +1,11 @@
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
-import { type OnUpdateCallback, runSingleAgent } from "./runner.js";
+import {
+	type OnUpdateCallback,
+	resumeAgentSession,
+	runSingleAgent,
+} from "./runner.js";
 import { MAX_CONCURRENCY, MAX_PARALLEL_TASKS } from "./schemas.js";
+import { loadSubagentSession } from "./session-store.js";
 import type { ToolUpdateCallback } from "./tool-types.js";
 import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import {
@@ -15,9 +20,11 @@ import {
 function getCurrentMode(
 	hasSequence: boolean,
 	hasParallel: boolean,
-): "single" | "parallel" | "chain" {
+	hasResume: boolean,
+): "single" | "parallel" | "chain" | "resume" {
 	if (hasSequence) return "chain";
 	if (hasParallel) return "parallel";
+	if (hasResume) return "resume";
 	return "single";
 }
 
@@ -86,7 +93,7 @@ async function confirmProjectAgentsIfNeeded(
 }
 
 function createDetailsFactory(
-	mode: "single" | "parallel" | "chain",
+	mode: "single" | "parallel" | "chain" | "resume",
 	agentScope: AgentScope,
 	projectAgentsDir: string | null,
 ): (results: SingleResult[]) => SubagentDetails {
@@ -119,6 +126,20 @@ function createRunningResult(
 		usage: createEmptyUsageStats(),
 		model: formatModelLabel(overrides),
 	};
+}
+
+function formatSessionLine(result: Pick<SingleResult, "sessionId">): string {
+	return result.sessionId ? `\nSession ID: ${result.sessionId}` : "";
+}
+
+function formatSessionSummary(results: SingleResult[]): string {
+	const lines = results
+		.filter((result) => result.sessionId)
+		.map((result) => {
+			const stepPrefix = result.step ? `Step ${result.step} ` : "";
+			return `${stepPrefix}${result.agent}: ${result.sessionId}`;
+		});
+	return lines.length > 0 ? `\n\nSession IDs:\n${lines.join("\n")}` : "";
 }
 
 async function executeChainMode(
@@ -179,7 +200,7 @@ async function executeChainMode(
 				content: [
 					{
 						type: "text",
-						text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}`,
+						text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}${formatSessionSummary(results)}`,
 					},
 				],
 				details: makeDetails(results),
@@ -194,7 +215,8 @@ async function executeChainMode(
 			{
 				type: "text",
 				text:
-					getFinalOutput(results[results.length - 1].messages) || "(no output)",
+					(getFinalOutput(results[results.length - 1].messages) ||
+						"(no output)") + formatSessionSummary(results),
 			},
 		],
 		details: makeDetails(results),
@@ -289,7 +311,10 @@ async function executeParallelMode(
 		const output = getFinalOutput(result.messages);
 		const preview = truncateText(output, 100);
 		const status = result.exitCode === 0 ? "completed" : "failed";
-		return `[${result.agent}] ${status}: ${preview || "(no output)"}`;
+		const sessionSuffix = result.sessionId
+			? `\nSession ID: ${result.sessionId}`
+			: "";
+		return `[${result.agent}] ${status}: ${preview || "(no output)"}${sessionSuffix}`;
 	});
 
 	return {
@@ -334,7 +359,7 @@ async function executeSingleMode(
 			content: [
 				{
 					type: "text",
-					text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}`,
+					text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
 				},
 			],
 			details: makeDetails([result]),
@@ -343,7 +368,97 @@ async function executeSingleMode(
 	}
 	return {
 		content: [
-			{ type: "text", text: getFinalOutput(result.messages) || "(no output)" },
+			{
+				type: "text",
+				text:
+					(getFinalOutput(result.messages) || "(no output)") +
+					formatSessionLine(result),
+			},
+		],
+		details: makeDetails([result]),
+	};
+}
+
+async function executeResumeMode(
+	params: {
+		sessionId: string;
+		prompt: string;
+	},
+	signal: AbortSignal | undefined,
+	onUpdate: ToolUpdateCallback | undefined,
+	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	ctx: {
+		hasUI: boolean;
+		ui: { confirm: (title: string, message: string) => Promise<boolean> };
+	},
+	confirmProjectAgents: boolean,
+	projectAgentsDir: string | null,
+) {
+	const metadata = loadSubagentSession(params.sessionId);
+	if (!metadata) {
+		return {
+			content: [
+				{
+					type: "text",
+					text:
+						`Unknown subagent session: ${params.sessionId}\n` +
+						"No saved subagent metadata was found for this session ID.",
+				},
+			],
+			details: makeDetails([]),
+			isError: true,
+		};
+	}
+
+	// Check for project-local agent confirmation in resume mode
+	if (confirmProjectAgents && ctx.hasUI && metadata.agentSource === "project") {
+		const confirmed = await ctx.ui.confirm(
+			"Run project-local agent from resumed session?",
+			`Agent: ${metadata.agent}\nSource: project\nSession: ${params.sessionId}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+		);
+		if (!confirmed) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: "Canceled: project-local agent not approved for resumed session.",
+					},
+				],
+				details: makeDetails([]),
+			};
+		}
+	}
+
+	const result = await resumeAgentSession(
+		metadata,
+		params.prompt,
+		undefined,
+		signal,
+		onUpdate,
+		makeDetails,
+	);
+	if (isResultError(result)) {
+		return {
+			content: [
+				{
+					type: "text",
+					text:
+						`Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}` +
+						formatSessionLine(result),
+				},
+			],
+			details: makeDetails([result]),
+			isError: true,
+		};
+	}
+	return {
+		content: [
+			{
+				type: "text",
+				text:
+					(getFinalOutput(result.messages) || "(no output)") +
+					formatSessionLine(result),
+			},
 		],
 		details: makeDetails([result]),
 	};
@@ -373,6 +488,7 @@ export async function executeAgentTool(
 			thinking?: ThinkingLevel;
 		}>;
 		name?: string;
+		sessionId?: string;
 		prompt?: string;
 	},
 	signal: AbortSignal | undefined,
@@ -390,9 +506,13 @@ export async function executeAgentTool(
 	const hasSequence = (params.sequence?.length ?? 0) > 0;
 	const hasParallel = (params.parallel?.length ?? 0) > 0;
 	const hasSingle = Boolean(params.name && params.prompt);
+	const hasResume = Boolean(params.sessionId && params.prompt);
 	const modeCount =
-		Number(hasSequence) + Number(hasParallel) + Number(hasSingle);
-	const currentMode = getCurrentMode(hasSequence, hasParallel);
+		Number(hasSequence) +
+		Number(hasParallel) +
+		Number(hasSingle) +
+		Number(hasResume);
+	const currentMode = getCurrentMode(hasSequence, hasParallel, hasResume);
 
 	if (modeCount !== 1) {
 		return {
@@ -476,6 +596,17 @@ export async function executeAgentTool(
 			signal,
 			onUpdate,
 			createDetailsFactory("single", agentScope, discovery.projectAgentsDir),
+		);
+	}
+	if (params.sessionId && params.prompt) {
+		return await executeResumeMode(
+			{ sessionId: params.sessionId, prompt: params.prompt },
+			signal,
+			onUpdate,
+			createDetailsFactory("resume", agentScope, discovery.projectAgentsDir),
+			ctx,
+			confirmProjectAgents,
+			discovery.projectAgentsDir,
 		);
 	}
 

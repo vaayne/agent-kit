@@ -27,6 +27,7 @@ export type SingleResult = {
 	messages: Message[];
 	stderr: string;
 	usage: UsageStats;
+	sessionId?: string;
 	model?: string;
 	stopReason?: string;
 	errorMessage?: string;
@@ -34,10 +35,21 @@ export type SingleResult = {
 };
 
 export type SubagentDetails = {
-	mode: "single" | "parallel" | "chain";
+	mode: "single" | "parallel" | "chain" | "resume";
 	agentScope: AgentScope;
 	projectAgentsDir: string | null;
 	results: SingleResult[];
+};
+
+export type SavedSubagentSession = {
+	sessionId: string;
+	agent: string;
+	agentSource: "user" | "project" | "unknown";
+	cwd: string;
+	model?: string;
+	thinking?: ThinkingLevel;
+	tools?: string[];
+	systemPrompt: string;
 };
 
 export type DisplayItem =

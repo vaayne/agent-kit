@@ -6,13 +6,14 @@ A Pi extension that delegates work to specialized agents in isolated contexts.
 
 ### `agent`
 
-Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context.
+Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context and persistent session.
 
 ## Slash Command
 
-The extension registers one slash command:
+The extension registers these slash commands:
 
 - `/agent <name> <prompt>`
+- `/agent-resume <session-id> <prompt>`
 
 Example:
 
@@ -52,6 +53,17 @@ Override the agent's default model at runtime:
     "model": "openai-codex/gpt-5.4",
     "thinking": "high"
   }
+}
+```
+
+### Resume a Saved Session
+
+Resume a previously saved subagent session with its original tools, system prompt, cwd, and model/thinking overrides.
+
+```json
+{
+  "sessionId": "019d906a-3d5a-70b6-a359-1d16acea15dc",
+  "prompt": "Continue the review and focus on race conditions"
 }
 ```
 
@@ -106,11 +118,14 @@ Run agents sequentially, passing output to the next step via `{previous}`.
 
 | Name       | Type   | Required | Description                                                            |
 | ---------- | ------ | -------- | ---------------------------------------------------------------------- |
-| `name`     | string | No       | Agent name for a single run                                            |
-| `prompt`   | string | No       | Prompt for a single run                                                |
-| `parallel` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs   |
-| `sequence` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs |
-| `options`  | object | No       | Optional configuration                                                 |
+| `name`      | string | No       | Agent name for a single run                                             |
+| `sessionId` | string | No       | Saved subagent session ID to resume                                     |
+| `prompt`    | string | No       | Prompt for a single run or resumed session                              |
+| `parallel`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs    |
+| `sequence`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs  |
+| `options`   | object | No       | Optional configuration                                                  |
+
+Tool results include a per-run `sessionId` in `details.results[]`. Use that ID with the `agent` tool's resume mode or `/agent-resume` to continue the same specialized subagent configuration later.
 
 ### `options`
 
