@@ -1,6 +1,6 @@
 {
 	"name": "@vaayne/pi-subagent",
-	"version": "0.1.4",
+	"version": "0.2.0",
 	"description": "Pi extension for delegating tasks to specialized agents",
 	"keywords": [
 		"agent",
