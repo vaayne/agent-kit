@@ -121,6 +121,10 @@ function createRunningResult(
 	};
 }
 
+function formatSessionLine(result: Pick<SingleResult, "sessionId">): string {
+	return result.sessionId ? `\nSession ID: ${result.sessionId}` : "";
+}
+
 async function executeChainMode(
 	ctx: { cwd: string },
 	params: {
@@ -179,7 +183,7 @@ async function executeChainMode(
 				content: [
 					{
 						type: "text",
-						text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}`,
+						text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}${formatSessionLine(result)}`,
 					},
 				],
 				details: makeDetails(results),
@@ -194,7 +198,8 @@ async function executeChainMode(
 			{
 				type: "text",
 				text:
-					getFinalOutput(results[results.length - 1].messages) || "(no output)",
+					(getFinalOutput(results[results.length - 1].messages) || "(no output)") +
+					formatSessionLine(results[results.length - 1]),
 			},
 		],
 		details: makeDetails(results),
@@ -289,7 +294,10 @@ async function executeParallelMode(
 		const output = getFinalOutput(result.messages);
 		const preview = truncateText(output, 100);
 		const status = result.exitCode === 0 ? "completed" : "failed";
-		return `[${result.agent}] ${status}: ${preview || "(no output)"}`;
+		const sessionSuffix = result.sessionId
+			? `\nSession ID: ${result.sessionId}`
+			: "";
+		return `[${result.agent}] ${status}: ${preview || "(no output)"}${sessionSuffix}`;
 	});
 
 	return {
@@ -334,7 +342,7 @@ async function executeSingleMode(
 			content: [
 				{
 					type: "text",
-					text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}`,
+					text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
 				},
 			],
 			details: makeDetails([result]),
@@ -343,7 +351,12 @@ async function executeSingleMode(
 	}
 	return {
 		content: [
-			{ type: "text", text: getFinalOutput(result.messages) || "(no output)" },
+			{
+				type: "text",
+				text:
+					(getFinalOutput(result.messages) || "(no output)") +
+					formatSessionLine(result),
+			},
 		],
 		details: makeDetails([result]),
 	};

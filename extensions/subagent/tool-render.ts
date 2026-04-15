@@ -127,6 +127,11 @@ function renderSingleResult(
 				new Text(theme.fg("error", `Error: ${result.errorMessage}`), 0, 0),
 			);
 		}
+		if (result.sessionId) {
+			container.addChild(
+				new Text(theme.fg("dim", `Session: ${result.sessionId}`), 0, 0),
+			);
+		}
 		container.addChild(new Spacer(1));
 		container.addChild(new Text(theme.fg("muted", "─── Prompt ───"), 0, 0));
 		container.addChild(new Text(theme.fg("dim", result.task), 0, 0));
@@ -164,6 +169,9 @@ function renderSingleResult(
 	let text = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${theme.fg("muted", ` (${result.agentSource})`)}`;
 	if (isError && result.stopReason)
 		text += ` ${theme.fg("error", `[${result.stopReason}]`)}`;
+	if (result.sessionId) {
+		text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
+	}
 	if (isError && result.errorMessage)
 		text += `\n${theme.fg("error", `Error: ${result.errorMessage}`)}`;
 	else if (displayItems.length === 0)
@@ -216,6 +224,11 @@ function renderChainResult(
 					0,
 				),
 			);
+			if (result.sessionId) {
+				container.addChild(
+					new Text(theme.fg("dim", `Session: ${result.sessionId}`), 0, 0),
+				);
+			}
 			container.addChild(
 				new Text(
 					theme.fg("muted", "Prompt: ") + theme.fg("dim", result.task),
@@ -263,6 +276,9 @@ function renderChainResult(
 		const resultIcon = getResultIcon(theme, result);
 		const displayItems = getDisplayItems(result.messages);
 		text += `\n\n${theme.fg("muted", `─── Step ${result.step}: `)}${theme.fg("accent", result.agent)} ${resultIcon}`;
+		if (result.sessionId) {
+			text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
+		}
 		text +=
 			displayItems.length === 0
 				? `\n${theme.fg("muted", "(no output)")}`
@@ -320,6 +336,11 @@ function renderParallelResult(
 					0,
 				),
 			);
+			if (result.sessionId) {
+				container.addChild(
+					new Text(theme.fg("dim", `Session: ${result.sessionId}`), 0, 0),
+				);
+			}
 			container.addChild(
 				new Text(
 					theme.fg("muted", "Prompt: ") + theme.fg("dim", result.task),
@@ -363,6 +384,9 @@ function renderParallelResult(
 		const resultIcon = getParallelResultIcon(theme, result);
 		const displayItems = getDisplayItems(result.messages);
 		text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", result.agent)} ${resultIcon}`;
+		if (result.sessionId) {
+			text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
+		}
 		if (displayItems.length === 0) {
 			const emptyState =
 				result.exitCode === -1 ? "(running...)" : "(no output)";

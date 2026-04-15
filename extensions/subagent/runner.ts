@@ -11,6 +11,7 @@ import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 type JsonEvent = {
 	type?: string;
 	message?: Message;
+	id?: string;
 };
 
 export type OnUpdateCallback = (
@@ -83,7 +84,7 @@ export async function runSingleAgent(
 	}
 
 	const resolvedModel = resolveRunModel(agent, overrides);
-	const args: string[] = ["--mode", "json", "-p", "--no-session"];
+	const args: string[] = ["--mode", "json", "-p"];
 	if (resolvedModel.model) args.push("--model", resolvedModel.model);
 	if (resolvedModel.thinking) args.push("--thinking", resolvedModel.thinking);
 	if (agent.tools && agent.tools.length > 0) {
@@ -166,6 +167,12 @@ export async function runSingleAgent(
 				try {
 					event = JSON.parse(line) as JsonEvent;
 				} catch {
+					return;
+				}
+
+				if (event.type === "session") {
+					currentResult.sessionId = event.id;
+					emitUpdate();
 					return;
 				}
 

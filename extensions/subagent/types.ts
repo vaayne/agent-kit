@@ -27,6 +27,7 @@ export type SingleResult = {
 	messages: Message[];
 	stderr: string;
 	usage: UsageStats;
+	sessionId?: string;
 	model?: string;
 	stopReason?: string;
 	errorMessage?: string;

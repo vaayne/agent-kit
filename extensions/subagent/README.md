@@ -6,7 +6,7 @@ A Pi extension that delegates work to specialized agents in isolated contexts.
 
 ### `agent`
 
-Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context.
+Delegate work to a specialized agent. Each invocation spawns a separate `pi` process with its own isolated context and persistent session.
 
 ## Slash Command
 
@@ -111,6 +111,8 @@ Run agents sequentially, passing output to the next step via `{previous}`.
 | `parallel` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs   |
 | `sequence` | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs |
 | `options`  | object | No       | Optional configuration                                                 |
+
+Tool results include a per-run `sessionId` in `details.results[]`, which can be used later with `pi --session <id>` to resume a subagent session.
 
 ### `options`
 
