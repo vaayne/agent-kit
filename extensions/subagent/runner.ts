@@ -49,10 +49,9 @@ function resolveRunModel(
 	},
 ): { model?: string; thinking?: ThinkingLevel; label?: string } {
 	const base = splitModelThinking(overrides?.model ?? agent.model);
-	const thinking = overrides?.thinking ?? base.thinking ?? agent.thinking;
-	const label = base.model
-		? `${base.model}${thinking ? `:${thinking}` : ""}`
-		: undefined;
+	const thinking =
+		overrides?.thinking ?? base.thinking ?? agent.thinking ?? "medium";
+	const label = base.model ? `${base.model}:${thinking}` : undefined;
 
 	return { model: base.model, thinking, label };
 }

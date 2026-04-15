@@ -1,6 +1,7 @@
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 import { type OnUpdateCallback, runSingleAgent } from "./runner.js";
 import { MAX_CONCURRENCY, MAX_PARALLEL_TASKS } from "./schemas.js";
+import type { ToolUpdateCallback } from "./tool-types.js";
 import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import {
 	createEmptyUsageStats,
@@ -10,7 +11,6 @@ import {
 	mapWithConcurrencyLimit,
 	truncateText,
 } from "./utils.js";
-import type { ToolUpdateCallback } from "./tool-types.js";
 
 function getCurrentMode(
 	hasSequence: boolean,
@@ -101,7 +101,7 @@ function formatModelLabel(overrides?: {
 		return undefined;
 	}
 
-	return `${overrides.model}${overrides.thinking ? `:${overrides.thinking}` : ""}`;
+	return `${overrides.model}:${overrides.thinking ?? "medium"}`;
 }
 
 function createRunningResult(

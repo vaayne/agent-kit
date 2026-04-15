@@ -1,6 +1,6 @@
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { AgentScope } from "./agents.js";
-import type { SubagentDetails } from "./types.js";
+import type { SubagentDetails, ThinkingLevel } from "./types.js";
 
 export type ToolUpdateCallback = (
 	partial: AgentToolResult<SubagentDetails>,
@@ -17,9 +17,25 @@ export type RenderableResult = {
 };
 
 export type RenderableArgs = {
-	options?: { scope?: AgentScope };
-	sequence?: Array<{ name: string; prompt: string }>;
-	parallel?: Array<{ name: string; prompt: string }>;
+	options?: {
+		scope?: AgentScope;
+		model?: string;
+		thinking?: ThinkingLevel;
+	};
+	sequence?: Array<{
+		name: string;
+		prompt: string;
+		model?: string;
+		thinking?: ThinkingLevel;
+	}>;
+	parallel?: Array<{
+		name: string;
+		prompt: string;
+		model?: string;
+		thinking?: ThinkingLevel;
+	}>;
 	name?: string;
 	prompt?: string;
+	model?: string;
+	thinking?: ThinkingLevel;
 };

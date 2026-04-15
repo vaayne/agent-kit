@@ -1,7 +1,12 @@
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import type { AgentScope } from "./agents.js";
-import type { SingleResult, SubagentDetails } from "./types.js";
+import type {
+	RenderableArgs,
+	RenderableResult,
+	ThemeLike,
+} from "./tool-types.js";
+import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import {
 	aggregateUsage,
 	COLLAPSED_ITEM_COUNT,
@@ -13,11 +18,6 @@ import {
 	isResultError,
 	truncateText,
 } from "./utils.js";
-import type {
-	RenderableArgs,
-	RenderableResult,
-	ThemeLike,
-} from "./tool-types.js";
 
 function getResultIcon(
 	theme: ThemeLike,
@@ -58,6 +58,28 @@ function getParallelStatus(
 		icon: theme.fg("success", "✓"),
 		text: `${successCount}/${total} runs`,
 	};
+}
+
+function formatModelLabel(overrides?: {
+	model?: string;
+	thinking?: ThinkingLevel;
+}): string {
+	if (!overrides?.model) {
+		return "";
+	}
+
+	return `${overrides.model}:${overrides.thinking ?? "medium"}`;
+}
+
+function renderAgentLabel(
+	theme: ThemeLike,
+	name: string,
+	overrides?: { model?: string; thinking?: ThinkingLevel },
+): string {
+	const modelLabel = formatModelLabel(overrides);
+	return modelLabel
+		? `${theme.fg("accent", name)}${theme.fg("muted", ` (${modelLabel})`)}`
+		: theme.fg("accent", name);
 }
 
 function renderDisplayItems(
@@ -359,6 +381,10 @@ function renderParallelResult(
 
 export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 	const scope: AgentScope = args.options?.scope ?? "user";
+	const defaultOverrides = {
+		model: args.options?.model,
+		thinking: args.options?.thinking,
+	};
 	const sequence = args.sequence;
 	if (sequence && sequence.length > 0) {
 		let text =
@@ -373,7 +399,10 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 				"\n  " +
 				theme.fg("muted", `${index + 1}.`) +
 				" " +
-				theme.fg("accent", step.name) +
+				renderAgentLabel(theme, step.name, {
+					model: step.model ?? defaultOverrides.model,
+					thinking: step.thinking ?? defaultOverrides.thinking,
+				}) +
 				theme.fg("dim", ` ${preview}`);
 		}
 		if (sequence.length > 3) {
@@ -390,7 +419,10 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 			theme.fg("muted", ` [${scope}]`);
 		for (const task of parallel.slice(0, 3)) {
 			const preview = truncateText(task.prompt, 40);
-			text += `\n  ${theme.fg("accent", task.name)}${theme.fg("dim", ` ${preview}`)}`;
+			text += `\n  ${renderAgentLabel(theme, task.name, {
+				model: task.model ?? defaultOverrides.model,
+				thinking: task.thinking ?? defaultOverrides.thinking,
+			})}${theme.fg("dim", ` ${preview}`)}`;
 		}
 		if (parallel.length > 3) {
 			text += `\n  ${theme.fg("muted", `... +${parallel.length - 3} more`)}`;
@@ -402,7 +434,10 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 	const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
 	let text =
 		theme.fg("toolTitle", theme.bold("agent ")) +
-		theme.fg("accent", agentName) +
+		renderAgentLabel(theme, agentName, {
+			model: args.model ?? defaultOverrides.model,
+			thinking: args.thinking ?? defaultOverrides.thinking,
+		}) +
 		theme.fg("muted", ` [${scope}]`);
 	text += `\n  ${theme.fg("dim", preview)}`;
 	return new Text(text, 0, 0);
