@@ -387,6 +387,12 @@ async function executeResumeMode(
 	signal: AbortSignal | undefined,
 	onUpdate: ToolUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
+	ctx: {
+		hasUI: boolean;
+		ui: { confirm: (title: string, message: string) => Promise<boolean> };
+	},
+	confirmProjectAgents: boolean,
+	projectAgentsDir: string | null,
 ) {
 	const metadata = loadSubagentSession(params.sessionId);
 	if (!metadata) {
@@ -402,6 +408,25 @@ async function executeResumeMode(
 			details: makeDetails([]),
 			isError: true,
 		};
+	}
+
+	// Check for project-local agent confirmation in resume mode
+	if (confirmProjectAgents && ctx.hasUI && metadata.agentSource === "project") {
+		const confirmed = await ctx.ui.confirm(
+			"Run project-local agent from resumed session?",
+			`Agent: ${metadata.agent}\nSource: project\nSession: ${params.sessionId}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+		);
+		if (!confirmed) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: "Canceled: project-local agent not approved for resumed session.",
+					},
+				],
+				details: makeDetails([]),
+			};
+		}
 	}
 
 	const result = await resumeAgentSession(
@@ -579,6 +604,9 @@ export async function executeAgentTool(
 			signal,
 			onUpdate,
 			createDetailsFactory("resume", agentScope, discovery.projectAgentsDir),
+			ctx,
+			confirmProjectAgents,
+			discovery.projectAgentsDir,
 		);
 	}
 
