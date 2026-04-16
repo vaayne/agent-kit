@@ -36,7 +36,9 @@ export default function (pi: ExtensionAPI) {
 	).agents;
 
 	registerAgentCommands(pi, () => discoveredAgents);
-	registerAgentTool(pi);
+	if (!process.env.PI_SUBAGENT) {
+		registerAgentTool(pi);
+	}
 
 	pi.on("session_start", async (_event, ctx) => {
 		const discovery = discoverAgents(ctx.cwd, "both");
@@ -51,7 +53,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event) => {
-		if (discoveredAgents.length === 0) return;
+		if (process.env.PI_SUBAGENT || discoveredAgents.length === 0) return;
 		return {
 			systemPrompt: buildSystemPrompt(discoveredAgents, event.systemPrompt),
 		};

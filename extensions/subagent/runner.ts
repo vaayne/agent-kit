@@ -157,10 +157,11 @@ async function runConfiguredAgent(
 		let wasAborted = false;
 
 		const exitCode = await new Promise<number>((resolve) => {
-			const process = spawn("pi", args, {
+			const child = spawn("pi", args, {
 				cwd: config.cwd,
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
+				env: { ...process.env, PI_SUBAGENT: "1" },
 			});
 			let buffer = "";
 
@@ -219,18 +220,18 @@ async function runConfiguredAgent(
 				emitUpdate();
 			}
 
-			process.stdout.on("data", (data) => {
+			child.stdout.on("data", (data) => {
 				buffer += data.toString();
 				const lines = buffer.split("\n");
 				buffer = lines.pop() || "";
 				for (const line of lines) processLine(line);
 			});
 
-			process.stderr.on("data", (data) => {
+			child.stderr.on("data", (data) => {
 				currentResult.stderr += data.toString();
 			});
 
-			process.on("close", (code) => {
+			child.on("close", (code) => {
 				if (abortHandler && signal) {
 					signal.removeEventListener("abort", abortHandler);
 				}
@@ -240,7 +241,7 @@ async function runConfiguredAgent(
 				resolve(code ?? 0);
 			});
 
-			process.on("error", () => {
+			child.on("error", () => {
 				resolve(1);
 			});
 
@@ -248,10 +249,10 @@ async function runConfiguredAgent(
 			if (signal) {
 				abortHandler = () => {
 					wasAborted = true;
-					process.kill("SIGTERM");
+					child.kill("SIGTERM");
 					setTimeout(() => {
-						if (!process.killed) {
-							process.kill("SIGKILL");
+						if (!child.killed) {
+							child.kill("SIGKILL");
 						}
 					}, 5000);
 				};
