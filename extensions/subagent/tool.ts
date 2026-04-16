@@ -17,6 +17,11 @@ export function registerAgentTool(pi: ExtensionAPI): void {
 		name: "agent",
 		label: "Agent",
 		description: AGENT_TOOL_DESCRIPTION,
+		promptGuidelines: [
+			'Use the built-in "advisor" agent when stuck after 2+ failed attempts, before irreversible actions (deleting data, force-pushing, schema migrations), or when choosing between architecturally different approaches.',
+			'When calling "advisor", always include: (1) what you are trying to do, (2) what you have tried and why it failed, (3) your specific question.',
+			'Do not call "advisor" for straightforward tasks you can reason through yourself.',
+		],
 		parameters: AgentToolParams,
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			return await executeAgentTool(params, signal, onUpdate, ctx);

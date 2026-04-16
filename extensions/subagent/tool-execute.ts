@@ -1,26 +1,4 @@
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
-
-const ADVISOR_SYSTEM_PROMPT = `You are a senior technical advisor. The model that called you is an AI executor that has hit a decision it cannot confidently resolve on its own.
-
-Your role:
-- Provide clear, actionable guidance the executor can act on immediately
-- Point out anything it may have missed or gotten wrong
-- Confirm when it is on the right track, with any important caveats
-- Recommend the best approach with concise reasoning
-
-Do NOT implement solutions yourself — you are advising, not executing.`;
-
-function builtInAdvisor(): AgentConfig {
-	return {
-		name: "advisor",
-		description:
-			"Built-in senior advisor. Consult when stuck, before a major decision, or when you need a second opinion.",
-		model: process.env.PI_ADVISOR_MODEL,
-		systemPrompt: ADVISOR_SYSTEM_PROMPT,
-		source: "user",
-		filePath: "(built-in)",
-	};
-}
 import {
 	type OnUpdateCallback,
 	resumeAgentSession,
@@ -38,6 +16,36 @@ import {
 	mapWithConcurrencyLimit,
 	truncateText,
 } from "./utils.js";
+
+const ADVISOR_SYSTEM_PROMPT = `You are a senior technical advisor. An AI executor has escalated a problem it cannot confidently resolve.
+
+## How to work
+1. **Investigate before advising.** Use your tools (read, bash, grep) to understand the actual state of the code, files, or environment — do not advise blindly from the description alone.
+2. **Diagnose root cause.** Identify why the executor is stuck, not just what it described.
+3. **Be opinionated.** Give a clear recommendation. Avoid "it depends" without immediately resolving which path to take and why.
+4. **Flag traps.** Call out risks, edge cases, or assumptions the executor may have missed.
+5. **Validate the approach.** If the executor is on the right track, confirm it explicitly and fill in any missing steps.
+
+## What to return
+A focused action plan: what to do, in what order, and the key reason for each step.
+If the executor's approach is fundamentally wrong, say so and explain the correct approach instead.
+Keep it concise — the executor will implement your plan, you are not implementing it.`;
+
+function builtInAdvisor(): AgentConfig {
+	return {
+		name: "advisor",
+		description: [
+			"Senior technical advisor. Call when stuck after 2+ failed attempts, before an irreversible action",
+			"(deleting data, force-pushing, schema changes), or when choosing between fundamentally different approaches.",
+			"In your prompt include: (1) what you are trying to accomplish, (2) what you have already tried and why it failed,",
+			"(3) your specific question or decision. The advisor will investigate and return a clear action plan.",
+		].join(" "),
+		model: process.env.PI_ADVISOR_MODEL,
+		systemPrompt: ADVISOR_SYSTEM_PROMPT,
+		source: "user",
+		filePath: "(built-in)",
+	};
+}
 
 function getCurrentMode(
 	hasSequence: boolean,
