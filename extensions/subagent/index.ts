@@ -2,6 +2,7 @@ import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { AgentConfig } from "./agents.js";
 import { discoverAgents } from "./agents.js";
+import { registerAdvisorTool } from "./advisor-tool.js";
 import { registerAgentCommands } from "./commands.js";
 import { registerAgentTool } from "./tool.js";
 
@@ -39,6 +40,7 @@ export default function (pi: ExtensionAPI) {
 	if (!process.env.PI_SUBAGENT) {
 		registerAgentTool(pi);
 	}
+	registerAdvisorTool(pi);
 
 	pi.on("session_start", async (_event, ctx) => {
 		const discovery = discoverAgents(ctx.cwd, "both");
