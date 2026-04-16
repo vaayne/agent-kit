@@ -9,7 +9,7 @@ const AGENT_TOOL_DESCRIPTION = [
 	'Default scope is "user" (from ~/.pi/agent/agents).',
 	'To enable project-local agents in .pi/agents, set options.scope to "both" (or "project").',
 	"You can override an agent's default model and thinking level at runtime via options.model/options.thinking or per-run fields.",
-	'Built-in agent: use name "advisor" to consult a stronger model for guidance on hard decisions (model defaults to PI_ADVISOR_MODEL env var, or the current pi model if unset).',
+	'Built-in agent: use name "advisor" to consult a stronger model for guidance on hard decisions (defaults to openai-codex/gpt-5.4 with xhigh thinking; override via PI_ADVISOR_MODEL and PI_ADVISOR_THINKING env vars).',
 ].join(" ");
 
 export function registerAgentTool(pi: ExtensionAPI): void {
