@@ -1,4 +1,26 @@
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
+
+const ADVISOR_SYSTEM_PROMPT = `You are a senior technical advisor. The model that called you is an AI executor that has hit a decision it cannot confidently resolve on its own.
+
+Your role:
+- Provide clear, actionable guidance the executor can act on immediately
+- Point out anything it may have missed or gotten wrong
+- Confirm when it is on the right track, with any important caveats
+- Recommend the best approach with concise reasoning
+
+Do NOT implement solutions yourself — you are advising, not executing.`;
+
+function builtInAdvisor(): AgentConfig {
+	return {
+		name: "advisor",
+		description:
+			"Built-in senior advisor. Consult when stuck, before a major decision, or when you need a second opinion.",
+		model: process.env.PI_ADVISOR_MODEL,
+		systemPrompt: ADVISOR_SYSTEM_PROMPT,
+		source: "user",
+		filePath: "(built-in)",
+	};
+}
 import {
 	type OnUpdateCallback,
 	resumeAgentSession,
@@ -501,7 +523,10 @@ export async function executeAgentTool(
 ) {
 	const agentScope: AgentScope = params.options?.scope ?? "user";
 	const discovery = discoverAgents(ctx.cwd, agentScope);
-	const agents = discovery.agents;
+	// Append built-in advisor last so a user-defined advisor.md takes precedence
+	const agents = discovery.agents.some((a) => a.name === "advisor")
+		? discovery.agents
+		: [...discovery.agents, builtInAdvisor()];
 	const confirmProjectAgents = params.options?.confirmProject ?? true;
 	const hasSequence = (params.sequence?.length ?? 0) > 0;
 	const hasParallel = (params.parallel?.length ?? 0) > 0;
