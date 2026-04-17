@@ -22,10 +22,10 @@ vaayne/mcphub --skill mcp-skill-gen
 blader/humanizer --skill humanizer
 
 # Google workspace
-googleworkspace/cli --skill gws-gmail-send
-googleworkspace/cli --skill gws-gmail
-googleworkspace/cli --skill gws-gmail-triage
-googleworkspace/cli --skill gws-gmail-watch
+#googleworkspace/cli --skill gws-gmail-send
+#googleworkspace/cli --skill gws-gmail
+#googleworkspace/cli --skill gws-gmail-triage
+#googleworkspace/cli --skill gws-gmail-watch
 
 # web browser
 #browser-use/browser-use --skill browser-use
@@ -34,16 +34,16 @@ vaayne/tap --skill tap-web
 
 
 # write slides
-slidevjs/slidev
-zarazhangrui/frontend-slides
+#slidevjs/slidev
+#zarazhangrui/frontend-slides
 
 
 # build ios/mac apps
-openai/plugins --skill ios-debugger-agent
-openai/plugins --skill swiftui-liquid-glass
-openai/plugins --skill swiftui-performance-audit
-openai/plugins --skill swiftui-ui-patterns
-openai/plugins --skill swiftui-view-refactor
+#openai/plugins --skill ios-debugger-agent
+#openai/plugins --skill swiftui-liquid-glass
+#openai/plugins --skill swiftui-performance-audit
+#openai/plugins --skill swiftui-ui-patterns
+#openai/plugins --skill swiftui-view-refactor
 
 # generate image
 JimLiu/baoyu-skills --skill baoyu-xhs-images
