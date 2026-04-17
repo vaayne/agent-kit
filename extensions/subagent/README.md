@@ -116,26 +116,26 @@ Run agents sequentially, passing output to the next step via `{previous}`.
 
 ## Parameters
 
-| Name       | Type   | Required | Description                                                            |
-| ---------- | ------ | -------- | ---------------------------------------------------------------------- |
-| `name`      | string | No       | Agent name for a single run                                             |
-| `sessionId` | string | No       | Saved subagent session ID to resume                                     |
-| `prompt`    | string | No       | Prompt for a single run or resumed session                              |
-| `parallel`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs    |
-| `sequence`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs  |
-| `options`   | object | No       | Optional configuration                                                  |
+| Name        | Type   | Required | Description                                                            |
+| ----------- | ------ | -------- | ---------------------------------------------------------------------- |
+| `name`      | string | No       | Agent name for a single run                                            |
+| `sessionId` | string | No       | Saved subagent session ID to resume                                    |
+| `prompt`    | string | No       | Prompt for a single run or resumed session                             |
+| `parallel`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for parallel runs   |
+| `sequence`  | array  | No       | Array of `{name, prompt, cwd?, model?, thinking?}` for sequential runs |
+| `options`   | object | No       | Optional configuration                                                 |
 
 Tool results include a per-run `sessionId` in `details.results[]`. Use that ID with the `agent` tool's resume mode or `/agent-resume` to continue the same specialized subagent configuration later.
 
 ### `options`
 
-| Name             | Type    | Required | Description                                                   |
-| ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`)                |
-| `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`)        |
-| `cwd`            | string  | No       | Working directory for a single run                            |
-| `model`          | string  | No       | Default model override for the whole tool call                |
-| `thinking`       | string  | No       | Default thinking override: `off|minimal|low|medium|high|xhigh` |
+| Name             | Type    | Required | Description                                            |
+| ---------------- | ------- | -------- | ------------------------------------------------------ |
+| `scope`          | string  | No       | `user`, `project`, or `both` (default: `user`)         |
+| `confirmProject` | boolean | No       | Prompt before running project agents (default: `true`) |
+| `cwd`            | string  | No       | Working directory for a single run                     |
+| `model`          | string  | No       | Default model override for the whole tool call         |
+| `thinking`       | string  | No       | Default thinking override: `off                        |
 
 ## Agent Discovery
 
