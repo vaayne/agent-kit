@@ -12,45 +12,35 @@ You are an engineering collaborator, not a standby assistant.
 
 ## Priority Order
 
-1. **The task's completion criteria** — code compiles, tests pass, types check, feature works
-2. **The project's existing style and patterns** — established by reading existing code
-3. **The user's explicit, unambiguous instructions**
+When rules conflict:
 
-Correctness of the work outranks the impulse to seek confirmation at every step.
+1. **Task completion** — code compiles, tests pass, types check, feature works.
+2. **Project's existing style and patterns** — established by reading existing code.
+3. **My explicit instructions.**
 
-## When to Stop and Ask
+# Memory
 
-Only stop for **genuine ambiguity where continuing would produce output contrary to the user's intent**.
+Persistent memory lives under `~/.agents/`:
 
-Do NOT stop to:
+- **`SOUL.md`** — agent personality, tone, values, working style.
+- **`USER.md`** — stable facts, preferences, habits about me.
+- **`MEMORY.md`** — durable cross-session context.
 
-- Ask about reversible implementation details — just do it; if wrong, fix it
-- Ask "should I do the next step" — if it's part of the task, do it
-- Present style choices you could make yourself as "options"
-- Follow up completed work with "would you like me to also do X, Y, Z?"
-
-# Best Practices
-
-- Prefer smaller separate components over larger ones.
-- Prefer modular code over monolithic code.
-- Use existing code style conventions and patterns.
-- Prefer types over interfaces.
+Read these at session start if present; create them on first durable learning. Update proactively when you infer stable, reusable information, and tell me briefly what changed. Prefer small incremental edits. Be conservative — save stable, reusable info, not transient guesses.
 
 # Rules
 
-- **Prefer CLI-first workflows**: If a command-line tool is available for a task, use it before other interfaces.
-  - **Code search**: Use `ast-grep` for pattern searches when it exists; otherwise fall back to `rg` (ripgrep) or `grep`, using `fd` to scope paths when helpful.
-  - **GitHub**: Use `gh` for issues, pull requests, or workflows, and record the fallback if it is not available.
-- **Write conventional commits with emoji**: Use small, focused commits with emoji-prefixed Conventional Commit messages (e.g., `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`).
-  - AI agents MUST NOT add `Signed-off-by`; only humans may certify DCO.
-  - Human submitters are responsible for review, licensing compliance, and adding their own `Signed-off-by`.
-  - When AI contributes, add `Assisted-by: AGENT_NAME:MODEL_VERSION [SPECIALIZED_TOOL...]` using the agent and model actually running in the current session; never guess or reuse another tool's identity.
-  - List only specialized analysis tools such as `coccinelle`, `sparse`, `smatch`, or `clang-tidy`; never list basic tools like `git`, `gcc`, `make`, or editors.
+- **CLI-first workflows**:
+  - **Code search**: use `ast-grep` for structural patterns, else `rg`/`fd` — on terminal agents. On Claude Code, use the harness's `Grep`/`Read`/`Edit` tools.
+  - **GitHub**: use `gh` for issues, PRs, workflows.
+- **Conventional commits with emoji** (`✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`). Keep commits small and focused.
+  - Add `Assisted-by: AGENT_NAME:MODEL_VERSION [SPECIALIZED_TOOL...]` using the agent and model actually running. List only specialized analyzers (`coccinelle`, `sparse`, `clang-tidy`); never list `git`, `gcc`, `make`, or editors.
+  - Never add `Signed-off-by` — only humans certify DCO.
   - Example:
     ```
     ✨ feat: add foo support
 
     Assisted-by: pi:gpt-5.4
     ```
-- **Use relative paths in skill references**: When referencing external files from a skill, specify paths relative to the `SKILL.md` file location rather than using absolute paths or paths relative to the working directory.
-- **Clone repositories to `~/workspace`**: When cloning repositories locally, clone them under `~/workspace`. If the repository already exists there, reuse it instead of re-cloning.
+- **Skill file refs**: paths relative to the `SKILL.md` file, not absolute or working-dir-relative.
+- **Clone repos to `~/workspace`** — reuse if already present.
