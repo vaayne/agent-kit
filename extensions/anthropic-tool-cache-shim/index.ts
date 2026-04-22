@@ -7,20 +7,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function stripToolCacheControl(payload: unknown): { payload: unknown; strippedCount: number } {
+function stripToolCacheControl(payload: unknown): {
+  payload: unknown;
+  strippedCount: number;
+} {
   if (!isRecord(payload) || !Array.isArray(payload.tools)) {
     return { payload, strippedCount: 0 };
   }
 
   let strippedCount = 0;
   const tools = payload.tools.map((tool) => {
-    if (!isRecord(tool) || !("cache_control" in tool)) {
+    if (!isRecord(tool)) {
       return tool;
     }
 
-    strippedCount += 1;
-    const { cache_control: _cacheControl, ...rest } = tool;
-    return rest;
+    if ("cache_control" in tool || "eager_input_streaming" in tool) {
+      strippedCount += 1;
+      const {
+        cache_control: _cacheControl,
+        eager_input_streaming: _eager_input_streaming,
+        ...rest
+      } = tool;
+      return rest;
+    }
   });
 
   if (strippedCount === 0) {
