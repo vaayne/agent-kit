@@ -10,7 +10,7 @@ description: >
 
 ## What this skill does
 
-Plans are written to a `plan.md` file (or a named file the user specifies). Review comments live inline in that same file — no separate threads, no external tools. The file is the single source of truth for both the plan and its review history.
+Plans are written to `./agents/sessions/{date}-{xxx feature}/plan.md`. Use the current date for `{date}` in `YYYY-MM-DD` form and a short kebab-case feature label for `{xxx feature}`. Review comments live inline in that same file — no separate threads, no external tools. The file is the single source of truth for both the plan and its review history.
 
 ---
 
@@ -216,7 +216,25 @@ that Task D depends on, not the other way around.
 
 ## During implementation
 
-Two things happen during impl that need to be recorded in the plan:
+Implementation is phase-by-phase, and each phase is its own catch-up → execute →
+document cycle.
+
+### Phase workflow
+
+For every phase:
+
+1. **Read `plan.md` first.** Before starting implementation, reread the plan file
+   to catch up on the current task state, prior review decisions, open questions,
+   and the previous phase's handoff notes.
+2. **Implement that phase in a subagent.** Keep the subagent focused on the
+   current phase rather than the whole project at once.
+3. **Commit code for that phase when the phase is done.** Make the code change a
+   reviewable unit.
+4. **Update `plan.md` after the code lands.** Mark completed tasks, record any
+   decision changes, and add the phase handoff note for whoever picks up next.
+5. **Commit the plan update separately if needed, but do not commit `plan.md`.**
+   The working tree should reflect the latest implementation state and handoff
+   notes, but `plan.md` itself does not need to be part of the git history.
 
 ### 1. Progress — check off tasks
 
@@ -266,6 +284,26 @@ list to reflect the new decision, then add a short note in the Answer explaining
 what changed. The plan text is the authoritative record; the Question/Answer thread
 is the audit trail.
 
+### 3. Phase handoff
+
+At the end of every implementation phase, write a short handoff note directly in
+`plan.md` so the next phase can resume without reconstructing context from git or
+chat history.
+
+Use this shape:
+
+```markdown
+#### Handoff after Phase N
+
+- What landed
+- What changed from the original plan
+- What is still open
+- What the next phase should read or verify first
+```
+
+Keep it short but specific. The next implementer or subagent should be able to
+read the handoff, then continue from the plan file alone.
+
 ---
 
 ## Checking open threads
@@ -288,15 +326,18 @@ a short list is more reliable than a clever pipeline that can silently misfire.
 
 ## Quick reference
 
-| Action               | What to do                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| Write plan           | Create `plan.md` with problem, reasoning, decisions, implementation order, and Tasks |
-| Add task phase       | `### Phase N: name` with checkbox items; include why if order isn't obvious          |
-| Mark task done       | Change `- [ ]` to `- [x]`; don't delete completed tasks                              |
-| Add review comment   | Quote passage with `>`, then `**Review (name):**` below it                           |
-| Resolve review       | Add `**Resolved:**` after the `**Review:**` block; update text above                 |
-| Reject a review      | Still add `**Resolved:**` explaining why the plan stays as-is                        |
-| Ask impl question    | Add `**Question (name):**` indented under the blocked task                           |
-| Answer impl question | Add `**Answer:**` directly below the `**Question:**` line                            |
-| Check open reviews   | `grep -n "Review\|Resolved" plan.md` — unmatched Review lines are open               |
-| Check open questions | `grep -n "Question\|Answer" plan.md` — unmatched Question lines are open             |
+| Action               | What to do                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Write plan           | Create `./agents/sessions/{date}-{feature}/plan.md` with problem, reasoning, decisions, implementation order, and Tasks |
+| Add task phase       | `### Phase N: name` with checkbox items; include why if order isn't obvious                                             |
+| Start a phase        | Read `plan.md` first, then implement only that phase in a subagent                                                      |
+| Mark task done       | Change `- [ ]` to `- [x]`; don't delete completed tasks                                                                 |
+| Add review comment   | Quote passage with `>`, then `**Review (name):**` below it                                                              |
+| Resolve review       | Add `**Resolved:**` after the `**Review:**` block; update text above                                                    |
+| Reject a review      | Still add `**Resolved:**` explaining why the plan stays as-is                                                           |
+| Ask impl question    | Add `**Question (name):**` indented under the blocked task                                                              |
+| Answer impl question | Add `**Answer:**` directly below the `**Question:**` line                                                               |
+| End a phase          | Commit the phase's code, update `plan.md`, and write a handoff note for the next phase                                  |
+| Commit plan changes  | Update the working tree copy of `plan.md` as needed, but do not commit `plan.md`                                        |
+| Check open reviews   | `grep -n "Review\|Resolved" plan.md` — unmatched Review lines are open                                                  |
+| Check open questions | `grep -n "Question\|Answer" plan.md` — unmatched Question lines are open                                                |
