@@ -1,18 +1,18 @@
 # Anthropic Tool Cache Shim
 
-A Pi extension that patches outgoing `anthropic-messages` requests for selected incompatible providers and removes `tools[*].cache_control` from the payload. The bundled scope currently targets Fireworks.
+A Pi extension that patches outgoing `anthropic-messages` requests for selected incompatible providers and removes unsupported tool-level cache/streaming fields from the payload. The bundled scope currently targets Fireworks.
 
 This is useful for Anthropic-compatible proxies that lag behind Anthropic's request schema changes. The motivating case is Fireworks rejecting requests like:
 
 ```text
-Error: 400 {"error":{"type":"invalid_request_error","message":"Extra inputs are not permitted, field: 'tools[7].cache_control'"},"type":"error"}
+Error: 400 {"error":{"type":"invalid_request_error","message":"Extra inputs are not permitted, field: 'tools[0].eager_input_streaming'; Extra inputs are not permitted, field: 'tools[7].cache_control'"},"type":"error"}
 ```
 
 ## What it does
 
 - Keeps your existing provider and model selection unchanged
 - Intercepts outgoing `anthropic-messages` payloads right before the request is sent
-- Removes `cache_control` from every tool definition
+- Removes `cache_control` and `eager_input_streaming` from every tool definition
 - Leaves message and system prompt cache hints untouched
 
 ## Current scope

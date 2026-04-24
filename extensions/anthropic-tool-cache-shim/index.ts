@@ -30,6 +30,8 @@ function stripToolCacheControl(payload: unknown): {
       } = tool;
       return rest;
     }
+
+    return tool;
   });
 
   if (strippedCount === 0) {

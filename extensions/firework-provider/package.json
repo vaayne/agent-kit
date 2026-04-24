@@ -1,16 +1,17 @@
 {
-  "name": "@vaayne/pi-anthropic-tool-cache-shim",
+  "name": "@vaayne/pi-firework-provider",
   "version": "0.1.0",
-  "description": "Pi extension that strips unsupported tool fields from Fireworks Anthropic-compatible payloads",
+  "description": "Pi extension that overrides the built-in Fireworks provider for Anthropic-compatible request quirks",
   "keywords": [
     "agent",
     "ai",
     "anthropic",
     "fireworks",
     "pi-extension",
-    "pi-package"
+    "pi-package",
+    "provider"
   ],
-  "homepage": "https://github.com/vaayne/agent-kit/tree/main/extensions/anthropic-tool-cache-shim",
+  "homepage": "https://github.com/vaayne/agent-kit/tree/main/extensions/firework-provider",
   "bugs": {
     "url": "https://github.com/vaayne/agent-kit/issues"
   },
@@ -19,7 +20,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/vaayne/agent-kit.git",
-    "directory": "extensions/anthropic-tool-cache-shim"
+    "directory": "extensions/firework-provider"
   },
   "files": [
     "*.ts",
@@ -33,11 +34,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
-    "@mariozechner/pi-coding-agent": "^0.67.1",
+    "@mariozechner/pi-coding-agent": "^0.70.2",
+    "@mariozechner/pi-ai": "^0.70.2",
     "@types/bun": "^1.3.9"
   },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
     "typescript": "^5.9.3"
   },
   "pi": {

@@ -55,13 +55,14 @@ Task-specific instructions that guide AI agents on how to approach different pro
 | **ui-skills**            | Opinionated constraints for building better interfaces |
 | **web-fetch**            | Fetch and extract content from URLs                    |
 
-### Extensions (5)
+### Extensions (6)
 
 Pi extensions that add new capabilities to the agent.
 
 | Extension                     | Description                                                          |
 | ----------------------------- | -------------------------------------------------------------------- |
-| **anthropic-tool-cache-shim** | Strip `tools[*].cache_control` from Fireworks Anthropic payloads     |
+| **anthropic-tool-cache-shim** | Strip unsupported Fireworks Anthropic tool fields                    |
+| **firework-provider**         | Override Fireworks to one router model and sanitize tool fields      |
 | **mcp**                       | MCP client integration with tool orchestration                       |
 | **rules**                     | Load project rule files into the agent's effective instructions      |
 | **subagent**                  | Delegate tasks to specialized subagents                              |
