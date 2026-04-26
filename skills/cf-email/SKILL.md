@@ -1,11 +1,11 @@
 ---
 name: cf-email
-description: Send emails via the Cloudflare Email Sending REST API. Trigger this skill when the user wants to send an email using Cloudflare's email service. Supports plain text, HTML, attachments, inline images, CC/BCC, reply-to, and custom headers. Uses a Python helper script that reads credentials from environment variables.
+description: Send emails via the Cloudflare Email Sending REST API. Trigger this skill when the user wants to send an email using Cloudflare's email service. Use curl directly with credentials from environment variables.
 ---
 
 # cf-email — Cloudflare Email Sending
 
-Sends transactional email via the Cloudflare Email Sending REST API using `send_email.py`.
+Sends transactional email via the Cloudflare Email Sending REST API using `curl`.
 
 ## Environment Variables
 
@@ -14,108 +14,159 @@ Sends transactional email via the Cloudflare Email Sending REST API using `send_
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID                              |
 | `CLOUDFLARE_API_TOKEN`  | Cloudflare API token with email sending permission |
 
-Set these in your shell profile or `.env` file before running the script.
-
-## Script Location
+## Endpoint
 
 ```
-skills/cf-email/scripts/send_email.py
+POST https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send
 ```
 
-Run with:
+## Request Fields
 
-```bash
-uv run --script skills/cf-email/scripts/send_email.py [OPTIONS]
-```
+| Field         | Type                       | Required | Description                                      |
+| ------------- | -------------------------- | -------- | ------------------------------------------------ |
+| `to`          | string or string[]         | Yes      | Recipient(s), max 50 combined with cc/bcc        |
+| `from`        | string or `{address,name}` | Yes      | Sender — object form uses `address`, not `email` |
+| `subject`     | string                     | Yes      | Email subject line                               |
+| `html`        | string                     | No*      | HTML body                                        |
+| `text`        | string                     | No*      | Plain text body                                  |
+| `cc`          | string or string[]         | No       | CC recipients                                    |
+| `bcc`         | string or string[]         | No       | BCC recipients                                   |
+| `reply_to`    | string or `{address,name}` | No       | Snake_case                                       |
+| `attachments` | array                      | No       | File attachments and inline images               |
+| `headers`     | object                     | No       | Custom email headers                             |
+
+*At least one of `html` or `text` required. Include both for best deliverability.
 
 ## Usage
 
-### Basic send
+### Plain text
 
 ```bash
-uv run --script skills/cf-email/scripts/send_email.py \
-  --to user@example.com \
-  --subject "Hello" \
-  --text "Hello from Cloudflare"
+curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
+  --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "to": "user@example.com",
+    "from": {"address": "you@yourdomain.com", "name": "Your Name"},
+    "subject": "Hello",
+    "text": "Hello from Cloudflare.",
+    "html": "<p>Hello from Cloudflare.</p>"
+  }'
 ```
 
-### HTML email with CC/BCC
+### Multiple recipients with CC/BCC
 
 ```bash
-uv run --script skills/cf-email/scripts/send_email.py \
-  --to user@example.com \
-  --cc manager@company.com \
-  --bcc archive@company.com \
-  --subject "Order Confirmation" \
-  --html "<h1>Your order is confirmed</h1>" \
-  --text "Your order is confirmed"
-```
-
-### Custom sender name and reply-to
-
-```bash
-uv run --script skills/cf-email/scripts/send_email.py \
-  --to customer@example.com \
-  --from-address orders@yourdomain.com \
-  --from-name "Orders Team" \
-  --reply-to support@yourdomain.com \
-  --subject "Order shipped" \
-  --text "Your order is on its way"
+curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
+  --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "to": ["user1@example.com", "user2@example.com"],
+    "cc": ["manager@company.com"],
+    "bcc": ["archive@company.com"],
+    "from": {"address": "orders@yourdomain.com", "name": "Orders"},
+    "reply_to": "support@yourdomain.com",
+    "subject": "Order Confirmation",
+    "html": "<h1>Your order is confirmed</h1>",
+    "text": "Your order is confirmed"
+  }'
 ```
 
 ### With file attachment
 
 ```bash
-uv run --script skills/cf-email/scripts/send_email.py \
-  --to customer@example.com \
-  --subject "Your Invoice" \
-  --html "<h1>Invoice attached</h1>" \
-  --attach invoice.pdf
+curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
+  --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "to": "customer@example.com",
+    "from": {"address": "invoices@yourdomain.com", "name": "Invoices"},
+    "subject": "Your Invoice",
+    "html": "<h1>Invoice attached</h1>",
+    "text": "Invoice attached.",
+    "attachments": [
+      {
+        "content": "JVBERi0xLjQK...",
+        "filename": "invoice.pdf",
+        "type": "application/pdf",
+        "disposition": "attachment"
+      }
+    ]
+  }'
 ```
 
-### Dry run (validate without sending)
+### With inline image
 
 ```bash
-uv run --script skills/cf-email/scripts/send_email.py \
-  --to user@example.com \
-  --subject "Test" \
-  --text "Test body" \
-  --dry-run
+curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
+  --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "to": "user@example.com",
+    "from": {"address": "newsletter@yourdomain.com", "name": "Newsletter"},
+    "subject": "Check this out",
+    "html": "<h1>Hello!</h1><img src=\"cid:logo\">",
+    "attachments": [
+      {
+        "content": "iVBORw0KGgoAAAANSUhEUg...",
+        "filename": "logo.png",
+        "type": "image/png",
+        "disposition": "inline",
+        "content_id": "logo"
+      }
+    ]
+  }'
 ```
 
-## Options Reference
+### With custom headers (e.g. unsubscribe)
 
-| Option           | Description                                          |
-| ---------------- | ---------------------------------------------------- |
-| `--to`           | Recipient(s), repeatable                             |
-| `--cc`           | CC recipient(s), repeatable                          |
-| `--bcc`          | BCC recipient(s), repeatable                         |
-| `--from-address` | Sender address                                       |
-| `--from-name`    | Sender display name                                  |
-| `--reply-to`     | Reply-to address                                     |
-| `--subject`      | Email subject (required)                             |
-| `--text`         | Plain text body                                      |
-| `--html`         | HTML body (string or `@file.html` to read from file) |
-| `--attach`       | File path to attach, repeatable                      |
-| `--header`       | Custom header as `Key: Value`, repeatable            |
-| `--dry-run`      | Print payload without sending                        |
+```bash
+curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/email/sending/send" \
+  --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "to": "user@example.com",
+    "from": {"address": "notifications@yourdomain.com", "name": "Notifications"},
+    "subject": "Weekly digest",
+    "html": "<h1>Weekly Digest</h1>",
+    "text": "Weekly Digest",
+    "headers": {
+      "List-Unsubscribe": "<https://yourdomain.com/unsubscribe?id=abc123>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+  }'
+```
 
-At least one of `--text` or `--html` is required.
+## Response
 
-## Error Codes
+```json
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result": {
+    "delivered": ["recipient@example.com"],
+    "permanent_bounces": [],
+    "queued": []
+  }
+}
+```
 
-| HTTP Status | Meaning           | Retry?                    |
-| ----------- | ----------------- | ------------------------- |
-| 200         | Success           | N/A                       |
-| 400         | Validation error  | No                        |
-| 401         | Invalid API token | No                        |
-| 429         | Rate limited      | Yes — exponential backoff |
-| 500         | Server error      | Yes — exponential backoff |
+`success: true` with empty `delivered`/`queued` arrays is normal — Cloudflare accepted the message.
+
+## Error Handling
+
+| Status | Meaning          | Retry?                    |
+| ------ | ---------------- | ------------------------- |
+| 200    | Success          | N/A                       |
+| 400    | Validation error | No — fix the request      |
+| 401    | Invalid token    | No — check your token     |
+| 429    | Rate limited     | Yes — exponential backoff |
+| 500    | Server error     | Yes — exponential backoff |
 
 ## Workflow
 
 1. Confirm recipient, subject, and body with the user.
-2. Check that `CF_ACCOUNT_ID`, `CF_EMAIL_API_TOKEN`, and `CF_EMAIL_FROM` are set (or `--from-address` is provided).
-3. Run with `--dry-run` first to preview the payload.
-4. Remove `--dry-run` to send.
-5. Report `delivered`, `queued`, or `permanent_bounces` from the response.
+2. Echo the JSON payload to confirm it looks right before sending.
+3. Send with curl and check `success` in the response.
+4. Report `delivered`, `queued`, or `permanent_bounces` from the result.
