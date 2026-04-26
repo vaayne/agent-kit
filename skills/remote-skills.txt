@@ -13,8 +13,8 @@
 anthropics/skills --skill skill-creator
 
 # UI frontend-design
-google-labs-code/stitch-skills
-# anthropics/skills --skill frontend-design
+#google-labs-code/stitch-skills
+anthropics/skills --skill frontend-design
 # nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max
 
 vaayne/mcphub --skill find-skills
@@ -32,11 +32,9 @@ blader/humanizer --skill humanizer
 #eze-is/web-access
 vaayne/tap --skill tap-web
 
-
 # write slides
 #slidevjs/slidev
-#zarazhangrui/frontend-slides
-
+zarazhangrui/frontend-slides
 
 # build ios/mac apps
 #openai/plugins --skill ios-debugger-agent
@@ -53,3 +51,5 @@ JimLiu/baoyu-skills --skill baoyu-infographic
 # markting
 #kostja94/marketing-skills
 
+cloudflare/skills --skill cloudflare
+cloudflare/skills --skill wrangler

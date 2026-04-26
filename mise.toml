@@ -41,8 +41,8 @@ for dir in ~/.claude/skills ~/.factory/skills ~/.pi/skills ~/.codex/skills ~/.co
   if [ -d "$dir" ] && [ ! -L "$dir" ]; then
     rm -rf "$dir"
   fi
-  mkdir -p "$(dirname "$dir")"
-  ln -sfn ~/.agents/skills "$dir"
+  # mkdir -p "$(dirname "$dir")"
+  # ln -sfn ~/.agents/skills "$dir"
 done
 
 mise run format
