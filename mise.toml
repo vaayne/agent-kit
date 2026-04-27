@@ -20,7 +20,7 @@ depends = ["sync:skills", "sync:agents"]
 
 [tasks."sync:skills"]
 description = "Sync all skills (local + remote) to ~/.agents/skills"
-# depends = ["sync:impeccable"]
+depends = ["sync:impeccable"]
 run = """
 mkdir -p ~/.agents/skills
 rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
@@ -45,6 +45,9 @@ for dir in ~/.claude/skills ~/.factory/skills ~/.pi/skills ~/.codex/skills ~/.co
   # ln -sfn ~/.agents/skills "$dir"
 done
 
+# link claude skills
+ln -sfn ~/.agents/skills ~/.claude/skills
+
 mise run format
 echo "Synced all skills to ~/.agents/skills"
 """
@@ -54,8 +57,7 @@ description = "Clone/update pbakaus/impeccable and save skills locally"
 run = """
 REPO_URL="https://github.com/pbakaus/impeccable.git"
 CACHE_DIR="$HOME/.cache/impeccable"
-SRC="$CACHE_DIR/source/skills"
-DEST="./skills"
+SKILL_DIR="$CACHE_DIR/.agents/skills/impeccable"
 
 # Clone or update the repo
 if [ -d "$CACHE_DIR/.git" ]; then
@@ -66,20 +68,7 @@ else
   git clone "$REPO_URL" "$CACHE_DIR"
 fi
 
-# Copy frontend-design skill (with references)
-mkdir -p "$DEST/frontend-design"
-rsync -av --delete "$SRC/frontend-design/" "$DEST/frontend-design/"
-echo "Saved frontend-design skill"
-
-# Copy all other skills into frontend-improver/references (strip YAML frontmatter)
-mkdir -p "$DEST/frontend-improver/references"
-for dir in "$SRC"/*/; do
-  cmd=$(basename "$dir")
-  [ "$cmd" = "frontend-design" ] && continue
-  awk 'BEGIN{f=0} /^---$/{f++; next} f>=2' "$dir/SKILL.md" | sed -e '/./,$!d' > "$DEST/frontend-improver/references/$cmd.md"
-  echo "  Copied $cmd.md"
-done
-echo "Saved steering commands to $DEST/frontend-improver/references/"
+cp -R $SKILL_DIR ./skills
 """
 
 [tasks."sync:agents"]

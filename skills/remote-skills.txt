@@ -11,25 +11,12 @@
 #   https://github.com/anthropics/skills --skill skill-creator
 
 anthropics/skills --skill skill-creator
-
-# UI frontend-design
-#google-labs-code/stitch-skills
 anthropics/skills --skill frontend-design
-# nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max
 
 vaayne/mcphub --skill find-skills
 vaayne/mcphub --skill mcp-skill-gen
 blader/humanizer --skill humanizer
 
-# Google workspace
-#googleworkspace/cli --skill gws-gmail-send
-#googleworkspace/cli --skill gws-gmail
-#googleworkspace/cli --skill gws-gmail-triage
-#googleworkspace/cli --skill gws-gmail-watch
-
-# web browser
-#browser-use/browser-use --skill browser-use
-#eze-is/web-access
 vaayne/tap --skill tap-web
 
 # write slides
@@ -53,3 +40,4 @@ JimLiu/baoyu-skills --skill baoyu-infographic
 
 cloudflare/skills --skill cloudflare
 cloudflare/skills --skill wrangler
+cloudflare/skills --skill workers-best-practices
