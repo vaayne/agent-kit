@@ -10,7 +10,7 @@ description: >
 
 ## What this skill does
 
-Plans are written to `./agents/sessions/{date}-{xxx feature}/plan.md`. Use the current date for `{date}` in `YYYY-MM-DD` form and a short kebab-case feature label for `{xxx feature}`. Review comments live inline in that same file — no separate threads, no external tools. The file is the single source of truth for both the plan and its review history.
+Plans are written to `./.agents/sessions/{date}-{xxx feature}/plan.md`. Use the current date for `{date}` in `YYYY-MM-DD` form and a short kebab-case feature label for `{xxx feature}`. Review comments live inline in that same file — no separate threads, no external tools. The file is the single source of truth for both the plan and its review history.
 
 ---
 
