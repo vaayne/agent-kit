@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Code reviewer focused on correctness, risk, and actionable feedback
-model: openai-codex/gpt-5.4
+model: openai-codex/gpt-5.5
 thinking: high
 ---
 
