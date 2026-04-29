@@ -7,7 +7,26 @@ Designs and iterates production-grade frontend interfaces. Real working code, co
 
 ## Setup (non-optional)
 
-Two steps before any design work. Both are required. Skipping either produces generic output that ignores the project.
+Before any design work or file edits, pass these gates. Skipping them produces generic output that ignores the project.
+
+| Gate     | Required check                                                                                                    | If fail                                                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Context  | The PRODUCT.md / DESIGN.md loader result is known from `node .agents/skills/impeccable/scripts/load-context.mjs`. | Run the loader before continuing.                                                                                         |
+| Product  | PRODUCT.md exists and is not empty or placeholder (`[TODO]` markers, <200 chars).                                 | Run `$impeccable teach`, refresh context, then resume. Never synthesize PRODUCT.md from the user's original prompt alone. |
+| Command  | The matching command reference is loaded when a sub-command is used.                                              | Load the reference before continuing.                                                                                     |
+| Craft    | `$impeccable craft` has a user-confirmed shape brief for this task. `teach` / PRODUCT.md never counts as shape.   | Run `$impeccable shape` and wait for explicit brief confirmation.                                                         |
+| Image    | Required visual probes / mocks are generated or skipped with a reason.                                            | Resolve the image-generation gate in `shape.md` or `craft.md` before code.                                                |
+| Mutation | All active gates above pass.                                                                                      | Do not edit project files yet.                                                                                            |
+
+Codex-style agents must state this before editing files:
+
+```text
+IMPECCABLE_PREFLIGHT: context=pass product=pass command_reference=pass shape=pass|not_required image_gate=pass|skipped:<reason> mutation=open
+```
+
+For `$impeccable craft`, `shape=pass` is only valid after a separate user response approving the shape design brief, or when the user provided an already-confirmed brief in the request. Do not mark `shape=pass` after writing PRODUCT.md, summarizing assumptions, or drafting an unconfirmed brief yourself.
+
+Other harnesses should follow the same checklist when they can expose this state.
 
 ### 1. Context gathering
 
@@ -28,7 +47,7 @@ If the output is already in this session's conversation history, don't re-run. E
 
 `$impeccable live` already warms context via `live.mjs` — if you've run `live.mjs`, don't also run `load-context.mjs` this session.
 
-If PRODUCT.md is missing, empty, or placeholder (`[TODO]` markers, <200 chars): run `$impeccable teach`, then resume the user's original task with the fresh context.
+If PRODUCT.md is missing, empty, or placeholder (`[TODO]` markers, <200 chars): run `$impeccable teach`, then resume the user's original task with the fresh context. If the original task was `$impeccable craft`, resume into `$impeccable shape` before any implementation work.
 
 If DESIGN.md is missing: nudge once per session (_"Run `$impeccable document` for more on-brand output"_), then proceed.
 
@@ -140,6 +159,8 @@ Plus two management commands — `pin <command>` and `unpin <command>`, detailed
 3. **First word doesn't match** — general design invocation. Apply the setup steps, shared design laws, and the loaded register reference, using the full argument as context.
 
 Setup (context gathering, register) is already loaded by then; sub-commands don't re-invoke `$impeccable`.
+
+If the first word is `craft`, setup still runs first, but [reference/craft.md](reference/craft.md) owns the rest of the flow. If setup invokes `teach` as a blocker, finish teach, refresh context, then resume the original command and target.
 
 ## Pin / Unpin
 
