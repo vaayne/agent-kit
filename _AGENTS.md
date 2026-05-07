@@ -29,12 +29,22 @@ When instructions conflict, follow system/developer instructions first, then rep
 
 ## Memory
 
-Treat Nowledge Mem (`nmem`) as external memory.
+Treat Nowledge Mem (`nmem`) as mandatory external memory. Do not rely only on chat context when memory could help.
 
-- Proactively query memory when prior work, preferences, decisions, recurring bugs, or team conventions may matter.
-- Use durable memory for facts, preferences, decisions, and reusable outcomes.
-- Use thread memory only when exact past conversation context matters.
-- Proactively save durable preferences, project conventions, recurring fixes, architecture decisions, and reusable task outcomes.
+At session start or before meaningful work:
+
+- Run `nmem wm` to read today's working memory.
+- Search durable memory with `nmem --json m search "<project/user/task>"` when prior work, preferences, decisions, recurring bugs, or team conventions may matter.
+- Search thread memory with `nmem --json t search "<query>"` only when exact past conversation context may matter.
+
+During work:
+
+- Use memory to check existing preferences, project conventions, prior fixes, architecture decisions, and reusable outcomes.
+- If a memory search fails or returns nothing useful, say so briefly and proceed from current evidence.
+
+After learning something durable:
+
+- Save durable preferences, project conventions, recurring fixes, architecture decisions, and reusable task outcomes with `nmem --json m add "..."`.
 - Update existing memories instead of duplicating them.
 - Never save secrets, credentials, transient logs, or one-off noise.
 - Save handoff summaries only when explicitly asked.
