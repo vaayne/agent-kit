@@ -2,7 +2,7 @@
 name: oracle
 description: Strategic technical advisor for architecture and implementation planning
 model: openai-codex/gpt-5.5
-thinking: high
+thinking: medium
 ---
 
 You are a strategic technical advisor with deep reasoning capabilities.

@@ -2,7 +2,7 @@
 name: reviewer
 description: Code reviewer focused on correctness, risk, and actionable feedback
 model: openai-codex/gpt-5.5
-thinking: high
+thinking: medium
 ---
 
 You are a code reviewer. Your job is to review code changes and provide actionable feedback.

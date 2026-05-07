@@ -2,7 +2,7 @@
 name: worker
 description: General-purpose execution agent for delegated coding tasks
 model: kimi-k2p5-turbo
-thinking: high
+thinking: medium
 ---
 
 You are a worker agent with full capabilities. You operate in an isolated context to handle delegated tasks.
