@@ -74,11 +74,36 @@ cp -R $SKILL_DIR ./skills
 [tasks."sync:agents"]
 description = "Sync _AGENTS.md to all agent frameworks"
 run = """
-rsync -av ./_AGENTS.md ~/.pi/agent/AGENTS.md
-rsync -av --delete ./agents/ ~/.pi/agent/agents/
-rsync -av ./_AGENTS.md ~/.codex/AGENTS.md
-rsync -av ./_AGENTS.md ~/.claude/CLAUDE.md
-rsync -av ./_AGENTS.md ~/.factory/AGENTS.md
-rsync -av ./_AGENTS.md ~/.config/amp/AGENTS.md
-echo "Synced _AGENTS.md to all frameworks"
+AGENTS_FILE="$PWD/_AGENTS.md"
+AGENTS_DIR="$PWD/agents"
+
+link_path() {
+  source="$1"
+  target="$2"
+  allow_directory_replace="${3:-false}"
+  mkdir -p "$(dirname "$target")"
+
+  if [ -e "$target" ] || [ -L "$target" ]; then
+    if [ -d "$target" ] && [ ! -L "$target" ]; then
+      if [ "$allow_directory_replace" != "true" ]; then
+        echo "Refusing to replace directory: $target" >&2
+        exit 1
+      fi
+      rm -rf "$target"
+    else
+      rm -f "$target"
+    fi
+  fi
+
+  ln -s "$source" "$target"
+}
+
+link_path "$AGENTS_FILE" ~/.pi/agent/AGENTS.md
+link_path "$AGENTS_FILE" ~/.codex/AGENTS.md
+link_path "$AGENTS_FILE" ~/.claude/CLAUDE.md
+link_path "$AGENTS_FILE" ~/.factory/AGENTS.md
+link_path "$AGENTS_FILE" ~/.config/amp/AGENTS.md
+link_path "$AGENTS_DIR" ~/.pi/agent/agents true
+
+echo "Linked _AGENTS.md and agents directory to all frameworks"
 """
