@@ -9,10 +9,10 @@
  */
 
 import { execFileSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { completionAckForAcceptResult, completionTypeForAcceptResult } from "./live-completion.mjs";
+import { readLiveServerInfo } from "./impeccable-paths.mjs";
 
 // Node's built-in fetch (undici under the hood) enforces a 300s headers
 // timeout that can't be lowered per-request. We cap each request below
@@ -20,14 +20,28 @@ import { fileURLToPath } from "node:url";
 // depending on the standalone undici package.
 const PER_REQUEST_TIMEOUT_MS = 270_000;
 
-const LIVE_PID_FILE = path.join(process.cwd(), ".impeccable-live.json");
-
 function readServerInfo() {
-  try {
-    return JSON.parse(fs.readFileSync(LIVE_PID_FILE, "utf-8"));
-  } catch {
+  const record = readLiveServerInfo(process.cwd());
+  if (!record) {
     console.error("No running live server found. Start one with: npx impeccable live");
     process.exit(1);
+  }
+  return record.info;
+}
+
+export function buildPollReplyPayload(token, { id, type, message, file, data }) {
+  return { token, id, type, message, file, data };
+}
+
+async function postReply(base, token, reply) {
+  const res = await fetch(`${base}/poll`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildPollReplyPayload(token, reply)),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || res.statusText);
   }
 }
 
@@ -71,23 +85,7 @@ Options:
     }
 
     try {
-      const res = await fetch(`${base}/poll`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: info.token,
-          id,
-          type: status,
-          message,
-          file: filePath,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error(`Reply failed (${res.status}):`, body.error || res.statusText);
-        process.exit(1);
-      }
+      await postReply(base, info.token, { id, type: status, message, file: filePath });
 
       // Success — silent exit (agent doesn't need output for replies)
     } catch (err) {
@@ -163,7 +161,27 @@ Options:
         });
         event._acceptResult = JSON.parse(out.trim());
       } catch (err) {
-        event._acceptResult = { handled: false, error: err.message };
+        event._acceptResult = { handled: false, mode: "error", error: err.message };
+      }
+
+      const completionType = completionTypeForAcceptResult(event.type, event._acceptResult);
+      try {
+        await postReply(base, info.token, {
+          id: event.id,
+          type: completionType,
+          message: event._acceptResult?.error,
+          file: event._acceptResult?.file,
+          data: event._acceptResult?.carbonize === true ? { carbonize: true } : undefined,
+        });
+      } catch (err) {
+        event._completionAck = { ok: false, error: err.message };
+      }
+      if (!event._completionAck) {
+        event._completionAck = completionAckForAcceptResult(
+          event.id,
+          completionType,
+          event._acceptResult,
+        );
       }
     }
 
@@ -172,7 +190,9 @@ Options:
     // is in reference/live.md.
     if (event._acceptResult?.carbonize === true) {
       process.stderr.write(
-        '\n⚠ Carbonize cleanup REQUIRED before next poll. See reference/live.md "Required after accept".\n\n',
+        "\n⚠ Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id " +
+          event.id +
+          '. See reference/live.md "Required after accept".\n\n',
       );
     }
 

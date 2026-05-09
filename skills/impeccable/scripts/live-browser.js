@@ -50,6 +50,18 @@
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; // ease-out-quint
   const PREFIX = "impeccable-live";
+  const sessionState = window.__IMPECCABLE_LIVE_SESSION__?.createLiveBrowserSessionState({
+    prefix: PREFIX,
+    storage: localStorage,
+    idFactory: () => crypto.randomUUID().replace(/-/g, "").slice(0, 8),
+  });
+  if (!sessionState) {
+    console.error(
+      "[impeccable] live-browser-session.js was not loaded. Live mode cannot start safely.",
+    );
+    window.__IMPECCABLE_LIVE_INIT__ = false;
+    return;
+  }
   const HIGHLIGHT_TRANSITION =
     "top 140ms " +
     EASE +
@@ -125,6 +137,8 @@
   let hasProjectContext = false;
   let selectedAction = "impeccable";
   let selectedCount = 3;
+  const browserOwner = sessionState.owner;
+  let checkpointTimer = null;
 
   // Scroll lock — holds window.scrollY at a fixed value while the session is
   // active, so HMR DOM patches and variant swaps can't drift the page. See
@@ -139,26 +153,14 @@
   // (Previously: saveSession wrote scrollY alongside state, so every call
   // during resume overwrote the pre-reload value with whatever the browser
   // had landed on, typically 0.)
-  const SCROLL_KEY_SUFFIX = "-scroll";
   function writeScrollY(y) {
-    try {
-      localStorage.setItem(LS_KEY + SCROLL_KEY_SUFFIX, String(y));
-    } catch {}
+    sessionState.writeScrollY(y);
   }
   function readScrollY() {
-    try {
-      const raw = localStorage.getItem(LS_KEY + SCROLL_KEY_SUFFIX);
-      if (raw == null) return null;
-      const n = parseFloat(raw);
-      return isFinite(n) ? n : null;
-    } catch {
-      return null;
-    }
+    return sessionState.readScrollY();
   }
   function clearScrollY() {
-    try {
-      localStorage.removeItem(LS_KEY + SCROLL_KEY_SUFFIX);
-    } catch {}
+    sessionState.clearScrollY();
   }
 
   // Pre-empt the browser: apply manual scroll restoration and jump to the
@@ -1907,6 +1909,7 @@
           paramsCurrentValues[p.id] = v;
           readout.textContent = formatRangeValue(input);
           applyParamValue(variantEl, p, v);
+          queueCheckpoint("param_changed");
         });
         row.appendChild(input);
       } else if (p.kind === "toggle") {
@@ -1944,6 +1947,7 @@
           knob.style.left = next ? "18px" : "2px";
           readout.textContent = next ? "On" : "Off";
           applyParamValue(variantEl, p, next);
+          queueCheckpoint("param_changed");
         });
         row.appendChild(track);
       } else if (p.kind === "steps") {
@@ -1987,6 +1991,7 @@
               btn.style.color = on ? "oklch(98% 0 0)" : P.text;
             });
             applyParamValue(variantEl, p, o.value);
+            queueCheckpoint("param_changed");
           });
           segRow.appendChild(b);
           segBtns.push({ btn: b, val: o.value });
@@ -2225,21 +2230,31 @@
           return;
         }
 
+        const previousVisibleVariant = currentSessionId === sessionId ? visibleVariant : 0;
+
         // Replace the live element with the full wrapper from source
         const wrapper = srcWrapper.cloneNode(true);
         liveEl.parentElement.replaceChild(wrapper, liveEl);
 
-        // Update state: count variants, show the first one
+        // Update state: count variants, preserving the user's current variant
+        // when a late HMR/source reinjection lands after they have cycled.
         const variants = wrapper.querySelectorAll(
           '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
         );
         arrivedVariants = variants.length;
         expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || arrivedVariants);
-        visibleVariant = 1;
-        showVariantInDOM(sessionId, 1);
+        const saved = loadSession();
+        const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
+        visibleVariant =
+          previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
+            ? previousVisibleVariant
+            : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+              ? savedVisibleVariant
+              : 1;
+        showVariantInDOM(sessionId, visibleVariant);
 
         // Update selectedElement to the visible variant's content
-        selectedElement = pickVariantContent(wrapper, 1) || wrapper.parentElement;
+        selectedElement = pickVariantContent(wrapper, visibleVariant) || wrapper.parentElement;
 
         state = "CYCLING";
         hideShaderOverlay();
@@ -2262,6 +2277,7 @@
     updateSelectedElement();
     updateBarContent("cycling");
     saveSession();
+    queueCheckpoint("variant_changed");
   }
 
   function updateSelectedElement() {
@@ -2270,6 +2286,20 @@
     if (!wrapper) return;
     const visEl = pickVariantContent(wrapper, visibleVariant);
     if (visEl) selectedElement = visEl;
+  }
+
+  function readVisibleVariantFromDOM(sessionId) {
+    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    if (!wrapper) return 0;
+    const variants = wrapper.querySelectorAll(
+      '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
+    );
+    for (const variant of variants) {
+      if (variant.style.display === "none") continue;
+      const idx = parseInt(variant.dataset.impeccableVariant || "0", 10);
+      if (idx > 0) return idx;
+    }
+    return 0;
   }
 
   // Resolve the element that represents the variant's visible content.
@@ -2546,8 +2576,13 @@
       updating = true;
       arrivedVariants = count;
       if (visibleVariant === 0 && arrivedVariants > 0) {
-        visibleVariant = 1;
-        showVariantInDOM(sessionId, 1);
+        const saved = loadSession();
+        const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
+        visibleVariant =
+          savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+            ? savedVisibleVariant
+            : 1;
+        showVariantInDOM(sessionId, visibleVariant);
         // showVariantInDOM hid the original (display:none); if we were still
         // anchored to the original's content, its boundingRect is now zero
         // and the bar snaps to (0,0). Re-point at the visible variant instead.
@@ -2567,6 +2602,7 @@
         updateBarContent("generating");
       }
       saveSession();
+      queueCheckpoint(state === "CYCLING" ? "variants_ready" : "variants_progress");
       updating = false;
     });
 
@@ -2689,6 +2725,7 @@
 
   /** Server died or became unreachable. Reset UI to a clean state. */
   function handleServerLost() {
+    const recoveryState = currentSessionId ? state : "IDLE";
     if (state === "GENERATING" || state === "CYCLING" || state === "SAVING") {
       showToast("Live server disconnected. Session ended.", 5000);
     }
@@ -2702,21 +2739,63 @@
       variantObserver = null;
     }
     stopScrollLock();
-    clearScrollY();
-    clearSession();
+    // Preserve local session state on server loss. The durable journal is the
+    // source of truth, but localStorage plus the variant wrapper lets the UI
+    // resume after a helper restart or page reload instead of treating a
+    // transient disconnect as an explicit discard.
     selectedElement = null;
-    currentSessionId = null;
     selectedAction = "impeccable";
-    state = "IDLE";
+    state = recoveryState;
+    if (currentSessionId) saveSession();
   }
 
-  function sendEvent(msg) {
+  function sendEvent(msg, opts) {
     msg.token = TOKEN;
-    fetch("http://localhost:" + PORT + "/events", {
+    function handleFailure(err) {
+      console.error("[impeccable] Failed to send event:", err);
+      if (opts && opts.throwOnError) throw err;
+      return null;
+    }
+    return fetch("http://localhost:" + PORT + "/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(msg),
-    }).catch((err) => console.error("[impeccable] Failed to send event:", err));
+    })
+      .then((res) => {
+        if (res.ok) return res;
+        return handleFailure(new Error("HTTP " + res.status + " " + res.statusText));
+      })
+      .catch(handleFailure);
+  }
+
+  function checkpointPayload(reason) {
+    return {
+      type: "checkpoint",
+      id: currentSessionId,
+      revision: sessionState.nextCheckpointRevision(),
+      owner: browserOwner,
+      phase: String(state || "").toLowerCase(),
+      reason,
+      pageUrl: location.pathname,
+      expectedVariants,
+      arrivedVariants,
+      visibleVariant,
+      paramValues: { ...paramsCurrentValues },
+    };
+  }
+
+  function sendCheckpoint(reason) {
+    if (!currentSessionId) return Promise.resolve(null);
+    return sendEvent(checkpointPayload(reason)).catch(() => null);
+  }
+
+  function queueCheckpoint(reason) {
+    if (!currentSessionId) return;
+    if (checkpointTimer) clearTimeout(checkpointTimer);
+    checkpointTimer = setTimeout(() => {
+      checkpointTimer = null;
+      sendCheckpoint(reason);
+    }, 120);
   }
 
   // ---------------------------------------------------------------------------
@@ -3010,6 +3089,7 @@
     state = "GENERATING";
     showBar("generating");
     saveSession();
+    sendCheckpoint("generate_started");
     writeScrollY(window.scrollY);
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
@@ -3470,6 +3550,8 @@ void main() {
 
   function handleAccept() {
     if (!currentSessionId || arrivedVariants === 0) return;
+    const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
+    if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
     const acceptPayload = {
       type: "accept",
       id: currentSessionId,
@@ -3478,9 +3560,6 @@ void main() {
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
     }
-    sendEvent(acceptPayload);
-    markSessionHandled();
-
     // The accepted variant is already the only visible child of the wrapper
     // (all other variants are display:none). HMR from the source rewrite will
     // replace the wrapper imminently. Don't eagerly replaceChild here — React
@@ -3490,95 +3569,111 @@ void main() {
     const acceptedSessionId = currentSessionId;
     const acceptedVariant = visibleVariant;
 
-    state = "CONFIRMED";
-    updateBarContent("confirmed");
-    setTimeout(function () {
-      hideBar();
-      hideHighlight();
-      stopScrollTracking();
-      if (variantObserver) {
-        variantObserver.disconnect();
-        variantObserver = null;
-      }
-      stopScrollLock();
-      clearScrollY();
-      clearSession();
-      selectedElement = null;
-      currentSessionId = null;
-      selectedAction = "impeccable";
-      state = "PICKING";
-    }, 1800);
+    state = "SAVING";
+    updateBarContent("saving");
 
-    // Static-server / no-HMR fallback: if the wrapper is still around 2s after
-    // the cleanup above, swap it out manually. By now React has either moved
-    // on or the app isn't React at all. Preserve the `data-impeccable-variant="N"`
-    // div (with display:contents) so @scope rules anchored to the variant
-    // attribute keep matching until reload replaces it with the carbonize block.
-    setTimeout(function () {
-      const wrapper = document.querySelector(
-        '[data-impeccable-variants="' + acceptedSessionId + '"]',
-      );
-      if (!wrapper) return;
-      const accepted = wrapper.querySelector('[data-impeccable-variant="' + acceptedVariant + '"]');
-      if (accepted && accepted.firstElementChild) {
-        const parent = wrapper.parentElement;
-        if (!parent) return;
-        accepted.style.display = "contents";
-        parent.replaceChild(accepted, wrapper);
-      }
-    }, 2000);
+    sendEvent(acceptPayload, { throwOnError: true })
+      .then(() => {
+        markSessionHandled();
+        confirmAcceptAfterReceipt();
+      })
+      .catch(() => {
+        state = "CYCLING";
+        updateBarContent("cycling");
+        showToast(
+          "Could not confirm accept with the live server. Session kept for recovery; try Accept again.",
+          5000,
+        );
+      });
+
+    function confirmAcceptAfterReceipt() {
+      state = "CONFIRMED";
+      updateBarContent("confirmed");
+      scheduleAcceptCleanup();
+    }
+
+    function scheduleAcceptCleanup() {
+      setTimeout(function () {
+        hideBar();
+        hideHighlight();
+        stopScrollTracking();
+        if (variantObserver) {
+          variantObserver.disconnect();
+          variantObserver = null;
+        }
+        stopScrollLock();
+        clearScrollY();
+        clearSession();
+        selectedElement = null;
+        currentSessionId = null;
+        selectedAction = "impeccable";
+        state = "PICKING";
+      }, 1800);
+
+      // Static-server / no-HMR fallback: if the wrapper is still around 2s after
+      // the cleanup above, swap it out manually. By now React has either moved
+      // on or the app isn't React at all. Preserve the `data-impeccable-variant="N"`
+      // div (with display:contents) so @scope rules anchored to the variant
+      // attribute keep matching until reload replaces it with the carbonize block.
+      setTimeout(function () {
+        const wrapper = document.querySelector(
+          '[data-impeccable-variants="' + acceptedSessionId + '"]',
+        );
+        if (!wrapper) return;
+        const accepted = wrapper.querySelector(
+          '[data-impeccable-variant="' + acceptedVariant + '"]',
+        );
+        if (accepted && accepted.firstElementChild) {
+          const parent = wrapper.parentElement;
+          if (!parent) return;
+          accepted.style.display = "contents";
+          parent.replaceChild(accepted, wrapper);
+        }
+      }, 2000);
+    }
   }
 
   function handleDiscard() {
     if (!currentSessionId) return;
-    sendEvent({ type: "discard", id: currentSessionId });
-    markSessionHandled();
-    // Instant DOM restore + fire-and-forget (script handles file cleanup)
-    cleanup();
+    sendEvent({ type: "discard", id: currentSessionId }, { throwOnError: true })
+      .then(() => {
+        markSessionHandled();
+        cleanup();
+      })
+      .catch(() =>
+        showToast(
+          "Could not confirm discard with the live server. Session kept for recovery.",
+          5000,
+        ),
+      );
   }
 
   // ---------------------------------------------------------------------------
-  // Session persistence via localStorage
+  // Session persistence via live-browser-session.js
   // ---------------------------------------------------------------------------
   // Survives page reloads, browser close/reopen, HMR, and accidental refreshes.
-
-  const LS_KEY = PREFIX + "-session";
 
   function saveSession() {
     if (!currentSessionId) return;
     // NOTE: scrollY is stored under a separate key (writeScrollY). Storing
     // it here would overwrite the Go-time value every time state changes.
-    try {
-      localStorage.setItem(
-        LS_KEY,
-        JSON.stringify({
-          id: currentSessionId,
-          state: state,
-          action: selectedAction,
-          count: selectedCount,
-          expected: expectedVariants,
-          arrived: arrivedVariants,
-          visible: visibleVariant,
-        }),
-      );
-    } catch {
-      /* quota exceeded or private mode */
-    }
+    sessionState.saveSession({
+      id: currentSessionId,
+      state,
+      action: selectedAction,
+      count: selectedCount,
+      expected: expectedVariants,
+      arrived: arrivedVariants,
+      visible: visibleVariant,
+    });
   }
 
   function loadSession() {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+    return sessionState.loadSession();
   }
 
   function clearSession() {
-    try {
-      localStorage.removeItem(LS_KEY);
-    } catch {}
+    sessionState.clearSession();
   }
 
   /** Mark session as handled (accepted/discarded). The agent will clean up
@@ -3586,23 +3681,15 @@ void main() {
    *  prevents resumeSession from picking it up again after reload. */
   function markSessionHandled() {
     if (!currentSessionId) return;
-    try {
-      localStorage.setItem(LS_KEY + "-handled", currentSessionId);
-    } catch {}
+    sessionState.markHandled(currentSessionId);
   }
 
   function isSessionHandled(id) {
-    try {
-      return localStorage.getItem(LS_KEY + "-handled") === id;
-    } catch {
-      return false;
-    }
+    return sessionState.isHandled(id);
   }
 
   function clearHandled() {
-    try {
-      localStorage.removeItem(LS_KEY + "-handled");
-    } catch {}
+    sessionState.clearHandled();
   }
 
   function cleanup() {
@@ -3763,6 +3850,7 @@ void main() {
     // hid. Now that state is CYCLING, re-fire.
     if (state === "CYCLING") refreshParamsPanel();
     saveSession();
+    queueCheckpoint("browser_resumed");
 
     // Start observing for more variants AFTER initial setup
     if (variantObserver) variantObserver.disconnect();
@@ -4307,7 +4395,7 @@ void main() {
   }
 
   // ---------------------------------------------------------------------------
-  // Design System Panel — visualizes the project's DESIGN.json sidecar
+  // Design System Panel — visualizes the project's .impeccable/design.json sidecar
   // ---------------------------------------------------------------------------
 
   const DESIGN_PREFS_KEY = "impeccable-live-design-panel";
@@ -4319,7 +4407,7 @@ void main() {
     open: false,
     tab: "visual", // 'visual' | 'raw'
     parsed: null, // parseDesignMd output (frontmatter + body sections)
-    sidecar: null, // DESIGN.json v2 payload (extensions + components + narrative)
+    sidecar: null, // .impeccable/design.json v2 payload (extensions + components + narrative)
     hasMd: false,
     hasSidecar: false,
     present: null, // true/false once fetch resolves
@@ -4836,7 +4924,7 @@ void main() {
     box.className = "stale";
     box.innerHTML = `
       <span class="stale-dot"></span>
-      <span class="stale-text"><strong>DESIGN.md is newer than DESIGN.json.</strong> Run <code>/impeccable document</code> to refresh the sidecar.</span>
+      <span class="stale-text"><strong>DESIGN.md is newer than .impeccable/design.json.</strong> Run <code>/impeccable document</code> to refresh the sidecar.</span>
     `;
     return box;
   }
@@ -4844,7 +4932,7 @@ void main() {
   function renderParsedMdCta() {
     const box = document.createElement("div");
     box.className = "parsed-md-cta";
-    box.innerHTML = `<strong>Basic view</strong>This panel reads the tokens in your <code>DESIGN.md</code> frontmatter. Running <code>/impeccable document</code> also generates a <code>DESIGN.json</code> sidecar with your project's actual component snippets (button, input, nav) and tonal ramps, rendered live below the tokens.`;
+    box.innerHTML = `<strong>Basic view</strong>This panel reads the tokens in your <code>DESIGN.md</code> frontmatter. Running <code>/impeccable document</code> also generates a <code>.impeccable/design.json</code> sidecar with your project's actual component snippets (button, input, nav) and tonal ramps, rendered live below the tokens.`;
     return box;
   }
 
@@ -5313,7 +5401,7 @@ void main() {
 
   function cssSafe(v) {
     // Strip anything outside valid CSS value chars to prevent injection via
-    // DESIGN.json values rendered into inline style strings.
+    // .impeccable/design.json values rendered into inline style strings.
     return String(v).replace(/[<>"'`\n]/g, "");
   }
 

@@ -215,6 +215,7 @@ The agent should insert variant HTML at insertLine.`);
 
   const { startLine, endLine } = match;
   const commentSyntax = detectCommentSyntax(targetFile);
+  const styleMode = detectStyleMode(targetFile);
   const isJsx = commentSyntax.open === "{/*";
   const indent = lines[startLine].match(/^(\s*)/)[1];
 
@@ -338,6 +339,10 @@ The agent should insert variant HTML at insertLine.`);
       endLine: startLine + wrapperLines.length + (originalLines.length - 1), // 1-indexed
       insertLine: insertLine + 1, // 1-indexed: where variants go
       commentSyntax: commentSyntax,
+      styleMode: styleMode.mode,
+      styleTag: styleMode.styleTag,
+      cssSelectorPrefixExamples: buildCssSelectorPrefixExamples(styleMode.mode, count),
+      cssAuthoring: buildCssAuthoring(styleMode, count),
       originalLineCount: originalLines.length,
     }),
   );
@@ -406,6 +411,64 @@ function detectCommentSyntax(filePath) {
   }
   // HTML, Vue, Svelte, Astro all use HTML comments
   return { open: "<!--", close: "-->" };
+}
+
+function detectStyleMode(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".astro") {
+    return {
+      mode: "astro-global-prefixed",
+      styleTag: '<style is:inline data-impeccable-css="SESSION_ID">',
+    };
+  }
+  return {
+    mode: "scoped",
+    styleTag: '<style data-impeccable-css="SESSION_ID">',
+  };
+}
+
+function buildCssSelectorPrefixExamples(styleMode, count) {
+  if (styleMode !== "astro-global-prefixed") return [];
+  return Array.from({ length: count }, (_, i) => `[data-impeccable-variant="${i + 1}"]`);
+}
+
+function buildCssAuthoring(styleMode, count) {
+  const variantNumbers = Array.from({ length: count }, (_, i) => i + 1);
+  if (styleMode.mode === "astro-global-prefixed") {
+    return {
+      mode: styleMode.mode,
+      styleTag: styleMode.styleTag,
+      strategy: "global-prefixed",
+      rulePattern: '[data-impeccable-variant="N"] > .variant-class { ... }',
+      selectorExamples: variantNumbers.map(
+        (n) => `[data-impeccable-variant="${n}"] > .variant-class`,
+      ),
+      requirements: [
+        "Use the styleTag exactly; the is:inline attribute is required for this file.",
+        'Prefix every preview selector with the matching [data-impeccable-variant="N"] selector.',
+        "Keep selectors anchored to the generated variant wrapper; do not rely on component CSS scoping for preview rules.",
+      ],
+      forbidden: ["Do not use @scope for this styleMode."],
+    };
+  }
+  return {
+    mode: styleMode.mode,
+    styleTag: styleMode.styleTag,
+    strategy: "scope-rule",
+    rulePattern: '@scope ([data-impeccable-variant="N"]) { :scope > .variant-class { ... } }',
+    selectorExamples: variantNumbers.map(
+      (n) => `@scope ([data-impeccable-variant="${n}"]) { :scope > .variant-class { ... } }`,
+    ),
+    requirements: [
+      'Use @scope blocks keyed to each [data-impeccable-variant="N"] wrapper.',
+      "Inside each @scope block, make :scope rules step into the replacement element with a descendant combinator.",
+      "Use the styleTag exactly; do not add framework-specific style attributes unless this object says to.",
+    ],
+    forbidden: [
+      'Do not use global [data-impeccable-variant="N"] selector prefixes for this styleMode.',
+      "Do not add is:inline to the style tag for this styleMode.",
+    ],
+  };
 }
 
 /**
