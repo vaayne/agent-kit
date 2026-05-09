@@ -34,34 +34,52 @@ When instructions conflict, follow system/developer instructions first, then rep
 
 ## Memory
 
-Treat Nowledge Mem (`nmem`) as mandatory external memory. Do not rely only on chat context when memory could help.
+Nowledge Mem (`nmem`) is your external brain. Treat it as mandatory for any non-trivial task.
 
-At session start or before meaningful work:
+### When to Search
 
-- Run `nmem wm` to read today's working memory.
-- Search durable memory with `nmem --json m search "<project/user/task>"` when prior work, preferences, decisions, recurring bugs, or team conventions may matter.
-- Search thread memory with `nmem --json t search "<query>"` only when exact past conversation context may matter.
+- **Before starting work** on anything that could benefit from prior context:
+  - Project conventions, architecture decisions, tech stack choices
+  - Recurring bugs, known workarounds, team preferences
+  - User preferences (coding style, tool choices, naming conventions)
+- **Before making a decision** that might conflict with a past choice
+- **Before saving anything** — always check first to avoid duplicates
 
-During work:
+If a search returns nothing useful, say so briefly and proceed from current evidence.
 
-- Use memory to check existing preferences, project conventions, prior fixes, architecture decisions, and reusable outcomes.
-- If a memory search fails or returns nothing useful, say so briefly and proceed from current evidence.
+### When to Save
 
-After learning something durable:
+Save only information that will be useful in a future session:
 
-- Save durable preferences, project conventions, recurring fixes, architecture decisions, and reusable task outcomes with `nmem --json m add "..."`.
-- Update existing memories instead of duplicating them.
-- Never save secrets, credentials, transient logs, or one-off noise.
-- Save handoff summaries only when explicitly asked.
+- User preferences (language, style, tool choices)
+- Project conventions and architecture decisions
+- Recurring bug patterns and their fixes
+- Task outcomes that may be reusable
 
-Common commands:
+Do NOT save:
 
-- `nmem wm` — read today's working memory.
-- `nmem --json m search "query"` — search durable memory.
-- `nmem --json t search "query"` — search prior thread context.
-- `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200` — inspect a thread result.
-- `nmem --json m add "content"` — save new durable memory.
-- `nmem m update <id> -c "content"` — update an existing memory.
+- Secrets, credentials, tokens
+- Transient logs, one-off errors, ephemeral info
+- Handoff summaries unless explicitly asked
+
+### How to Save
+
+- Always search first to avoid duplicates
+- Update existing memories instead of creating new ones (`nmem m update <id> -c "..."`)
+- Use a descriptive title (`-t`, max 60 chars)
+- Add 2-4 labels with `-l`: one `--unit-type` category (`preference`, `decision`, `fact`, `procedure`) + topic
+- Set importance with `-i`: 0.8+ for critical, 0.5–0.7 for useful, <0.5 for background
+
+Example: `nmem --json m add "Prefer snake_case for Python vars" -t "Python naming" -l preference -l python -i 0.7`
+
+### Common Commands
+
+- `nmem wm` — read today's working memory
+- `nmem --json m search "query"` — search durable memory (facts, decisions, conventions)
+- `nmem --json t search "query"` — search thread context (prior conversations)
+- `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200` — inspect a thread
+- `nmem --json m add "content" -t "title" -l label -i 0.7` — save new memory
+- `nmem m update <id> -c "content"` — update existing memory
 
 ## Skills and Delegation
 
