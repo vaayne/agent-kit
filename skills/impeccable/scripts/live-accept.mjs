@@ -103,10 +103,9 @@ Output (JSON):
     // five-step checklist lives in reference/live.md (loaded once per
     // session); repeating it per-event would waste tokens.
     if (result.carbonize) {
-      result.todo =
-        "REQUIRED before next poll: carbonize cleanup in " +
-        relFile +
-        '. See reference/live.md "Required after accept".';
+      result.todo = "REQUIRED before next poll: carbonize cleanup in "
+        + relFile
+        + ". See reference/live.md \"Required after accept\".";
     }
     console.log(JSON.stringify({ handled: true, file: relFile, ...result }));
   }
@@ -183,7 +182,7 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
     );
     // JSX targets need the CSS body wrapped in a template literal so that the
     // `{` and `}` in CSS rules don't get parsed as JSX expressions.
-    replacement.push(indent + '<style data-impeccable-css="' + id + '">' + (isJsx ? "{`" : ""));
+    replacement.push(indent + "<style data-impeccable-css=\"" + id + "\">" + (isJsx ? "{`" : ""));
     // Re-indent CSS content to match
     for (const cssLine of cssContent) {
       replacement.push(indent + cssLine.trimStart());
@@ -193,14 +192,14 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
       // Preserve the user's knob positions for the carbonize-cleanup agent
       // to bake into the final CSS when it collapses scoped rules.
       replacement.push(
-        indent +
-          commentSyntax.open +
-          " impeccable-param-values " +
-          id +
-          ": " +
-          JSON.stringify(paramValues) +
-          " " +
-          commentSyntax.close,
+        indent
+          + commentSyntax.open
+          + " impeccable-param-values "
+          + id
+          + ": "
+          + JSON.stringify(paramValues)
+          + " "
+          + commentSyntax.close,
       );
     }
     replacement.push(
@@ -218,9 +217,9 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   // need the object form, otherwise React 19 throws "Failed to set indexed
   // property [0] on CSSStyleDeclaration" while parsing the string char-by-char.
   if (cssContent) {
-    const styleAttr = isJsx ? "style={{ display: 'contents' }}" : 'style="display: contents"';
+    const styleAttr = isJsx ? "style={{ display: 'contents' }}" : "style=\"display: contents\"";
     replacement.push(
-      indent + '<div data-impeccable-variant="' + variantNum + '" ' + styleAttr + ">",
+      indent + "<div data-impeccable-variant=\"" + variantNum + "\" " + styleAttr + ">",
     );
     replacement.push(...restored);
     replacement.push(indent + "</div>");
@@ -412,7 +411,7 @@ function extractInnerByAttr(text, attrMatch) {
  */
 function extractOriginal(lines, block) {
   const text = stripStyleAndJoin(lines, block);
-  const inner = extractInnerByAttr(text, 'data-impeccable-variant="original"');
+  const inner = extractInnerByAttr(text, "data-impeccable-variant=\"original\"");
   if (inner === null) return [];
   return inner.split("\n");
 }
@@ -423,7 +422,7 @@ function extractOriginal(lines, block) {
  */
 function extractVariant(lines, block, variantNum) {
   const text = stripStyleAndJoin(lines, block);
-  const inner = extractInnerByAttr(text, 'data-impeccable-variant="' + variantNum + '"');
+  const inner = extractInnerByAttr(text, "data-impeccable-variant=\"" + variantNum + "\"");
   if (inner === null) return null;
   const result = inner.split("\n");
   // Collapse a lone empty leading/trailing line (common after string splice).
@@ -443,7 +442,7 @@ function extractVariant(lines, block, variantNum) {
  *      the lines between them.
  */
 function extractCss(lines, block, id) {
-  const styleAttr = 'data-impeccable-css="' + id + '"';
+  const styleAttr = "data-impeccable-css=\"" + id + "\"";
   let inStyle = false;
   const content = [];
 
@@ -635,11 +634,4 @@ if (_running?.endsWith("live-accept.mjs") || _running?.endsWith("live-accept.mjs
   acceptCli();
 }
 
-export {
-  findMarkerBlock,
-  extractOriginal,
-  extractVariant,
-  extractCss,
-  deindentContent,
-  detectCommentSyntax,
-};
+export { deindentContent, detectCommentSyntax, extractCss, extractOriginal, extractVariant, findMarkerBlock };

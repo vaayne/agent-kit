@@ -85,9 +85,9 @@ export function detectCsp(cwd = process.cwd()) {
 
     // Monorepo CSP helper: packages/*/src/.../(config|security)/*
     if (
-      SCAN_EXTS.has(ext) &&
-      /packages\/[^/]+\/src\/.*(config|next-config|security)/.test(relPath) &&
-      MONOREPO_HELPER_SIGNALS.some((re) => re.test(body))
+      SCAN_EXTS.has(ext)
+      && /packages\/[^/]+\/src\/.*(config|next-config|security)/.test(relPath)
+      && MONOREPO_HELPER_SIGNALS.some((re) => re.test(body))
     ) {
       hits.appendArrays.push(relPath);
       return;
@@ -95,9 +95,9 @@ export function detectCsp(cwd = process.cwd()) {
 
     // SvelteKit kit.csp.directives
     if (
-      SCAN_EXTS.has(ext) &&
-      isConfig("svelte") &&
-      SVELTEKIT_CSP_SIGNALS.every((re) => re.test(body))
+      SCAN_EXTS.has(ext)
+      && isConfig("svelte")
+      && SVELTEKIT_CSP_SIGNALS.every((re) => re.test(body))
     ) {
       hits.appendArrays.push(relPath);
       return;
@@ -105,9 +105,9 @@ export function detectCsp(cwd = process.cwd()) {
 
     // Nuxt nuxt-security module
     if (
-      SCAN_EXTS.has(ext) &&
-      isConfig("nuxt") &&
-      NUXT_SECURITY_SIGNALS.every((re) => re.test(body))
+      SCAN_EXTS.has(ext)
+      && isConfig("nuxt")
+      && NUXT_SECURITY_SIGNALS.every((re) => re.test(body))
     ) {
       hits.appendArrays.push(relPath);
       return;
@@ -117,9 +117,9 @@ export function detectCsp(cwd = process.cwd()) {
 
     // Inline headers in Next/Nuxt/SvelteKit/Astro/Vite config
     if (
-      SCAN_EXTS.has(ext) &&
-      /(^|\/)(next|nuxt|vite|astro|svelte)\.config\./.test(relPath) &&
-      INLINE_HEADER_SIGNALS.every((re) => re.test(body))
+      SCAN_EXTS.has(ext)
+      && /(^|\/)(next|nuxt|vite|astro|svelte)\.config\./.test(relPath)
+      && INLINE_HEADER_SIGNALS.every((re) => re.test(body))
     ) {
       // Nuxt routeRules is a sub-shape of append-string; we already covered
       // nuxt-security above via return, so any remaining Nuxt CSP match here
@@ -132,8 +132,8 @@ export function detectCsp(cwd = process.cwd()) {
     // === detect-only shapes ===
 
     if (
-      (base === "middleware.ts" || base === "middleware.js" || base === "middleware.mjs") &&
-      MIDDLEWARE_HINT.test(body)
+      (base === "middleware.ts" || base === "middleware.js" || base === "middleware.mjs")
+      && MIDDLEWARE_HINT.test(body)
     ) {
       hits.middleware.push(relPath);
     }

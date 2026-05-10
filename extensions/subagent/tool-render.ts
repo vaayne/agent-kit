@@ -105,7 +105,9 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
 
   if (expanded) {
     const container = new Container();
-    let header = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${theme.fg("muted", ` (${result.agentSource})`)}`;
+    let header = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${
+      theme.fg("muted", ` (${result.agentSource})`)
+    }`;
     if (isError && result.stopReason) header += ` ${theme.fg("error", `[${result.stopReason}]`)}`;
     container.addChild(new Text(header, 0, 0));
     if (isError && result.errorMessage) {
@@ -145,14 +147,16 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
     return container;
   }
 
-  let text = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${theme.fg("muted", ` (${result.agentSource})`)}`;
+  let text = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${
+    theme.fg("muted", ` (${result.agentSource})`)
+  }`;
   if (isError && result.stopReason) text += ` ${theme.fg("error", `[${result.stopReason}]`)}`;
   if (result.sessionId) {
     text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
   }
-  if (isError && result.errorMessage)
+  if (isError && result.errorMessage) {
     text += `\n${theme.fg("error", `Error: ${result.errorMessage}`)}`;
-  else if (displayItems.length === 0) text += `\n${theme.fg("muted", "(no output)")}`;
+  } else if (displayItems.length === 0) text += `\n${theme.fg("muted", "(no output)")}`;
   else {
     text += `\n${renderDisplayItems(displayItems, expanded, theme, COLLAPSED_ITEM_COUNT)}`;
     if (displayItems.length > COLLAPSED_ITEM_COUNT) {
@@ -166,17 +170,16 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
 
 function renderChainResult(details: SubagentDetails, expanded: boolean, theme: ThemeLike) {
   const successCount = details.results.filter((result) => result.exitCode === 0).length;
-  const icon =
-    successCount === details.results.length ? theme.fg("success", "✓") : theme.fg("error", "✗");
+  const icon = successCount === details.results.length ? theme.fg("success", "✓") : theme.fg("error", "✗");
 
   if (expanded) {
     const container = new Container();
     container.addChild(
       new Text(
-        icon +
-          " " +
-          theme.fg("toolTitle", theme.bold("sequence ")) +
-          theme.fg("accent", `${successCount}/${details.results.length} steps`),
+        icon
+          + " "
+          + theme.fg("toolTitle", theme.bold("sequence "))
+          + theme.fg("accent", `${successCount}/${details.results.length} steps`),
         0,
         0,
       ),
@@ -224,11 +227,10 @@ function renderChainResult(details: SubagentDetails, expanded: boolean, theme: T
     return container;
   }
 
-  let text =
-    icon +
-    " " +
-    theme.fg("toolTitle", theme.bold("sequence ")) +
-    theme.fg("accent", `${successCount}/${details.results.length} steps`);
+  let text = icon
+    + " "
+    + theme.fg("toolTitle", theme.bold("sequence "))
+    + theme.fg("accent", `${successCount}/${details.results.length} steps`);
   for (const result of details.results) {
     const resultIcon = getResultIcon(theme, result);
     const displayItems = getDisplayItems(result.messages);
@@ -236,10 +238,9 @@ function renderChainResult(details: SubagentDetails, expanded: boolean, theme: T
     if (result.sessionId) {
       text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
     }
-    text +=
-      displayItems.length === 0
-        ? `\n${theme.fg("muted", "(no output)")}`
-        : `\n${renderDisplayItems(displayItems, expanded, theme, 5)}`;
+    text += displayItems.length === 0
+      ? `\n${theme.fg("muted", "(no output)")}`
+      : `\n${renderDisplayItems(displayItems, expanded, theme, 5)}`;
   }
   const usageText = formatUsageStats(aggregateUsage(details.results));
   if (usageText) text += `\n\n${theme.fg("dim", `Total: ${usageText}`)}`;
@@ -345,23 +346,21 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
   };
   const sequence = args.sequence;
   if (sequence && sequence.length > 0) {
-    let text =
-      theme.fg("toolTitle", theme.bold("agent ")) +
-      theme.fg("accent", `sequence (${sequence.length} steps)`) +
-      theme.fg("muted", ` [${scope}]`);
+    let text = theme.fg("toolTitle", theme.bold("agent "))
+      + theme.fg("accent", `sequence (${sequence.length} steps)`)
+      + theme.fg("muted", ` [${scope}]`);
     for (let index = 0; index < Math.min(sequence.length, 3); index++) {
       const step = sequence[index];
       const cleanTask = step.prompt.replace(/\{previous\}/g, "").trim();
       const preview = truncateText(cleanTask, 40);
-      text +=
-        "\n  " +
-        theme.fg("muted", `${index + 1}.`) +
-        " " +
-        renderAgentLabel(theme, step.name, {
+      text += "\n  "
+        + theme.fg("muted", `${index + 1}.`)
+        + " "
+        + renderAgentLabel(theme, step.name, {
           model: step.model ?? defaultOverrides.model,
           thinking: step.thinking ?? defaultOverrides.thinking,
-        }) +
-        theme.fg("dim", ` ${preview}`);
+        })
+        + theme.fg("dim", ` ${preview}`);
     }
     if (sequence.length > 3) {
       text += `\n  ${theme.fg("muted", `... +${sequence.length - 3} more`)}`;
@@ -371,16 +370,17 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 
   const parallel = args.parallel;
   if (parallel && parallel.length > 0) {
-    let text =
-      theme.fg("toolTitle", theme.bold("agent ")) +
-      theme.fg("accent", `parallel (${parallel.length} runs)`) +
-      theme.fg("muted", ` [${scope}]`);
+    let text = theme.fg("toolTitle", theme.bold("agent "))
+      + theme.fg("accent", `parallel (${parallel.length} runs)`)
+      + theme.fg("muted", ` [${scope}]`);
     for (const task of parallel.slice(0, 3)) {
       const preview = truncateText(task.prompt, 40);
-      text += `\n  ${renderAgentLabel(theme, task.name, {
-        model: task.model ?? defaultOverrides.model,
-        thinking: task.thinking ?? defaultOverrides.thinking,
-      })}${theme.fg("dim", ` ${preview}`)}`;
+      text += `\n  ${
+        renderAgentLabel(theme, task.name, {
+          model: task.model ?? defaultOverrides.model,
+          thinking: task.thinking ?? defaultOverrides.thinking,
+        })
+      }${theme.fg("dim", ` ${preview}`)}`;
     }
     if (parallel.length > 3) {
       text += `\n  ${theme.fg("muted", `... +${parallel.length - 3} more`)}`;
@@ -390,23 +390,21 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 
   if (args.sessionId) {
     const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
-    let text =
-      theme.fg("toolTitle", theme.bold("agent ")) +
-      theme.fg("accent", "resume") +
-      theme.fg("muted", ` (${args.sessionId}) [${scope}]`);
+    let text = theme.fg("toolTitle", theme.bold("agent "))
+      + theme.fg("accent", "resume")
+      + theme.fg("muted", ` (${args.sessionId}) [${scope}]`);
     text += `\n  ${theme.fg("dim", preview)}`;
     return new Text(text, 0, 0);
   }
 
   const agentName = args.name || "...";
   const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
-  let text =
-    theme.fg("toolTitle", theme.bold("agent ")) +
-    renderAgentLabel(theme, agentName, {
+  let text = theme.fg("toolTitle", theme.bold("agent "))
+    + renderAgentLabel(theme, agentName, {
       model: args.model ?? defaultOverrides.model,
       thinking: args.thinking ?? defaultOverrides.thinking,
-    }) +
-    theme.fg("muted", ` [${scope}]`);
+    })
+    + theme.fg("muted", ` [${scope}]`);
   text += `\n  ${theme.fg("dim", preview)}`;
   return new Text(text, 0, 0);
 }

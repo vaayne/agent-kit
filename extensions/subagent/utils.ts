@@ -1,5 +1,5 @@
-import * as os from "node:os";
 import type { Message } from "@mariozechner/pi-ai";
+import * as os from "node:os";
 import type { DisplayItem, SingleResult, UsageStats } from "./types.js";
 
 export const COLLAPSED_ITEM_COUNT = 10;
@@ -108,18 +108,18 @@ export function formatToolCall(
       const pattern = (args.pattern || "*") as string;
       const rawPath = (args.path || ".") as string;
       return (
-        themeFg("muted", "find ") +
-        themeFg("accent", pattern) +
-        themeFg("dim", ` in ${shortenPath(rawPath)}`)
+        themeFg("muted", "find ")
+        + themeFg("accent", pattern)
+        + themeFg("dim", ` in ${shortenPath(rawPath)}`)
       );
     }
     case "grep": {
       const pattern = (args.pattern || "") as string;
       const rawPath = (args.path || ".") as string;
       return (
-        themeFg("muted", "grep ") +
-        themeFg("accent", `/${pattern}/`) +
-        themeFg("dim", ` in ${shortenPath(rawPath)}`)
+        themeFg("muted", "grep ")
+        + themeFg("accent", `/${pattern}/`)
+        + themeFg("dim", ` in ${shortenPath(rawPath)}`)
       );
     }
     default: {

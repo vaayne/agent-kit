@@ -17,9 +17,9 @@ function buildAgentDelegationPrompt(agentName: string, task: string): string {
     "Keep the rewritten prompt concise, but include enough context for the subagent to work effectively without seeing the full conversation.",
     "",
     "Then call the `agent` tool with:",
-    '{ "name": "' +
-      agentName +
-      '", "prompt": "<your rewritten prompt>", "options": { "scope": "both" } }',
+    "{ \"name\": \""
+    + agentName
+    + "\", \"prompt\": \"<your rewritten prompt>\", \"options\": { \"scope\": \"both\" } }",
     "",
     "After the tool returns, continue normally and integrate the subagent result into your response.",
     "",
@@ -74,7 +74,7 @@ function buildSwarmDelegationPrompt(task: string): string {
     "- Every subagent prompt must explicitly tell the subagent to read the current handoff file first and update it before finishing.",
     "- Preserve context continuity through the handoff file so the next agent can continue without needing the full prior conversation.",
     "- Keep this lighter than a full specs-driven workflow: concise plan, practical phase breakdown, no extra ceremony.",
-    '- Use `options.scope: "both"` for agent calls.',
+    "- Use `options.scope: \"both\"` for agent calls.",
     "- Integrate results yourself and drive the loop to completion.",
     "",
     `Task: ${task}`,
@@ -141,8 +141,7 @@ export function registerAgentCommands(
   });
 
   pi.registerCommand("agent-resume", {
-    description:
-      "Resume a saved subagent session via the main agent: /agent-resume <session-id> <prompt>.",
+    description: "Resume a saved subagent session via the main agent: /agent-resume <session-id> <prompt>.",
     handler: async (args, ctx) => {
       const trimmed = args.trim();
       const firstSpace = trimmed.search(/\s/);

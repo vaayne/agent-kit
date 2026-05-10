@@ -18,16 +18,7 @@
  *   4. Removes the corresponding entries from skills-lock.json.
  */
 
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  rmSync,
-  readdirSync,
-  statSync,
-  lstatSync,
-  unlinkSync,
-} from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // Skills that were renamed, merged, or folded in v2.0, v2.1, and v3.0.
@@ -95,9 +86,9 @@ export function findProjectRoot(startDir = process.cwd()) {
   const { root } = { root: "/" };
   while (dir !== root) {
     if (
-      existsSync(join(dir, "package.json")) ||
-      existsSync(join(dir, ".git")) ||
-      existsSync(join(dir, "skills-lock.json"))
+      existsSync(join(dir, "package.json"))
+      || existsSync(join(dir, ".git"))
+      || existsSync(join(dir, "skills-lock.json"))
     ) {
       return dir;
     }

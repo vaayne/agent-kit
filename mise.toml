@@ -10,9 +10,7 @@ echo "Setup complete"
 
 [tasks.format]
 description = "Format code using dprint"
-run = """
-dprint fmt
-"""
+run = "dprint fmt"
 
 [tasks.sync]
 description = "Sync components to various local agent frameworks"

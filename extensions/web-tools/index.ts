@@ -9,14 +9,7 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import {
-  type FetchFormat,
-  fetchHtml,
-  fetchJson,
-  fetchMarkdown,
-  type FetchResult,
-  fetchText,
-} from "./fetcher.js";
+import { type FetchFormat, fetchHtml, fetchJson, fetchMarkdown, type FetchResult, fetchText } from "./fetcher.js";
 import { search } from "./searcher.js";
 
 export default function webToolsExtension(pi: ExtensionAPI) {
@@ -147,7 +140,8 @@ export default function webToolsExtension(pi: ExtensionAPI) {
         })
         .join("\n---\n\n");
 
-      const output = `# Search Results for: "${query}"\n\nFound ${response.results.length} results.\n\n${formattedResults}`;
+      const output =
+        `# Search Results for: "${query}"\n\nFound ${response.results.length} results.\n\n${formattedResults}`;
 
       return {
         content: [{ type: "text", text: output }],

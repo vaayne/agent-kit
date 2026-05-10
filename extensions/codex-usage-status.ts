@@ -1,7 +1,7 @@
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
 type UsageWindow = {
   used_percent?: number | null;
@@ -135,13 +135,14 @@ function formatStatus(
   const title = usage.isLimited ? theme.fg("error", label) : theme.fg("dim", label);
   const fiveHourText = colorizePercent(theme, usage.fiveHourLeftPercent, mode);
   const sevenDayText = colorizePercent(theme, usage.sevenDayLeftPercent, mode);
-  const resetSeconds =
-    resetWindowMode === "5h" ? usage.fiveHourResetInSeconds : usage.sevenDayResetInSeconds;
+  const resetSeconds = resetWindowMode === "5h" ? usage.fiveHourResetInSeconds : usage.sevenDayResetInSeconds;
   const resetText = formatResetCountdown(resetSeconds);
   const resetLabel = resetWindowMode === "5h" ? FIVE_HOUR_LABEL : SEVEN_DAY_LABEL;
   const resetStatus = resetText ? theme.fg("dim", ` (${resetLabel}↺${resetText})`) : "";
 
-  return `${title} ${theme.fg("dim", FIVE_HOUR_LABEL)}${fiveHourText} ${theme.fg("dim", SEVEN_DAY_LABEL)}${sevenDayText}${resetStatus}`;
+  return `${title} ${theme.fg("dim", FIVE_HOUR_LABEL)}${fiveHourText} ${
+    theme.fg("dim", SEVEN_DAY_LABEL)
+  }${sevenDayText}${resetStatus}`;
 }
 
 function parseModeCommandArgument(
@@ -160,19 +161,17 @@ function getModeArgumentCompletions(argumentPrefix: string) {
     {
       value: "left",
       label: "left",
-      description:
-        'Shows: "Codex 5h:81% left 7d:64% left" (Spark model: "Codex Spark 5h:81% left 7d:64% left")',
+      description: "Shows: \"Codex 5h:81% left 7d:64% left\" (Spark model: \"Codex Spark 5h:81% left 7d:64% left\")",
     },
     {
       value: "used",
       label: "used",
-      description:
-        'Shows: "Codex 5h:19% used 7d:36% used" (Spark model: "Codex Spark 5h:19% used 7d:36% used")',
+      description: "Shows: \"Codex 5h:19% used 7d:36% used\" (Spark model: \"Codex Spark 5h:19% used 7d:36% used\")",
     },
     {
       value: "toggle",
       label: "toggle",
-      description: 'Flips between "... left" and "... used"',
+      description: "Flips between \"... left\" and \"... used\"",
     },
   ];
 
@@ -197,17 +196,17 @@ function getResetWindowArgumentCompletions(argumentPrefix: string) {
     {
       value: "5h",
       label: "5h",
-      description: 'Shows reset countdown as "(5h:↺...)"',
+      description: "Shows reset countdown as \"(5h:↺...)\"",
     },
     {
       value: "7d",
       label: "7d",
-      description: 'Shows reset countdown as "(7d:↺...)"',
+      description: "Shows reset countdown as \"(7d:↺...)\"",
     },
     {
       value: "toggle",
       label: "toggle",
-      description: 'Flips reset countdown window between "5h" and "7d"',
+      description: "Flips reset countdown window between \"5h\" and \"7d\"",
     },
   ];
 
@@ -224,11 +223,11 @@ async function loadAuthCredentials(): Promise<{
   const auth = JSON.parse(authRaw) as Record<
     string,
     | {
-        type?: string;
-        access?: string | null;
-        accountId?: string | null;
-        account_id?: string | null;
-      }
+      type?: string;
+      access?: string | null;
+      accountId?: string | null;
+      account_id?: string | null;
+    }
     | undefined
   >;
 
@@ -255,8 +254,9 @@ async function requestUsageJson(): Promise<CodexUsageResponse> {
     },
   });
 
-  if (!response.ok)
+  if (!response.ok) {
     throw new Error(`Codex usage request failed (${response.status}) for ${USAGE_URL}`);
+  }
   return (await response.json()) as CodexUsageResponse;
 }
 
@@ -310,10 +310,9 @@ async function loadPersistedPreferences(): Promise<{
   const settings = await readAgentSettings();
   const preferences = normalizeExtensionPreferences(settings[SETTINGS_KEY]);
   const existing = asObject(settings[SETTINGS_KEY]);
-  const needsWrite =
-    !existing ||
-    existing.usageMode !== preferences.usageMode ||
-    existing.refreshWindow !== preferences.refreshWindow;
+  const needsWrite = !existing
+    || existing.usageMode !== preferences.usageMode
+    || existing.refreshWindow !== preferences.refreshWindow;
   return { preferences, needsWrite };
 }
 
@@ -328,10 +327,10 @@ function normalizeRateLimitBucket(value: unknown): RateLimitBucket | null {
   if (!record) return null;
   if (
     !(
-      "primary_window" in record ||
-      "secondary_window" in record ||
-      "limit_reached" in record ||
-      "allowed" in record
+      "primary_window" in record
+      || "secondary_window" in record
+      || "limit_reached" in record
+      || "allowed" in record
     )
   ) {
     return null;
@@ -342,8 +341,9 @@ function normalizeRateLimitBucket(value: unknown): RateLimitBucket | null {
 function extractSparkRateLimitFromEntry(value: unknown): RateLimitBucket | null {
   const record = asObject(value);
   if (!record) return null;
-  if (typeof record.limit_name !== "string" || record.limit_name.trim() !== SPARK_LIMIT_NAME)
+  if (typeof record.limit_name !== "string" || record.limit_name.trim() !== SPARK_LIMIT_NAME) {
     return null;
+  }
   return normalizeRateLimitBucket(record.rate_limit);
 }
 
@@ -553,7 +553,7 @@ function formatErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   const refresher = createStatusRefresher();
   let settingsWriteQueue: Promise<void> = Promise.resolve();
   let applyingPersistedPreferences = false;
@@ -602,7 +602,9 @@ export default function (pi: ExtensionAPI) {
       if (!ctx.hasUI) return;
 
       ctx.ui.notify(
-        `pi-codex-usage: failed to load ${SETTINGS_FILE}, using defaults (${DEFAULT_PERCENT_DISPLAY_MODE}, ${DEFAULT_RESET_WINDOW_MODE}): ${formatErrorMessage(error)}`,
+        `pi-codex-usage: failed to load ${SETTINGS_FILE}, using defaults (${DEFAULT_PERCENT_DISPLAY_MODE}, ${DEFAULT_RESET_WINDOW_MODE}): ${
+          formatErrorMessage(error)
+        }`,
         "warning",
       );
     } finally {

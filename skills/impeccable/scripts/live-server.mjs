@@ -13,16 +13,14 @@
  *   node <scripts_path>/live-server.mjs --help
  */
 
-import http from "node:http";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { spawn, execFileSync } from "node:child_process";
 import fs from "node:fs";
-import path from "node:path";
+import http from "node:http";
 import net from "node:net";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDesignMd } from "./design-parser.mjs";
-import { resolveContextDir } from "./load-context.mjs";
-import { createLiveSessionStore } from "./live-session-store.mjs";
 import {
   getDesignSidecarPath,
   getLiveAnnotationsDir,
@@ -31,6 +29,8 @@ import {
   resolveDesignSidecarPath,
   writeLiveServerInfo,
 } from "./impeccable-paths.mjs";
+import { createLiveSessionStore } from "./live-session-store.mjs";
+import { resolveContextDir } from "./load-context.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PRODUCT.md / DESIGN.md live wherever load-context.mjs resolves. The generated
@@ -77,13 +77,14 @@ const MAX_ANNOTATION_BYTES = 10 * 1024 * 1024;
 
 function enqueueEvent(event) {
   if (
-    !event ||
-    (event.id &&
-      state.pendingEvents.some(
+    !event
+    || (event.id
+      && state.pendingEvents.some(
         (entry) => entry.event?.id === event.id && entry.event?.type === event.type,
       ))
-  )
+  ) {
     return;
+  }
   state.pendingEvents.push({ event, leaseUntil: 0 });
   flushPendingPolls();
 }
@@ -268,25 +269,29 @@ function validateEvent(msg) {
     case "generate":
       if (!isValidId(msg.id)) return "generate: missing or malformed id";
       if (!msg.action || !VISUAL_ACTIONS.includes(msg.action)) return "generate: invalid action";
-      if (!Number.isInteger(msg.count) || msg.count < 1 || msg.count > 8)
+      if (!Number.isInteger(msg.count) || msg.count < 1 || msg.count > 8) {
         return "generate: count must be 1-8";
+      }
       if (!msg.element || !msg.element.outerHTML) return "generate: missing element context";
       // Optional annotation fields (all-or-nothing: if any present, all must be well-formed).
-      if (msg.screenshotPath !== undefined && typeof msg.screenshotPath !== "string")
+      if (msg.screenshotPath !== undefined && typeof msg.screenshotPath !== "string") {
         return "generate: screenshotPath must be string";
-      if (msg.comments !== undefined && !Array.isArray(msg.comments))
+      }
+      if (msg.comments !== undefined && !Array.isArray(msg.comments)) {
         return "generate: comments must be array";
-      if (msg.strokes !== undefined && !Array.isArray(msg.strokes))
+      }
+      if (msg.strokes !== undefined && !Array.isArray(msg.strokes)) {
         return "generate: strokes must be array";
+      }
       return null;
     case "accept":
       if (!isValidId(msg.id)) return "accept: missing or malformed id";
       if (!isValidVariantId(msg.variantId)) return "accept: missing or malformed variantId";
       if (msg.paramValues !== undefined) {
         if (
-          typeof msg.paramValues !== "object" ||
-          msg.paramValues === null ||
-          Array.isArray(msg.paramValues)
+          typeof msg.paramValues !== "object"
+          || msg.paramValues === null
+          || Array.isArray(msg.paramValues)
         ) {
           return "accept: paramValues must be an object";
         }
@@ -296,13 +301,14 @@ function validateEvent(msg) {
       return isValidId(msg.id) ? null : "discard: missing or malformed id";
     case "checkpoint":
       if (!isValidId(msg.id)) return "checkpoint: missing or malformed id";
-      if (!Number.isInteger(msg.revision) || msg.revision < 0)
+      if (!Number.isInteger(msg.revision) || msg.revision < 0) {
         return "checkpoint: revision must be a non-negative integer";
+      }
       if (
-        msg.paramValues !== undefined &&
-        (typeof msg.paramValues !== "object" ||
-          msg.paramValues === null ||
-          Array.isArray(msg.paramValues))
+        msg.paramValues !== undefined
+        && (typeof msg.paramValues !== "object"
+          || msg.paramValues === null
+          || Array.isArray(msg.paramValues))
       ) {
         return "checkpoint: paramValues must be an object";
       }
@@ -351,12 +357,11 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
         res.end("Error reading live browser scripts: " + err.message);
         return;
       }
-      const body =
-        `window.__IMPECCABLE_TOKEN__ = '${state.token}';\n` +
-        `window.__IMPECCABLE_PORT__ = ${state.port};\n` +
-        sessionScript +
-        "\n" +
-        liveScript;
+      const body = `window.__IMPECCABLE_TOKEN__ = '${state.token}';\n`
+        + `window.__IMPECCABLE_PORT__ = ${state.port};\n`
+        + sessionScript
+        + "\n"
+        + liveScript;
       res.writeHead(200, {
         "Content-Type": "application/javascript",
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -519,8 +524,7 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
       }
 
       const mdPath = path.join(CONTEXT_DIR, "DESIGN.md");
-      const jsonPath =
-        resolveDesignSidecarPath(process.cwd(), CONTEXT_DIR) || getDesignSidecarPath(process.cwd());
+      const jsonPath = resolveDesignSidecarPath(process.cwd(), CONTEXT_DIR) || getDesignSidecarPath(process.cwd());
       const mdStat = statOrNull(mdPath);
       const jsonStat = statOrNull(jsonPath);
 
@@ -616,12 +620,12 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
         Connection: "keep-alive",
       });
       res.write(
-        "data: " +
-          JSON.stringify({
+        "data: "
+          + JSON.stringify({
             type: "connected",
             hasProjectContext: hasProjectContext(),
-          }) +
-          "\n\n",
+          })
+          + "\n\n",
       );
 
       state.sseClients.add(res);
@@ -782,14 +786,13 @@ function handlePollPost(req, res) {
     acknowledgePendingEvent(msg.id);
     if (state.sessionStore && msg.id) {
       try {
-        const eventType =
-          msg.type === "discard" || msg.type === "discarded"
-            ? "discarded"
-            : msg.type === "complete"
-              ? "complete"
-              : msg.type === "error"
-                ? "agent_error"
-                : "agent_done";
+        const eventType = msg.type === "discard" || msg.type === "discarded"
+          ? "discarded"
+          : msg.type === "complete"
+          ? "complete"
+          : msg.type === "error"
+          ? "agent_error"
+          : "agent_done";
         state.sessionStore.appendEvent({
           type: eventType,
           id: msg.id,
@@ -905,11 +908,10 @@ if (args.includes("stop")) {
         }
       }
     } catch (err) {
-      const detail =
-        err.stderr?.toString?.().trim?.() ||
-        err.stdout?.toString?.().trim?.() ||
-        err.message ||
-        String(err);
+      const detail = err.stderr?.toString?.().trim?.()
+        || err.stdout?.toString?.().trim?.()
+        || err.message
+        || String(err);
       console.warn(`Note: could not remove live script tag (${detail.split("\n")[0]})`);
     }
   }

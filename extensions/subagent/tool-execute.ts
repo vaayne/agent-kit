@@ -13,7 +13,8 @@ import {
   truncateText,
 } from "./utils.js";
 
-const ADVISOR_SYSTEM_PROMPT = `You are a senior technical advisor. An AI executor has escalated a problem it cannot confidently resolve.
+const ADVISOR_SYSTEM_PROMPT =
+  `You are a senior technical advisor. An AI executor has escalated a problem it cannot confidently resolve.
 
 ## How to work
 1. **Investigate before advising.** Use your tools (read, bash, grep) to understand the actual state of the code, files, or environment — do not advise blindly from the description alone.
@@ -190,13 +191,13 @@ async function executeChainMode(
     const taskWithContext = step.prompt.replace(/\{previous\}/g, previousOutput);
     const chainUpdate: OnUpdateCallback | undefined = onUpdate
       ? (partial) => {
-          const currentResult = partial.details?.results[0];
-          if (!currentResult) return;
-          onUpdate({
-            content: partial.content,
-            details: makeDetails([...results, currentResult]),
-          });
-        }
+        const currentResult = partial.details?.results[0];
+        if (!currentResult) return;
+        onUpdate({
+          content: partial.content,
+          details: makeDetails([...results, currentResult]),
+        });
+      }
       : undefined;
 
     const result = await runSingleAgent(
@@ -220,7 +221,9 @@ async function executeChainMode(
         content: [
           {
             type: "text",
-            text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}${formatSessionSummary(results)}`,
+            text: `Sequence stopped at step ${index + 1} (${step.name}): ${getResultOutput(result)}${
+              formatSessionSummary(results)
+            }`,
           },
         ],
         details: makeDetails(results),
@@ -234,9 +237,8 @@ async function executeChainMode(
     content: [
       {
         type: "text",
-        text:
-          (getFinalOutput(results[results.length - 1].messages) || "(no output)") +
-          formatSessionSummary(results),
+        text: (getFinalOutput(results[results.length - 1].messages) || "(no output)")
+          + formatSessionSummary(results),
       },
     ],
     details: makeDetails(results),
@@ -276,7 +278,7 @@ async function executeParallelMode(
     createRunningResult(task.name, task.prompt, {
       model: task.model ?? defaultOverrides?.model,
       thinking: task.thinking ?? defaultOverrides?.thinking,
-    }),
+    })
   );
 
   function emitParallelUpdate(): void {
@@ -414,9 +416,8 @@ async function executeResumeMode(
       content: [
         {
           type: "text",
-          text:
-            `Unknown subagent session: ${params.sessionId}\n` +
-            "No saved subagent metadata was found for this session ID.",
+          text: `Unknown subagent session: ${params.sessionId}\n`
+            + "No saved subagent metadata was found for this session ID.",
         },
       ],
       details: makeDetails([]),
@@ -456,9 +457,8 @@ async function executeResumeMode(
       content: [
         {
           type: "text",
-          text:
-            `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}` +
-            formatSessionLine(result),
+          text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}`
+            + formatSessionLine(result),
         },
       ],
       details: makeDetails([result]),
@@ -522,8 +522,7 @@ export async function executeAgentTool(
   const hasParallel = (params.parallel?.length ?? 0) > 0;
   const hasSingle = Boolean(params.name && params.prompt);
   const hasResume = Boolean(params.sessionId && params.prompt);
-  const modeCount =
-    Number(hasSequence) + Number(hasParallel) + Number(hasSingle) + Number(hasResume);
+  const modeCount = Number(hasSequence) + Number(hasParallel) + Number(hasSingle) + Number(hasResume);
   const currentMode = getCurrentMode(hasSequence, hasParallel, hasResume);
 
   if (modeCount !== 1) {

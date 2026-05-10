@@ -3,8 +3,8 @@
  * Print durable recovery status for Impeccable live sessions.
  */
 
-import { createLiveSessionStore } from "./live-session-store.mjs";
 import { readLiveServerInfo } from "./impeccable-paths.mjs";
+import { createLiveSessionStore } from "./live-session-store.mjs";
 
 function readServerInfo() {
   return readLiveServerInfo(process.cwd())?.info || null;
@@ -29,11 +29,11 @@ export async function statusCli() {
   const payload = {
     liveServer: server
       ? {
-          status: server.status,
-          port: server.port,
-          connectedClients: server.connectedClients,
-          pendingEvents: server.pendingEvents,
-        }
+        status: server.status,
+        port: server.port,
+        connectedClients: server.connectedClients,
+        pendingEvents: server.pendingEvents,
+      }
       : null,
     activeSessions: server?.activeSessions || activeSessions,
     recoveryHint: server

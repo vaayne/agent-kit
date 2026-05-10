@@ -49,22 +49,21 @@ export function loadSubagentSession(sessionId: string): SavedSubagentSession | n
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<SavedSubagentSession>;
     if (
-      typeof parsed.sessionId !== "string" ||
-      typeof parsed.agent !== "string" ||
-      typeof parsed.cwd !== "string" ||
-      typeof parsed.systemPrompt !== "string"
+      typeof parsed.sessionId !== "string"
+      || typeof parsed.agent !== "string"
+      || typeof parsed.cwd !== "string"
+      || typeof parsed.systemPrompt !== "string"
     ) {
       return null;
     }
     return {
       sessionId: parsed.sessionId,
       agent: parsed.agent,
-      agentSource:
-        parsed.agentSource === "user" ||
-        parsed.agentSource === "project" ||
-        parsed.agentSource === "unknown"
-          ? parsed.agentSource
-          : "unknown",
+      agentSource: parsed.agentSource === "user"
+          || parsed.agentSource === "project"
+          || parsed.agentSource === "unknown"
+        ? parsed.agentSource
+        : "unknown",
       cwd: parsed.cwd,
       model: typeof parsed.model === "string" ? parsed.model : undefined,
       thinking: typeof parsed.thinking === "string" ? parsed.thinking : undefined,

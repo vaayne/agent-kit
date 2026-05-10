@@ -2,10 +2,10 @@
  * Agent discovery and configuration
  */
 
+import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
 import type { ThinkingLevel } from "./types.js";
 
 export type AgentScope = "user" | "project" | "both";
@@ -109,8 +109,7 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
   const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
   const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user");
-  const projectAgents =
-    scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
+  const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
 
   const agentMap = new Map<string, AgentConfig>();
 

@@ -100,7 +100,7 @@ The agent should insert variant HTML at insertLine.`);
             error: "element_not_in_source",
             fallback: "agent-driven",
             generatedMatch: path.relative(process.cwd(), generatedHit),
-            hint: 'Element found only in a generated file. See "Handle fallback" in live.md.',
+            hint: "Element found only in a generated file. See \"Handle fallback\" in live.md.",
           }),
         );
       } else {
@@ -108,7 +108,8 @@ The agent should insert variant HTML at insertLine.`);
           JSON.stringify({
             error: "element_not_found",
             fallback: "agent-driven",
-            hint: 'Element not found in any project file. It may be runtime-injected (JS component, etc.). See "Handle fallback" in live.md.',
+            hint:
+              "Element not found in any project file. It may be runtime-injected (JS component, etc.). See \"Handle fallback\" in live.md.",
           }),
         );
       }
@@ -121,7 +122,8 @@ The agent should insert variant HTML at insertLine.`);
           error: "file_is_generated",
           fallback: "agent-driven",
           file: path.relative(process.cwd(), path.resolve(process.cwd(), targetFile)),
-          hint: 'Explicit --file points at a generated file. Writing here gets wiped by the next build. See "Handle fallback" in live.md.',
+          hint:
+            "Explicit --file points at a generated file. Writing here gets wiped by the next build. See \"Handle fallback\" in live.md.",
         }),
       );
       process.exit(1);
@@ -154,11 +156,10 @@ The agent should insert variant HTML at insertLine.`);
     if (candidates.length === 0) {
       console.error(
         JSON.stringify({
-          error:
-            "Found file but could not locate element in " +
-            targetFile +
-            ". Searched for: " +
-            queries.join(", "),
+          error: "Found file but could not locate element in "
+            + targetFile
+            + ". Searched for: "
+            + queries.join(", "),
         }),
       );
       process.exit(1);
@@ -188,7 +189,8 @@ The agent should insert variant HTML at insertLine.`);
               startLine: c.startLine + 1,
               endLine: c.endLine + 1,
             })),
-            hint: 'Multiple source elements match both classes/tag and textContent. Pass --element-id, a more specific --text, or write the wrapper manually. See "Handle fallback" in live.md.',
+            hint:
+              "Multiple source elements match both classes/tag and textContent. Pass --element-id, a more specific --text, or write the wrapper manually. See \"Handle fallback\" in live.md.",
           }),
         );
         process.exit(1);
@@ -202,11 +204,10 @@ The agent should insert variant HTML at insertLine.`);
     if (!match) {
       console.error(
         JSON.stringify({
-          error:
-            "Found file but could not locate element in " +
-            targetFile +
-            ". Searched for: " +
-            queries.join(", "),
+          error: "Found file but could not locate element in "
+            + targetFile
+            + ". Searched for: "
+            + queries.join(", "),
         }),
       );
       process.exit(1);
@@ -237,7 +238,7 @@ The agent should insert variant HTML at insertLine.`);
   // Wrapper attributes differ by syntax. HTML allows plain string attrs;
   // JSX requires object-literal style and parses string attrs as HTML (which
   // either type-errors or renders a literal CSS string).
-  const styleContents = isJsx ? 'style={{ display: "contents" }}' : 'style="display: contents"';
+  const styleContents = isJsx ? "style={{ display: \"contents\" }}" : "style=\"display: contents\"";
 
   // JSX/TSX guard: the picked element occupies a single JSX child slot
   // (inside `return (...)`, an array `.map(...)`, an `asChild` branch, or
@@ -253,66 +254,66 @@ The agent should insert variant HTML at insertLine.`);
   // so the entire scaffold gets removed cleanly.
   const wrapperLines = isJsx
     ? [
-        indent +
-          '<div data-impeccable-variants="' +
-          id +
-          '" data-impeccable-variant-count="' +
-          count +
-          '" ' +
-          styleContents +
-          ">",
-        indent +
-          "  " +
-          commentSyntax.open +
-          " impeccable-variants-start " +
-          id +
-          " " +
-          commentSyntax.close,
-        indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
-        indent + '  <div data-impeccable-variant="original">',
-        reindentOriginal("    "),
-        indent + "  </div>",
-        indent +
-          "  " +
-          commentSyntax.open +
-          " Variants: insert below this line " +
-          commentSyntax.close,
-        indent +
-          "  " +
-          commentSyntax.open +
-          " impeccable-variants-end " +
-          id +
-          " " +
-          commentSyntax.close,
-        indent + "</div>",
-      ]
+      indent
+      + "<div data-impeccable-variants=\""
+      + id
+      + "\" data-impeccable-variant-count=\""
+      + count
+      + "\" "
+      + styleContents
+      + ">",
+      indent
+      + "  "
+      + commentSyntax.open
+      + " impeccable-variants-start "
+      + id
+      + " "
+      + commentSyntax.close,
+      indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
+      indent + "  <div data-impeccable-variant=\"original\">",
+      reindentOriginal("    "),
+      indent + "  </div>",
+      indent
+      + "  "
+      + commentSyntax.open
+      + " Variants: insert below this line "
+      + commentSyntax.close,
+      indent
+      + "  "
+      + commentSyntax.open
+      + " impeccable-variants-end "
+      + id
+      + " "
+      + commentSyntax.close,
+      indent + "</div>",
+    ]
     : [
-        indent +
-          commentSyntax.open +
-          " impeccable-variants-start " +
-          id +
-          " " +
-          commentSyntax.close,
-        indent +
-          '<div data-impeccable-variants="' +
-          id +
-          '" data-impeccable-variant-count="' +
-          count +
-          '" ' +
-          styleContents +
-          ">",
-        indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
-        indent + '  <div data-impeccable-variant="original">',
-        originalIndented,
-        indent + "  </div>",
-        indent +
-          "  " +
-          commentSyntax.open +
-          " Variants: insert below this line " +
-          commentSyntax.close,
-        indent + "</div>",
-        indent + commentSyntax.open + " impeccable-variants-end " + id + " " + commentSyntax.close,
-      ];
+      indent
+      + commentSyntax.open
+      + " impeccable-variants-start "
+      + id
+      + " "
+      + commentSyntax.close,
+      indent
+      + "<div data-impeccable-variants=\""
+      + id
+      + "\" data-impeccable-variant-count=\""
+      + count
+      + "\" "
+      + styleContents
+      + ">",
+      indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
+      indent + "  <div data-impeccable-variant=\"original\">",
+      originalIndented,
+      indent + "  </div>",
+      indent
+      + "  "
+      + commentSyntax.open
+      + " Variants: insert below this line "
+      + commentSyntax.close,
+      indent + "</div>",
+      indent + commentSyntax.open + " impeccable-variants-end " + id + " " + commentSyntax.close,
+    ];
 
   // Replace the original element with the wrapper
   const newLines = [...lines.slice(0, startLine), ...wrapperLines, ...lines.slice(endLine + 1)];
@@ -366,7 +367,7 @@ function buildSearchQueries(elementId, classes, tag, query) {
 
   // 1. ID is the most specific
   if (elementId) {
-    queries.push('id="' + elementId + '"');
+    queries.push("id=\"" + elementId + "\"");
   }
 
   // 2. Full class attribute match (for elements with distinctive multi-class combos).
@@ -380,8 +381,8 @@ function buildSearchQueries(elementId, classes, tag, query) {
     if (classList.length > 1) {
       const joined = classList.join(" ");
       const sorted = [...classList].sort((a, b) => b.length - a.length);
-      queries.push('class="' + joined + '"');
-      queries.push('className="' + joined + '"');
+      queries.push("class=\"" + joined + "\"");
+      queries.push("className=\"" + joined + "\"");
       queries.push(sorted[0]); // most distinctive single class, fallback
     } else if (classList.length === 1) {
       queries.push(classList[0]);
@@ -392,8 +393,8 @@ function buildSearchQueries(elementId, classes, tag, query) {
   // Same dual-emit for JSX compatibility.
   if (tag && classes) {
     const firstClass = classes.split(",")[0].trim();
-    queries.push("<" + tag + ' class="' + firstClass);
-    queries.push("<" + tag + ' className="' + firstClass);
+    queries.push("<" + tag + " class=\"" + firstClass);
+    queries.push("<" + tag + " className=\"" + firstClass);
   }
 
   // 4. Raw fallback query
@@ -418,12 +419,12 @@ function detectStyleMode(filePath) {
   if (ext === ".astro") {
     return {
       mode: "astro-global-prefixed",
-      styleTag: '<style is:inline data-impeccable-css="SESSION_ID">',
+      styleTag: "<style is:inline data-impeccable-css=\"SESSION_ID\">",
     };
   }
   return {
     mode: "scoped",
-    styleTag: '<style data-impeccable-css="SESSION_ID">',
+    styleTag: "<style data-impeccable-css=\"SESSION_ID\">",
   };
 }
 
@@ -439,13 +440,13 @@ function buildCssAuthoring(styleMode, count) {
       mode: styleMode.mode,
       styleTag: styleMode.styleTag,
       strategy: "global-prefixed",
-      rulePattern: '[data-impeccable-variant="N"] > .variant-class { ... }',
+      rulePattern: "[data-impeccable-variant=\"N\"] > .variant-class { ... }",
       selectorExamples: variantNumbers.map(
         (n) => `[data-impeccable-variant="${n}"] > .variant-class`,
       ),
       requirements: [
         "Use the styleTag exactly; the is:inline attribute is required for this file.",
-        'Prefix every preview selector with the matching [data-impeccable-variant="N"] selector.',
+        "Prefix every preview selector with the matching [data-impeccable-variant=\"N\"] selector.",
         "Keep selectors anchored to the generated variant wrapper; do not rely on component CSS scoping for preview rules.",
       ],
       forbidden: ["Do not use @scope for this styleMode."],
@@ -455,17 +456,17 @@ function buildCssAuthoring(styleMode, count) {
     mode: styleMode.mode,
     styleTag: styleMode.styleTag,
     strategy: "scope-rule",
-    rulePattern: '@scope ([data-impeccable-variant="N"]) { :scope > .variant-class { ... } }',
+    rulePattern: "@scope ([data-impeccable-variant=\"N\"]) { :scope > .variant-class { ... } }",
     selectorExamples: variantNumbers.map(
       (n) => `@scope ([data-impeccable-variant="${n}"]) { :scope > .variant-class { ... } }`,
     ),
     requirements: [
-      'Use @scope blocks keyed to each [data-impeccable-variant="N"] wrapper.',
+      "Use @scope blocks keyed to each [data-impeccable-variant=\"N\"] wrapper.",
       "Inside each @scope block, make :scope rules step into the replacement element with a descendant combinator.",
       "Use the styleTag exactly; do not add framework-specific style attributes unless this object says to.",
     ],
     forbidden: [
-      'Do not use global [data-impeccable-variant="N"] selector prefixes for this styleMode.',
+      "Do not use global [data-impeccable-variant=\"N\"] selector prefixes for this styleMode.",
       "Do not add is:inline to the style tag for this styleMode.",
     ],
   };
@@ -570,8 +571,9 @@ function findElement(lines, query, tag = null) {
     if (!lines[i].includes(query)) continue;
 
     const stripped = lines[i].trim();
-    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//"))
+    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) {
       continue;
+    }
     // Skip lines already inside a variant wrapper
     if (lines[i].includes("data-impeccable-variant")) continue;
 
@@ -598,8 +600,9 @@ function findAllElements(lines, query, tag = null) {
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i].includes(query)) continue;
     const stripped = lines[i].trim();
-    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//"))
+    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) {
       continue;
+    }
     if (lines[i].includes("data-impeccable-variant")) continue;
     const openerLine = findOpenerLine(lines, i, tag);
     if (openerLine === -1) continue;
@@ -711,4 +714,4 @@ if (_running?.endsWith("live-wrap.mjs") || _running?.endsWith("live-wrap.mjs/"))
 }
 
 // Test exports (used by tests/live-wrap.test.mjs)
-export { buildSearchQueries, findElement, findClosingLine, detectCommentSyntax };
+export { buildSearchQueries, detectCommentSyntax, findClosingLine, findElement };

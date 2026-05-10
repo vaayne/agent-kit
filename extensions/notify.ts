@@ -21,7 +21,7 @@ async function playSound(pi: ExtensionAPI): Promise<void> {
   process.stdout.write("\x07");
 }
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   pi.on("agent_end", async () => {
     await playSound(pi);
   });

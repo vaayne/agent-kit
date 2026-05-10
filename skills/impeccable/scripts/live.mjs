@@ -21,9 +21,9 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadContext } from "./load-context.mjs";
-import { resolveFiles } from "./live-inject.mjs";
 import { readLiveServerInfo } from "./impeccable-paths.mjs";
+import { resolveFiles } from "./live-inject.mjs";
+import { loadContext } from "./load-context.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -145,9 +145,7 @@ function scanForDrift(rootDir, resolvedFiles, config) {
 
   // Files matching the user's `exclude` globs are intentional omissions,
   // not drift. Compile them to regexes so the orphan list stays signal.
-  const userExcludeRegexes = (Array.isArray(config.exclude) ? config.exclude : []).map((p) =>
-    globToRegex(p),
-  );
+  const userExcludeRegexes = (Array.isArray(config.exclude) ? config.exclude : []).map((p) => globToRegex(p));
   const isUserExcluded = (rel) => userExcludeRegexes.some((re) => re.test(rel));
 
   const orphans = [];
@@ -184,7 +182,8 @@ function scanForDrift(rootDir, resolvedFiles, config) {
   return {
     orphans: capped,
     orphanCount: orphans.length,
-    hint: `${orphans.length} HTML file(s) exist but aren't in config.files. Consider adding them, or use a glob pattern like "public/**/*.html".`,
+    hint:
+      `${orphans.length} HTML file(s) exist but aren't in config.files. Consider adding them, or use a glob pattern like "public/**/*.html".`,
   };
 }
 

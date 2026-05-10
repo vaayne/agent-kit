@@ -9,7 +9,7 @@
  * configure (pick action + go), generating (progressive dots), and cycling
  * (prev/next + accept/discard). Feels like Spotlight, not a modal.
  */
-(function () {
+(function() {
   "use strict";
   if (typeof window === "undefined") return;
 
@@ -62,16 +62,15 @@
     window.__IMPECCABLE_LIVE_INIT__ = false;
     return;
   }
-  const HIGHLIGHT_TRANSITION =
-    "top 140ms " +
-    EASE +
-    ", left 140ms " +
-    EASE +
-    ", width 140ms " +
-    EASE +
-    ", height 140ms " +
-    EASE +
-    ", opacity 150ms ease";
+  const HIGHLIGHT_TRANSITION = "top 140ms "
+    + EASE
+    + ", left 140ms "
+    + EASE
+    + ", width 140ms "
+    + EASE
+    + ", height 140ms "
+    + EASE
+    + ", opacity 150ms ease";
   const TOOLTIP_TRANSITION = "top 140ms " + EASE + ", left 140ms " + EASE + ", opacity 150ms ease";
 
   const SKIP_TAGS = new Set([
@@ -91,18 +90,26 @@
   // icon recolors to C.brand when its chip is selected. 20x20 render, 24-viewBox,
   // 1.5 stroke — visually consistent with the Foundation grid on the homepage.
   const ICON_ATTRS =
-    'width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"';
+    "width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"display:block\"";
   const ICONS = {
     impeccable: `<svg ${ICON_ATTRS}><path d="M4 20l4-1L18 9l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>`,
-    bolder: `<svg ${ICON_ATTRS}><rect x="6" y="12" width="4" height="7" rx="0.5"/><rect x="14" y="5" width="4" height="14" rx="0.5"/></svg>`,
-    quieter: `<svg ${ICON_ATTRS}><rect x="6" y="5" width="4" height="14" rx="0.5"/><rect x="14" y="12" width="4" height="7" rx="0.5"/></svg>`,
+    bolder:
+      `<svg ${ICON_ATTRS}><rect x="6" y="12" width="4" height="7" rx="0.5"/><rect x="14" y="5" width="4" height="14" rx="0.5"/></svg>`,
+    quieter:
+      `<svg ${ICON_ATTRS}><rect x="6" y="5" width="4" height="14" rx="0.5"/><rect x="14" y="12" width="4" height="7" rx="0.5"/></svg>`,
     distill: `<svg ${ICON_ATTRS}><path d="M4 5h16l-6 8v7l-4-2v-5z"/></svg>`,
-    polish: `<svg ${ICON_ATTRS}><path d="M15 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/><path d="M7 13l0.6 1.8 1.8 0.6-1.8 0.6-0.6 1.8-0.6-1.8-1.8-0.6 1.8-0.6z"/></svg>`,
-    typeset: `<svg ${ICON_ATTRS}><path d="M5 6h14" stroke-width="2.6"/><path d="M5 12h9" stroke-width="1.9"/><path d="M5 18h5" stroke-width="1.3"/></svg>`,
-    colorize: `<svg ${ICON_ATTRS}><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
-    layout: `<svg ${ICON_ATTRS}><rect x="3" y="4" width="8" height="16" rx="0.5"/><rect x="13" y="4" width="8" height="7" rx="0.5"/><rect x="13" y="13" width="8" height="7" rx="0.5"/></svg>`,
-    adapt: `<svg ${ICON_ATTRS}><rect x="2.5" y="5" width="12" height="11" rx="1"/><line x1="2.5" y1="19" x2="14.5" y2="19"/><rect x="16.5" y="8" width="5" height="11" rx="1"/></svg>`,
-    animate: `<svg ${ICON_ATTRS}><path d="M3 18c4-4 6-10 10-10"/><path d="M13 8c3 0 5 5 8 10"/><circle cx="13" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>`,
+    polish:
+      `<svg ${ICON_ATTRS}><path d="M15 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/><path d="M7 13l0.6 1.8 1.8 0.6-1.8 0.6-0.6 1.8-0.6-1.8-1.8-0.6 1.8-0.6z"/></svg>`,
+    typeset:
+      `<svg ${ICON_ATTRS}><path d="M5 6h14" stroke-width="2.6"/><path d="M5 12h9" stroke-width="1.9"/><path d="M5 18h5" stroke-width="1.3"/></svg>`,
+    colorize:
+      `<svg ${ICON_ATTRS}><circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/></svg>`,
+    layout:
+      `<svg ${ICON_ATTRS}><rect x="3" y="4" width="8" height="16" rx="0.5"/><rect x="13" y="4" width="8" height="7" rx="0.5"/><rect x="13" y="13" width="8" height="7" rx="0.5"/></svg>`,
+    adapt:
+      `<svg ${ICON_ATTRS}><rect x="2.5" y="5" width="12" height="11" rx="1"/><line x1="2.5" y1="19" x2="14.5" y2="19"/><rect x="16.5" y="8" width="5" height="11" rx="1"/></svg>`,
+    animate:
+      `<svg ${ICON_ATTRS}><path d="M3 18c4-4 6-10 10-10"/><path d="M13 8c3 0 5 5 8 10"/><circle cx="13" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>`,
     delight: `<svg ${ICON_ATTRS}><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg>`,
     overdrive: `<svg ${ICON_ATTRS}><path d="M13 3L5 13h5l-1 8 9-12h-6z"/></svg>`,
   };
@@ -197,7 +204,7 @@
   // ---------------------------------------------------------------------------
 
   function own(el) {
-    return el && (el.id?.startsWith(PREFIX) || el.closest?.('[id^="' + PREFIX + '"]'));
+    return el && (el.id?.startsWith(PREFIX) || el.closest?.("[id^=\"" + PREFIX + "\"]"));
   }
 
   function pickable(el) {
@@ -491,7 +498,7 @@
   function clearAnnotations() {
     annotState.comments = [];
     annotState.strokes = [];
-    if (annotSvgEl) while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild);
+    if (annotSvgEl) { while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild); }
     if (annotPinsEl) annotPinsEl.innerHTML = "";
     annotPointer = null;
     annotEditing = null;
@@ -775,7 +782,7 @@
   }
 
   function beginEditPin(idx) {
-    const wrapEl = annotPinsEl.querySelector('[data-annot-pin="' + idx + '"]');
+    const wrapEl = annotPinsEl.querySelector("[data-annot-pin=\"" + idx + "\"]");
     if (!wrapEl) return;
     // Strip any existing bubble (but keep the dot)
     wrapEl.querySelectorAll("div:not(:first-child)").forEach((n) => n.remove());
@@ -911,7 +918,7 @@
     for (const sheet of document.styleSheets) {
       try {
         for (const rule of sheet.cssRules) {
-          if (rule.style)
+          if (rule.style) {
             for (let i = 0; i < rule.style.length; i++) {
               const p = rule.style[i];
               if (p.startsWith("--") && !props[p]) {
@@ -919,6 +926,7 @@
                 if (v) props[p] = v;
               }
             }
+          }
         }
       } catch {
         /* cross-origin */
@@ -948,11 +956,11 @@
       },
       cssCustomProperties: props,
       parentContext: el.parentElement
-        ? "<" +
-          el.parentElement.tagName.toLowerCase() +
-          (el.parentElement.id ? ' id="' + el.parentElement.id + '"' : "") +
-          (el.parentElement.className ? ' class="' + el.parentElement.className + '"' : "") +
-          ">"
+        ? "<"
+          + el.parentElement.tagName.toLowerCase()
+          + (el.parentElement.id ? " id=\"" + el.parentElement.id + "\"" : "")
+          + (el.parentElement.className ? " class=\"" + el.parentElement.className + "\"" : "")
+          + ">"
         : null,
       boundingRect: { width: Math.round(r.width), height: Math.round(r.height) },
     };
@@ -1120,10 +1128,9 @@
     const input = document.createElement("input");
     input.id = PREFIX + "-input";
     input.type = "text";
-    input.placeholder =
-      selectedAction === "impeccable"
-        ? "describe what you want..."
-        : "refine further (optional)...";
+    input.placeholder = selectedAction === "impeccable"
+      ? "describe what you want..."
+      : "refine further (optional)...";
     Object.assign(input.style, {
       flex: "1",
       minWidth: "0",
@@ -1140,8 +1147,7 @@
     if (!document.getElementById(PREFIX + "-input-style")) {
       const s = document.createElement("style");
       s.id = PREFIX + "-input-style";
-      s.textContent =
-        "#" + PREFIX + "-input::placeholder { color: " + BP.textDim + "; opacity: 1; }";
+      s.textContent = "#" + PREFIX + "-input::placeholder { color: " + BP.textDim + "; opacity: 1; }";
       document.head.appendChild(s);
     }
     input.addEventListener("focus", () => {
@@ -1267,10 +1273,9 @@
     });
     // Variants currently arrive atomically in a single file edit, so a
     // per-variant counter would lie. Say what's true.
-    status.textContent =
-      arrivedVariants < expectedVariants
-        ? "Generating " + expectedVariants + " variants..."
-        : "Done";
+    status.textContent = arrivedVariants < expectedVariants
+      ? "Generating " + expectedVariants + " variants..."
+      : "Done";
     row.appendChild(status);
 
     return row;
@@ -1279,7 +1284,7 @@
   // --- Cycling row ---
 
   const TUNE_ICON_SVG =
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.4" fill="currentColor" stroke="none"/></svg>';
+    "<svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" style=\"flex-shrink:0\"><line x1=\"4\" y1=\"8\" x2=\"20\" y2=\"8\"/><circle cx=\"14\" cy=\"8\" r=\"2.4\" fill=\"currentColor\" stroke=\"none\"/><line x1=\"4\" y1=\"16\" x2=\"20\" y2=\"16\"/><circle cx=\"10\" cy=\"16\" r=\"2.4\" fill=\"currentColor\" stroke=\"none\"/></svg>";
 
   function buildCyclingRow() {
     const row = el("div", {
@@ -1365,12 +1370,11 @@
       });
       tuneBadge.textContent = String(visParams.length);
       tune.appendChild(tuneBadge);
-      tune.title =
-        "Tune this variant (" +
-        visParams.length +
-        " knob" +
-        (visParams.length === 1 ? "" : "s") +
-        ")";
+      tune.title = "Tune this variant ("
+        + visParams.length
+        + " knob"
+        + (visParams.length === 1 ? "" : "s")
+        + ")";
       tune.addEventListener("mouseenter", () => {
         if (!tuneOpen) tune.style.background = BP.accentSoft;
       });
@@ -1814,9 +1818,9 @@
 
   function getVisibleVariantEl() {
     if (!currentSessionId) return null;
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector("[data-impeccable-variants=\"" + currentSessionId + "\"]");
     if (!wrapper) return null;
-    return wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"]');
+    return wrapper.querySelector("[data-impeccable-variant=\"" + visibleVariant + "\"]");
   }
 
   function parseVariantParams(variantEl) {
@@ -1951,9 +1955,7 @@
         });
         row.appendChild(track);
       } else if (p.kind === "steps") {
-        const opts = (p.options || []).map((o) =>
-          typeof o === "string" ? { value: o, label: o } : o,
-        );
+        const opts = (p.options || []).map((o) => typeof o === "string" ? { value: o, label: o } : o);
         const activeOpt = opts.find((o) => o.value === p.default) || opts[0];
         readout.textContent = activeOpt ? activeOpt.label : String(p.default);
         const segRow = el("div", {
@@ -2108,8 +2110,7 @@
     if (tuneOpen) {
       // If already visible (variant cycled while open), refresh in place
       // instead of re-running the clip-path animation.
-      const alreadyVisible =
-        paramsPanelEl.style.display === "block" && paramsPanelEl.style.opacity === "1";
+      const alreadyVisible = paramsPanelEl.style.display === "block" && paramsPanelEl.style.opacity === "1";
       if (alreadyVisible) positionParamsPanel();
       else showParamsPanel();
     } else {
@@ -2159,7 +2160,7 @@
   // ---------------------------------------------------------------------------
 
   function showVariantInDOM(sessionId, num) {
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    const wrapper = document.querySelector("[data-impeccable-variants=\"" + sessionId + "\"]");
     if (!wrapper) return;
     for (const child of wrapper.children) {
       const v = child.dataset ? child.dataset.impeccableVariant : null;
@@ -2178,13 +2179,12 @@
    * This works even when the dev server caches HTML (Bun, static servers).
    */
   function injectVariantsFromSource(filePath, sessionId) {
-    const url =
-      "http://localhost:" +
-      PORT +
-      "/source?token=" +
-      TOKEN +
-      "&path=" +
-      encodeURIComponent(filePath);
+    const url = "http://localhost:"
+      + PORT
+      + "/source?token="
+      + TOKEN
+      + "&path="
+      + encodeURIComponent(filePath);
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.status);
@@ -2194,7 +2194,7 @@
         // Parse the raw source HTML
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-        const srcWrapper = doc.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const srcWrapper = doc.querySelector("[data-impeccable-variants=\"" + sessionId + "\"]");
         if (!srcWrapper) {
           console.error("[impeccable] Variant wrapper not found in source file.");
           return;
@@ -2205,7 +2205,7 @@
         // corresponding element in the live DOM by matching the first child's
         // tag + classes from the original snapshot.
         const origContent = srcWrapper.querySelector(
-          '[data-impeccable-variant="original"] > :first-child',
+          "[data-impeccable-variant=\"original\"] > :first-child",
         );
         if (!origContent) return;
 
@@ -2239,18 +2239,17 @@
         // Update state: count variants, preserving the user's current variant
         // when a late HMR/source reinjection lands after they have cycled.
         const variants = wrapper.querySelectorAll(
-          '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
+          "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
         );
         arrivedVariants = variants.length;
         expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || arrivedVariants);
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant =
-          previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
-            ? previousVisibleVariant
-            : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
-              ? savedVisibleVariant
-              : 1;
+        visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
+          ? previousVisibleVariant
+          : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+          ? savedVisibleVariant
+          : 1;
         showVariantInDOM(sessionId, visibleVariant);
 
         // Update selectedElement to the visible variant's content
@@ -2282,17 +2281,17 @@
 
   function updateSelectedElement() {
     if (!currentSessionId) return;
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector("[data-impeccable-variants=\"" + currentSessionId + "\"]");
     if (!wrapper) return;
     const visEl = pickVariantContent(wrapper, visibleVariant);
     if (visEl) selectedElement = visEl;
   }
 
   function readVisibleVariantFromDOM(sessionId) {
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    const wrapper = document.querySelector("[data-impeccable-variants=\"" + sessionId + "\"]");
     if (!wrapper) return 0;
     const variants = wrapper.querySelectorAll(
-      '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
+      "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
     );
     for (const variant of variants) {
       if (variant.style.display === "none") continue;
@@ -2310,7 +2309,7 @@
   // (it wraps all of them and gets correct bounds).
   function pickVariantContent(wrapper, index) {
     if (!wrapper) return null;
-    const variantDiv = wrapper.querySelector('[data-impeccable-variant="' + index + '"]');
+    const variantDiv = wrapper.querySelector("[data-impeccable-variant=\"" + index + "\"]");
     if (!variantDiv) return null;
     const NON_VISUAL = new Set(["STYLE", "SCRIPT", "LINK", "META", "TEMPLATE"]);
     const visual = [];
@@ -2325,10 +2324,9 @@
   // session's wrapper (HMR patches, variant inserts, cycle swaps).
   function startScrollLock(sessionId, initialTargetY) {
     stopScrollLock();
-    scrollLockTargetY =
-      typeof initialTargetY === "number" && isFinite(initialTargetY)
-        ? initialTargetY
-        : window.scrollY;
+    scrollLockTargetY = typeof initialTargetY === "number" && isFinite(initialTargetY)
+      ? initialTargetY
+      : window.scrollY;
     console.log("[impeccable.scroll] startScrollLock", {
       sessionId,
       scrollY: window.scrollY,
@@ -2374,15 +2372,15 @@
 
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
-        if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
+        if (m.target?.closest?.("[data-impeccable-variants=\"" + sessionId + "\"]")) {
           const childAdds = Array.from(m.addedNodes)
             .map((n) =>
               n.nodeType === 1
-                ? n.tagName +
-                  (n.dataset?.impeccableVariant
+                ? n.tagName
+                  + (n.dataset?.impeccableVariant
                     ? "[variant=" + n.dataset.impeccableVariant + "]"
                     : "")
-                : n.nodeType,
+                : n.nodeType
             )
             .join(",");
           console.log("[impeccable.scroll] mutation inside wrapper", {
@@ -2397,9 +2395,9 @@
         }
         for (const n of m.addedNodes) {
           if (
-            n.nodeType === 1 &&
-            (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') ||
-              n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))
+            n.nodeType === 1
+            && (n.matches?.("[data-impeccable-variants=\"" + sessionId + "\"]")
+              || n.querySelector?.("[data-impeccable-variants=\"" + sessionId + "\"]"))
           ) {
             console.log("[impeccable.scroll] wrapper node added", {
               tag: n.tagName,
@@ -2458,8 +2456,9 @@
     window.addEventListener(
       "keydown",
       (e) => {
-        if (["PageDown", "PageUp", " ", "End", "Home", "ArrowDown", "ArrowUp"].includes(e.key))
+        if (["PageDown", "PageUp", " ", "End", "Home", "ArrowDown", "ArrowUp"].includes(e.key)) {
           markGesture("key:" + e.key);
+        }
       },
       sig,
     );
@@ -2555,7 +2554,7 @@
       }
       if (!dominated) return;
 
-      const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const wrapper = document.querySelector("[data-impeccable-variants=\"" + sessionId + "\"]");
       if (!wrapper) return;
 
       // Re-anchor selectedElement if it was detached by live-wrap's HMR swap.
@@ -2566,7 +2565,7 @@
       }
 
       const variants = wrapper.querySelectorAll(
-        '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
+        "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
       );
       const count = variants.length;
 
@@ -2578,10 +2577,9 @@
       if (visibleVariant === 0 && arrivedVariants > 0) {
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant =
-          savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
-            ? savedVisibleVariant
-            : 1;
+        visibleVariant = savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+          ? savedVisibleVariant
+          : 1;
         showVariantInDOM(sessionId, visibleVariant);
         // showVariantInDOM hid the original (display:none); if we were still
         // anchored to the original's content, its boundingRect is now zero
@@ -2664,11 +2662,12 @@
       switch (msg.type) {
         case "connected":
           hasProjectContext = !!msg.hasProjectContext;
-          if (!hasProjectContext)
+          if (!hasProjectContext) {
             showToast(
               "No PRODUCT.md found. Variants will be brand-agnostic. Run /impeccable teach to generate one.",
               7000,
             );
+          }
           console.log("[impeccable] Live mode connected.");
           if (state === "IDLE") state = "PICKING";
           break;
@@ -2817,20 +2816,20 @@
     }
     // Close Tune popover on outside click (anything outside panel + bar)
     if (
-      tuneOpen &&
-      paramsPanelEl &&
-      !paramsPanelEl.contains(e.target) &&
-      barEl &&
-      !barEl.contains(e.target)
+      tuneOpen
+      && paramsPanelEl
+      && !paramsPanelEl.contains(e.target)
+      && barEl
+      && !barEl.contains(e.target)
     ) {
       closeTunePopover();
     }
     // In CONFIGURING: click outside the bar and selected element returns to PICKING
     if (
-      state === "CONFIGURING" &&
-      !own(e.target) &&
-      selectedElement &&
-      !selectedElement.contains(e.target)
+      state === "CONFIGURING"
+      && !own(e.target)
+      && selectedElement
+      && !selectedElement.contains(e.target)
     ) {
       hideBar();
       stopScrollTracking();
@@ -2875,9 +2874,9 @@
     while (node && depth < 12) {
       // 1. Active dialog / modal
       if (
-        node.getAttribute &&
-        node.getAttribute("role") === "dialog" &&
-        node.getAttribute("aria-modal") === "true"
+        node.getAttribute
+        && node.getAttribute("role") === "dialog"
+        && node.getAttribute("aria-modal") === "true"
       ) {
         showToast(
           "Heads up: this element lives inside a dialog. If state resets during generation, you may need to re-open it.",
@@ -2897,9 +2896,9 @@
       // tab as selected. A single tabpanel with no tablist is just a static
       // section in disguise and isn't conditional.
       if (node.getAttribute && node.getAttribute("role") === "tabpanel") {
-        const list = document.querySelector('[role="tablist"]');
+        const list = document.querySelector("[role=\"tablist\"]");
         if (list) {
-          const tabs = list.querySelectorAll('[role="tab"]');
+          const tabs = list.querySelectorAll("[role=\"tab\"]");
           if (tabs.length > 1) {
             showToast(
               "Heads up: this element lives in a tab panel. If state resets during generation, switch back to this tab.",
@@ -2983,11 +2982,10 @@
     }
 
     // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
-    var navEl =
-      state === "PICKING" ? hoveredElement : state === "CONFIGURING" ? selectedElement : null;
+    var navEl = state === "PICKING" ? hoveredElement : state === "CONFIGURING" ? selectedElement : null;
     if (
-      navEl &&
-      (e.key === "ArrowUp" || e.key === "ArrowDown" || (e.key === "Enter" && state === "PICKING"))
+      navEl
+      && (e.key === "ArrowUp" || e.key === "ArrowDown" || (e.key === "Enter" && state === "PICKING"))
     ) {
       let next = null;
       if (e.key === "ArrowDown" && !e.shiftKey) {
@@ -3184,8 +3182,8 @@
         const rules = sheet.cssRules;
         for (const rule of rules) {
           if (
-            rule.constructor.name === "CSSFontFaceRule" ||
-            rule.cssText?.startsWith("@font-face")
+            rule.constructor.name === "CSSFontFaceRule"
+            || rule.cssText?.startsWith("@font-face")
           ) {
             chunks.push(rule.cssText);
           }
@@ -3253,8 +3251,7 @@
     try {
       if (document.fonts?.ready) await document.fonts.ready;
     } catch {}
-    const hasAnnotations =
-      snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
     let annotNode = null;
     let savedPosition = null;
     if (hasAnnotations) {
@@ -3298,17 +3295,16 @@
     // are present. Without annotations the image is pure visual anchoring —
     // it biases the model toward the current rendering and works against the
     // three-distinct-directions brief.
-    const hasAnnotations =
-      snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
     if (blob && hasAnnotations) {
       try {
         const uploadRes = await fetch(
-          "http://localhost:" +
-            PORT +
-            "/annotation?token=" +
-            encodeURIComponent(TOKEN) +
-            "&eventId=" +
-            encodeURIComponent(basePayload.id),
+          "http://localhost:"
+            + PORT
+            + "/annotation?token="
+            + encodeURIComponent(TOKEN)
+            + "&eventId="
+            + encodeURIComponent(basePayload.id),
           { method: "POST", headers: { "Content-Type": "image/png" }, body: blob },
         );
         if (uploadRes.ok) {
@@ -3442,9 +3438,8 @@ void main() {
     });
     document.body.appendChild(canvas);
 
-    const gl =
-      canvas.getContext("webgl", { premultipliedAlpha: false, preserveDrawingBuffer: false }) ||
-      canvas.getContext("experimental-webgl");
+    const gl = canvas.getContext("webgl", { premultipliedAlpha: false, preserveDrawingBuffer: false })
+      || canvas.getContext("experimental-webgl");
     if (!gl) {
       // WebGL unavailable — fall back to a plain <img> overlay so the user
       // still sees something meaningful during generation.
@@ -3481,7 +3476,30 @@ void main() {
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
-          -1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1, 1, 1, 1, 1, 1, 0,
+          -1,
+          -1,
+          0,
+          1,
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          1,
+          0,
+          0,
+          -1,
+          1,
+          0,
+          0,
+          1,
+          -1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
         ]),
         gl.STATIC_DRAW,
       );
@@ -3593,7 +3611,7 @@ void main() {
     }
 
     function scheduleAcceptCleanup() {
-      setTimeout(function () {
+      setTimeout(function() {
         hideBar();
         hideHighlight();
         stopScrollTracking();
@@ -3615,13 +3633,13 @@ void main() {
       // on or the app isn't React at all. Preserve the `data-impeccable-variant="N"`
       // div (with display:contents) so @scope rules anchored to the variant
       // attribute keep matching until reload replaces it with the carbonize block.
-      setTimeout(function () {
+      setTimeout(function() {
         const wrapper = document.querySelector(
-          '[data-impeccable-variants="' + acceptedSessionId + '"]',
+          "[data-impeccable-variants=\"" + acceptedSessionId + "\"]",
         );
         if (!wrapper) return;
         const accepted = wrapper.querySelector(
-          '[data-impeccable-variant="' + acceptedVariant + '"]',
+          "[data-impeccable-variant=\"" + acceptedVariant + "\"]",
         );
         if (accepted && accepted.firstElementChild) {
           const parent = wrapper.parentElement;
@@ -3644,7 +3662,7 @@ void main() {
         showToast(
           "Could not confirm discard with the live server. Session kept for recovery.",
           5000,
-        ),
+        )
       );
   }
 
@@ -3702,17 +3720,17 @@ void main() {
     const cleanupSessionId = currentSessionId;
     if (cleanupSessionId) {
       const wrapper = document.querySelector(
-        '[data-impeccable-variants="' + cleanupSessionId + '"]',
+        "[data-impeccable-variants=\"" + cleanupSessionId + "\"]",
       );
       if (wrapper) wrapper.style.display = "none";
     }
-    setTimeout(function () {
+    setTimeout(function() {
       if (!cleanupSessionId) return;
       const wrapper = document.querySelector(
-        '[data-impeccable-variants="' + cleanupSessionId + '"]',
+        "[data-impeccable-variants=\"" + cleanupSessionId + "\"]",
       );
       if (!wrapper) return;
-      const orig = wrapper.querySelector('[data-impeccable-variant="original"]');
+      const orig = wrapper.querySelector("[data-impeccable-variant=\"original\"]");
       if (orig) {
         const content = orig.firstElementChild;
         if (content) {
@@ -3749,8 +3767,7 @@ void main() {
     // with hover-expanded labels — and fall back to a sensible default
     // when the bar isn't mounted yet.
     const barRect = globalBarEl?.getBoundingClientRect();
-    const barTopFromBottom =
-      barRect && barRect.height > 0 ? Math.max(16, window.innerHeight - barRect.top + 12) : 16;
+    const barTopFromBottom = barRect && barRect.height > 0 ? Math.max(16, window.innerHeight - barRect.top + 12) : 16;
     toastEl = el("div", {
       position: "fixed",
       bottom: barTopFromBottom + "px",
@@ -3813,19 +3830,18 @@ void main() {
     currentSessionId = sessionId;
     expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || "0");
     const variants = wrapper.querySelectorAll(
-      '[data-impeccable-variant]:not([data-impeccable-variant="original"])',
+      "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
     );
     arrivedVariants = variants.length;
 
     // Restore state from localStorage if available
     const saved = loadSession();
     if (saved && saved.id === sessionId) {
-      visibleVariant =
-        saved.visible > 0 && saved.visible <= arrivedVariants
-          ? saved.visible
-          : arrivedVariants > 0
-            ? 1
-            : 0;
+      visibleVariant = saved.visible > 0 && saved.visible <= arrivedVariants
+        ? saved.visible
+        : arrivedVariants > 0
+        ? 1
+        : 0;
       if (saved.action) selectedAction = saved.action;
       if (saved.count) selectedCount = saved.count;
     } else {
@@ -3983,20 +3999,19 @@ void main() {
     if (!document.getElementById(PREFIX + "-bar-focus-style")) {
       const s = document.createElement("style");
       s.id = PREFIX + "-bar-focus-style";
-      s.textContent =
-        "#" +
-        PREFIX +
-        "-global-bar button:focus { outline: none; }" +
-        "#" +
-        PREFIX +
-        "-global-bar button:focus-visible {" +
-        "  outline: none;" +
-        "  box-shadow: 0 0 0 2px " +
-        P.accentSoft +
-        ", 0 0 0 3px " +
-        P.accent +
-        ";" +
-        "}";
+      s.textContent = "#"
+        + PREFIX
+        + "-global-bar button:focus { outline: none; }"
+        + "#"
+        + PREFIX
+        + "-global-bar button:focus-visible {"
+        + "  outline: none;"
+        + "  box-shadow: 0 0 0 2px "
+        + P.accentSoft
+        + ", 0 0 0 3px "
+        + P.accent
+        + ";"
+        + "}";
       document.head.appendChild(s);
     }
 
@@ -4077,10 +4092,11 @@ void main() {
       b.id = id;
       b.title = ariaLabel || label || "";
       b.setAttribute("aria-label", ariaLabel || label || "");
-      b.innerHTML =
-        svg +
-        (label
-          ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
+      b.innerHTML = svg
+        + (label
+          ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${
+            labelFont || FONT
+          };transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
           : "");
       const labelEl = b.querySelector(".icon-btn-label");
       const expand = () => {
@@ -4114,7 +4130,8 @@ void main() {
     // Pick toggle — starts active (primary intent when entering live mode).
     const pickBtn = makeIconBtn({
       id: PREFIX + "-pick-toggle",
-      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+      svg:
+        "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"flex-shrink:0\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"22\" y1=\"12\" x2=\"18\" y2=\"12\"/><line x1=\"6\" y1=\"12\" x2=\"2\" y2=\"12\"/><line x1=\"12\" y1=\"6\" x2=\"12\" y2=\"2\"/><line x1=\"12\" y1=\"22\" x2=\"12\" y2=\"18\"/></svg>",
       label: "Pick",
       ariaLabel: "Pick element",
       onClick: () => togglePick(),
@@ -4128,7 +4145,8 @@ void main() {
     // Detect toggle
     const detectBtn = makeIconBtn({
       id: PREFIX + "-detect-toggle",
-      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      svg:
+        "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"flex-shrink:0\"><path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>",
       label: "Detect",
       ariaLabel: "Detect anti-patterns",
       onClick: () => toggleDetect(),
@@ -4152,7 +4170,8 @@ void main() {
     // DESIGN.md panel toggle — quartet of color squares as the mark.
     const designBtn = makeIconBtn({
       id: PREFIX + "-design-toggle",
-      svg: `<span style="display:inline-grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:14px;height:14px;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px ${P.hairline};flex-shrink:0">
+      svg:
+        `<span style="display:inline-grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:14px;height:14px;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px ${P.hairline};flex-shrink:0">
         <span style="background:oklch(60% 0.25 350)"></span>
         <span style="background:oklch(60% 0.15 45)"></span>
         <span style="background:oklch(55% 0.12 250)"></span>
@@ -4202,7 +4221,7 @@ void main() {
       transition: "color 0.12s ease, background 0.12s ease",
     });
     exitBtn.innerHTML =
-      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>';
+      "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><line x1=\"3\" y1=\"3\" x2=\"11\" y2=\"11\"/><line x1=\"11\" y1=\"3\" x2=\"3\" y2=\"11\"/></svg>";
     exitBtn.title = "Exit live mode";
     exitBtn.addEventListener("mouseenter", () => {
       exitBtn.style.color = P.text;
@@ -4812,10 +4831,12 @@ void main() {
 
     const tabs = document.createElement("div");
     tabs.className = "tabs";
-    for (const t of [
-      ["visual", "Visual"],
-      ["raw", "Raw"],
-    ]) {
+    for (
+      const t of [
+        ["visual", "Visual"],
+        ["raw", "Raw"],
+      ]
+    ) {
       const btn = document.createElement("button");
       btn.className = "tab";
       btn.textContent = t[1];
@@ -4894,7 +4915,8 @@ void main() {
     if (designState.present === false) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.innerHTML = `<strong>No DESIGN.md yet</strong>Create one by running <code>/impeccable document</code> in your terminal, then re-open this panel.`;
+      empty.innerHTML =
+        `<strong>No DESIGN.md yet</strong>Create one by running <code>/impeccable document</code> in your terminal, then re-open this panel.`;
       body.appendChild(empty);
       return;
     }
@@ -4932,7 +4954,8 @@ void main() {
   function renderParsedMdCta() {
     const box = document.createElement("div");
     box.className = "parsed-md-cta";
-    box.innerHTML = `<strong>Basic view</strong>This panel reads the tokens in your <code>DESIGN.md</code> frontmatter. Running <code>/impeccable document</code> also generates a <code>.impeccable/design.json</code> sidecar with your project's actual component snippets (button, input, nav) and tonal ramps, rendered live below the tokens.`;
+    box.innerHTML =
+      `<strong>Basic view</strong>This panel reads the tokens in your <code>DESIGN.md</code> frontmatter. Running <code>/impeccable document</code> also generates a <code>.impeccable/design.json</code> sidecar with your project's actual component snippets (button, input, nav) and tonal ramps, rendered live below the tokens.`;
     return box;
   }
 
@@ -4961,8 +4984,9 @@ void main() {
     // synthesize from prose sections.
     const narrative = sidecar?.narrative || synthesizeNarrative(parsed);
     if (narrative.rules?.length) body.appendChild(renderRulesCollapsible(narrative.rules));
-    if (narrative.dos?.length || narrative.donts?.length)
+    if (narrative.dos?.length || narrative.donts?.length) {
       body.appendChild(renderDosDontsCollapsible(narrative));
+    }
     if (narrative.overview || narrative.northStar || narrative.keyCharacteristics?.length) {
       body.appendChild(renderOverviewCollapsible(narrative));
     }
@@ -5071,7 +5095,9 @@ void main() {
 
       const meta = document.createElement("div");
       meta.className = "tile-meta";
-      meta.innerHTML = `<span class="name">${escapeHtml(c.name || c.role || "Color")}</span><span>${escapeHtml(c.value || "")}</span>`;
+      meta.innerHTML = `<span class="name">${escapeHtml(c.name || c.role || "Color")}</span><span>${
+        escapeHtml(c.value || "")
+      }</span>`;
       tile.appendChild(meta);
 
       const hero = document.createElement("div");
@@ -5100,9 +5126,8 @@ void main() {
   function synthesizeRamp(c) {
     if (c.tonalRamp?.length) return c.tonalRamp;
     // If base value is OKLCH, synthesize an 8-step ramp across lightness.
-    const m =
-      typeof c.value === "string" &&
-      c.value.match(/^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i);
+    const m = typeof c.value === "string"
+      && c.value.match(/^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i);
     if (!m) return [];
     const [, , chroma, hue] = m;
     const steps = [20, 32, 44, 56, 68, 80, 90, 96];
@@ -5116,7 +5141,9 @@ void main() {
 
       const meta = document.createElement("div");
       meta.className = "tile-meta";
-      meta.innerHTML = `<span>${escapeHtml(t.role || "")}</span><span>${escapeHtml(t.weight || "")} ${escapeHtml(t.style === "italic" ? "italic" : "")}</span>`;
+      meta.innerHTML = `<span>${escapeHtml(t.role || "")}</span><span>${escapeHtml(t.weight || "")} ${
+        escapeHtml(t.style === "italic" ? "italic" : "")
+      }</span>`;
       tile.appendChild(meta);
 
       const specimen = document.createElement("div");
@@ -5133,8 +5160,7 @@ void main() {
       // The system's actual sample size for this role, shown as small mono meta below.
       if (t.sampleSize) {
         const scale = document.createElement("div");
-        scale.style.cssText =
-          "font-family:" + MONO + "; font-size: 10px; color:" + DP.meta + "; margin-top: 2px;";
+        scale.style.cssText = "font-family:" + MONO + "; font-size: 10px; color:" + DP.meta + "; margin-top: 2px;";
         scale.textContent = t.sampleSize;
         tile.appendChild(scale);
       }
@@ -5157,7 +5183,7 @@ void main() {
   function fontStack(t) {
     const fam = t.family || "";
     const fb = t.fallback || "";
-    if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes('"')) {
+    if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes("\"")) {
       return `"${fam}", ${fb}`;
     }
     return fam && fb ? `"${fam}", ${fb}` : fam || fb;
@@ -5236,11 +5262,12 @@ void main() {
 
       const meta = document.createElement("div");
       meta.className = "tile-meta";
-      const groupTitle =
-        group.length === 1
-          ? group[0].name || group[0].kind || "Component"
-          : titleForKind(group[0].kind, group.length);
-      meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${escapeHtml(group[0].kind || "")}</span>`;
+      const groupTitle = group.length === 1
+        ? group[0].name || group[0].kind || "Component"
+        : titleForKind(group[0].kind, group.length);
+      meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${
+        escapeHtml(group[0].kind || "")
+      }</span>`;
       tile.appendChild(meta);
 
       for (const c of group) {
@@ -5343,7 +5370,9 @@ void main() {
       card.className = "rule-card";
       const name = document.createElement("div");
       name.className = "name";
-      name.innerHTML = `${escapeHtml(r.name)}${r.section ? `<span class="section">${escapeHtml(r.section)}</span>` : ""}`;
+      name.innerHTML = `${escapeHtml(r.name)}${
+        r.section ? `<span class="section">${escapeHtml(r.section)}</span>` : ""
+      }`;
       card.appendChild(name);
       const b = document.createElement("div");
       b.className = "body";
@@ -5598,13 +5627,13 @@ void main() {
       scout.observe(document.body, { childList: true, subtree: true });
     } else {
       console.log(
-        "[impeccable] Resumed active variant session " +
-          currentSessionId +
-          " (" +
-          arrivedVariants +
-          "/" +
-          expectedVariants +
-          " variants).",
+        "[impeccable] Resumed active variant session "
+          + currentSessionId
+          + " ("
+          + arrivedVariants
+          + "/"
+          + expectedVariants
+          + " variants).",
       );
     }
   }

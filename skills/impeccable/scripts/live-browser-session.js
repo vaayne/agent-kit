@@ -5,15 +5,14 @@
  * booting the full overlay UI. Served before live-browser.js and attached to
  * window.__IMPECCABLE_LIVE_SESSION__.
  */
-(function (root) {
+(function(root) {
   "use strict";
 
   function createLiveBrowserSessionState({ prefix, storage, idFactory }) {
     if (!prefix) throw new Error("prefix required");
     const store = storage || root.localStorage;
-    const makeId =
-      idFactory ||
-      function () {
+    const makeId = idFactory
+      || function() {
         return Math.random().toString(16).slice(2, 10);
       };
     const sessionKey = prefix + "-session";

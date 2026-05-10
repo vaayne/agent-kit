@@ -1,5 +1,5 @@
-import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import * as path from "node:path";
 import type { AgentConfig } from "./agents.js";
 import { discoverAgents } from "./agents.js";
 import { registerAgentCommands } from "./commands.js";
@@ -24,7 +24,7 @@ Use the agent tool to delegate tasks to these specialized agents when appropriat
 `;
 }
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   let discoveredAgents: AgentConfig[] = discoverAgents(path.resolve("."), "both").agents;
 
   registerAgentCommands(pi, () => discoveredAgents);

@@ -11,8 +11,8 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { completionAckForAcceptResult, completionTypeForAcceptResult } from "./live-completion.mjs";
 import { readLiveServerInfo } from "./impeccable-paths.mjs";
+import { completionAckForAcceptResult, completionTypeForAcceptResult } from "./live-completion.mjs";
 
 // Node's built-in fetch (undici under the hood) enforces a 300s headers
 // timeout that can't be lowered per-request. We cap each request below
@@ -75,9 +75,8 @@ Options:
     const fileIdx = args.indexOf("--file");
     const filePath = fileIdx !== -1 && fileIdx + 1 < args.length ? args[fileIdx + 1] : undefined;
     // Message is any remaining positional arg that isn't a flag
-    const message =
-      args.find((a, i) => i > replyIdx + 2 && !a.startsWith("--") && i !== fileIdx + 1) ||
-      undefined;
+    const message = args.find((a, i) => i > replyIdx + 2 && !a.startsWith("--") && i !== fileIdx + 1)
+      || undefined;
 
     if (!id) {
       console.error("Usage: npx impeccable poll --reply <id> <status> [--file path] [message]");
@@ -142,14 +141,13 @@ Options:
     if (event.type === "accept" || event.type === "discard") {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const acceptScript = path.join(__dirname, "live-accept.mjs");
-      const scriptArgs =
-        event.type === "discard"
-          ? ["--id", event.id, "--discard"]
-          : ["--id", event.id, "--variant", event.variantId];
+      const scriptArgs = event.type === "discard"
+        ? ["--id", event.id, "--discard"]
+        : ["--id", event.id, "--variant", event.variantId];
       if (
-        event.type === "accept" &&
-        event.paramValues &&
-        Object.keys(event.paramValues).length > 0
+        event.type === "accept"
+        && event.paramValues
+        && Object.keys(event.paramValues).length > 0
       ) {
         scriptArgs.push("--param-values", JSON.stringify(event.paramValues));
       }
@@ -190,9 +188,9 @@ Options:
     // is in reference/live.md.
     if (event._acceptResult?.carbonize === true) {
       process.stderr.write(
-        "\n⚠ Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id " +
-          event.id +
-          '. See reference/live.md "Required after accept".\n\n',
+        "\n⚠ Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id "
+          + event.id
+          + ". See reference/live.md \"Required after accept\".\n\n",
       );
     }
 

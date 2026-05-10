@@ -265,11 +265,11 @@ export default function mcpExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "mcp_exec",
     label: "MCP Exec",
-    description: `Execute JavaScript code to orchestrate multiple MCP tool calls with logic. IMPORTANT: Before using this tool, read the usage guide at ${EXEC_USAGE_PATH} to understand capabilities and limitations. Use mcp.callTool(name, params) to call tools. Supports async/await, variables, conditionals, loops, and chaining results.`,
+    description:
+      `Execute JavaScript code to orchestrate multiple MCP tool calls with logic. IMPORTANT: Before using this tool, read the usage guide at ${EXEC_USAGE_PATH} to understand capabilities and limitations. Use mcp.callTool(name, params) to call tools. Supports async/await, variables, conditionals, loops, and chaining results.`,
     parameters: Type.Object({
       code: Type.String({
-        description:
-          "JavaScript code to execute. Use mcp.callTool(name, params) to call MCP tools.",
+        description: "JavaScript code to execute. Use mcp.callTool(name, params) to call MCP tools.",
       }),
     }),
 

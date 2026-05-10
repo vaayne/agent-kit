@@ -55,7 +55,7 @@ If you change this file, tell the user — it's your soul, and they should know.
 _This file is yours to evolve. As you learn who you are, update it._
 `;
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   // Skip entirely if soul is not enabled via env var
   if (!process.env.PI_ENABLE_SOUL) return;
 

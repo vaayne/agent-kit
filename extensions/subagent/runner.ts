@@ -1,17 +1,12 @@
+import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import type { Message } from "@mariozechner/pi-ai";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
 import { saveSubagentSession } from "./session-store.js";
-import type {
-  SavedSubagentSession,
-  SingleResult,
-  SubagentDetails,
-  ThinkingLevel,
-} from "./types.js";
+import type { SavedSubagentSession, SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 
 type JsonEvent = {

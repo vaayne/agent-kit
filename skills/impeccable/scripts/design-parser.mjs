@@ -87,7 +87,7 @@ function findTopLevelColon(s) {
     const ch = s[i];
     if (inQuote) {
       if (ch === inQuote && s[i - 1] !== "\\") inQuote = null;
-    } else if (ch === '"' || ch === "'") {
+    } else if (ch === "\"" || ch === "'") {
       inQuote = ch;
     } else if (ch === ":") {
       return i;
@@ -98,7 +98,7 @@ function findTopLevelColon(s) {
 
 function parseScalar(raw) {
   const s = raw.trim();
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+  if ((s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"))) {
     return s.slice(1, -1);
   }
   if (s === "true") return true;
@@ -364,8 +364,7 @@ function extractColors(section) {
 
     // If every bullet starts with a role keyword (Primary/Secondary/...), promote
     // each bullet to its own group. Otherwise keep the subsection as the group.
-    const allRoleBullets =
-      parsed.length > 0 && parsed.every((p) => p.name && ROLE_KEYWORDS.test(p.name));
+    const allRoleBullets = parsed.length > 0 && parsed.every((p) => p.name && ROLE_KEYWORDS.test(p.name));
 
     if (allRoleBullets) {
       for (const p of parsed) {
@@ -672,8 +671,7 @@ function parseShadowBullet(bullet) {
   const m = bullet.match(/^\*\*(.+?)\*\*\s*\(`?([^`]+?)`?\):\s*(.*)$/);
   if (!m) return null;
   const rawValue = m[2].replace(/^box-shadow:\s*/i, "").trim();
-  const looksLikeShadow =
-    /box-shadow|rgba?\(|\bpx\b|\brem\b|^-?\d+\s/i.test(rawValue) && /\d/.test(rawValue);
+  const looksLikeShadow = /box-shadow|rgba?\(|\bpx\b|\brem\b|^-?\d+\s/i.test(rawValue) && /\d/.test(rawValue);
   if (!looksLikeShadow) return null;
   const name = stripBold(m[1]).trim();
   return {
@@ -706,9 +704,10 @@ function extractComponents(section) {
         // Heuristic: "Primary", "Secondary", "Hover", "Focus" etc are variants;
         // "Shape", "Background", "Padding" are properties.
         if (
-          /^(primary|secondary|tertiary|ghost|hover|focus|active|disabled|default|error|selected|unselected|state)$/i.test(
-            key.split(/[\s/]/)[0],
-          )
+          /^(primary|secondary|tertiary|ghost|hover|focus|active|disabled|default|error|selected|unselected|state)$/i
+            .test(
+              key.split(/[\s/]/)[0],
+            )
         ) {
           variants.push({ name: key, description: value });
         } else {
@@ -768,49 +767,49 @@ function assessCoverage(model) {
 
   report.overview = model.overview
     ? {
-        northStar: Boolean(model.overview.creativeNorthStar),
-        philosophy: model.overview.philosophy.length > 0,
-        keyCharacteristics: model.overview.keyCharacteristics.length,
-      }
+      northStar: Boolean(model.overview.creativeNorthStar),
+      philosophy: model.overview.philosophy.length > 0,
+      keyCharacteristics: model.overview.keyCharacteristics.length,
+    }
     : "missing";
 
   report.colors = model.colors
     ? {
-        groups: model.colors.groups.length,
-        totalColors: model.colors.groups.reduce((n, g) => n + g.colors.length, 0),
-        rules: model.colors.rules.length,
-      }
+      groups: model.colors.groups.length,
+      totalColors: model.colors.groups.reduce((n, g) => n + g.colors.length, 0),
+      rules: model.colors.rules.length,
+    }
     : "missing";
 
   report.typography = model.typography
     ? {
-        fonts: Object.keys(model.typography.fonts).length,
-        hierarchyEntries: model.typography.hierarchy.length,
-        character: Boolean(model.typography.character),
-        rules: model.typography.rules.length,
-      }
+      fonts: Object.keys(model.typography.fonts).length,
+      hierarchyEntries: model.typography.hierarchy.length,
+      character: Boolean(model.typography.character),
+      rules: model.typography.rules.length,
+    }
     : "missing";
 
   report.elevation = model.elevation
     ? {
-        shadows: model.elevation.shadows.length,
-        rules: model.elevation.rules.length,
-        description: Boolean(model.elevation.description),
-      }
+      shadows: model.elevation.shadows.length,
+      rules: model.elevation.rules.length,
+      description: Boolean(model.elevation.description),
+    }
     : "missing";
 
   report.components = model.components
     ? {
-        count: model.components.components.length,
-        variantTotal: model.components.components.reduce((n, c) => n + c.variants.length, 0),
-      }
+      count: model.components.components.length,
+      variantTotal: model.components.components.reduce((n, c) => n + c.variants.length, 0),
+    }
     : "missing";
 
   report.dosDonts = model.dosDonts
     ? {
-        dos: model.dosDonts.dos.length,
-        donts: model.dosDonts.donts.length,
-      }
+      dos: model.dosDonts.dos.length,
+      donts: model.dosDonts.donts.length,
+    }
     : "missing";
 
   return report;

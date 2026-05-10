@@ -176,11 +176,12 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.expectedVariants = event.count ?? next.expectedVariants;
       next.pendingEventSeq = entry.seq ?? next.pendingEventSeq;
       next.pendingEvent = toPendingEvent(event);
-      if (event.screenshotPath)
+      if (event.screenshotPath) {
         upsertArtifact(next.annotationArtifacts, {
           type: "screenshot",
           path: event.screenshotPath,
         });
+      }
       break;
     case "variants_ready":
     case "agent_done":
@@ -193,8 +194,7 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
         next.diagnostics.push({
           error: "carbonize_cleanup_required",
           file: event.file || null,
-          message:
-            "Accepted variant still has carbonize markers that must be folded into source CSS.",
+          message: "Accepted variant still has carbonize markers that must be folded into source CSS.",
         });
       }
       break;

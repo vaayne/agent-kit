@@ -54,15 +54,19 @@ Then run browser-backed scripts with `tap site -b ...`.
 Return plain objects with `error` and optional `hint`:
 
 ```javascript
-return {error: 'Missing argument: query'};
-return {error: 'HTTP 401', hint: 'Open a visible browser and log in first'};
-return {error: 'Needs DOM', hint: 'Retrying with browser engine'};
+return { error: "Missing argument: query" };
+return { error: "HTTP 401", hint: "Open a visible browser and log in first" };
+return { error: "Needs DOM", hint: "Retrying with browser engine" };
 ```
 
 For WAF / login walls, prefer hints like:
 
 ```javascript
-return {error: 'WAF challenge or login required', hint: 'Use tap attach chrome && tap browser open https://example.com/login --show'};
+return {
+  error: "WAF challenge or login required",
+  hint:
+    "Use tap attach chrome && tap browser open https://example.com/login --show",
+};
 ```
 
 ## Local testing

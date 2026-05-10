@@ -13,8 +13,8 @@
  * in the project root and creates/removes the pin in all of them.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -71,9 +71,9 @@ function findProjectRoot(startDir = process.cwd()) {
   let dir = resolve(startDir);
   while (dir !== "/") {
     if (
-      existsSync(join(dir, "package.json")) ||
-      existsSync(join(dir, ".git")) ||
-      existsSync(join(dir, "skills-lock.json"))
+      existsSync(join(dir, "package.json"))
+      || existsSync(join(dir, ".git"))
+      || existsSync(join(dir, "skills-lock.json"))
     ) {
       return dir;
     }

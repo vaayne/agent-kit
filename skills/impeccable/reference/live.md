@@ -584,8 +584,9 @@ CSP expressed as structured directive arrays. Patch mechanism: declare a dev-onl
 
 ```ts
 // Dev-only allowance so impeccable live mode can load. Guarded by NODE_ENV.
-const __impeccableLiveDev =
-  process.env.NODE_ENV === "development" ? ["http://localhost:8400"] : [];
+const __impeccableLiveDev = process.env.NODE_ENV === "development"
+  ? ["http://localhost:8400"]
+  : [];
 ```
 
 **Append `...__impeccableLiveDev` to the script-src and connect-src directive arrays.** Per-framework specifics:
@@ -607,8 +608,9 @@ CSP built as a literal value string. Two-point patch: declare a dev-only string 
 
 ```ts
 // Dev-only allowance so impeccable live mode can load.
-const __impeccableLiveDev =
-  process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
+const __impeccableLiveDev = process.env.NODE_ENV === "development"
+  ? " http://localhost:8400"
+  : "";
 ```
 
 Then in the CSP value string:
