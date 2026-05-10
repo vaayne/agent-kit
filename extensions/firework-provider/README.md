@@ -10,7 +10,7 @@ Error: 400 {"error":{"type":"invalid_request_error","message":"Extra inputs are 
 
 ## What it does
 
-- Re-registers only `accounts/fireworks/routers/kimi-k2p5-turbo` under the same `fireworks` provider name
+- Re-registers only `accounts/fireworks/routers/kimi-k2p6-turbo` under the same `fireworks` provider name
 - Keeps the standard `FIREWORKS_API_KEY` environment variable
 - Marks Fireworks models as not supporting Anthropic per-tool eager input streaming
 - Patches outgoing Fireworks Anthropic payloads right before request dispatch
@@ -35,4 +35,4 @@ Or install from git/npm once published through your normal Pi package flow.
 3. Restart Pi or run `/reload`
 4. Use the normal Fireworks models in `/model`
 
-No shadow provider is created. After this override, the Fireworks provider only exposes `fireworks/accounts/fireworks/routers/kimi-k2p5-turbo`.
+No shadow provider is created. After this override, the Fireworks provider only exposes `fireworks/accounts/fireworks/routers/kimi-k2p6-turbo`.

@@ -1,7 +1,7 @@
 ---
 name: worker
 description: General-purpose execution agent for delegated coding tasks
-model: kimi-k2p5-turbo
+model: kimi-k2p6-turbo
 thinking: medium
 ---
 

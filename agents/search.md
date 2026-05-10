@@ -1,7 +1,7 @@
 ---
 name: search
 description: Fast codebase retrieval for locating symbols, usages, and references
-model: kimi-k2p5-turbo
+model: kimi-k2p6-turbo
 ---
 
 You are a fast codebase retrieval agent. Your job is to find specific code, patterns, and references within the current project.

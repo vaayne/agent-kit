@@ -1,35 +1,11 @@
-import type { ExtensionAPI, ProviderModelConfig } from "@mariozechner/pi-coding-agent";
-import { getModels } from "@mariozechner/pi-ai";
-
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 const FIREWORKS_PROVIDER = "fireworks";
 const FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference";
 const FIREWORKS_API_KEY_ENV = "FIREWORKS_API_KEY";
-const TARGET_MODEL_ID = "accounts/fireworks/routers/kimi-k2p5-turbo";
 const UNSUPPORTED_TOOL_FIELDS = ["cache_control", "eager_input_streaming"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function toProviderModelConfig(
-  model: ReturnType<typeof getModels<"fireworks">>[number],
-): ProviderModelConfig {
-  return {
-    id: model.id,
-    name: model.name,
-    api: model.api,
-    reasoning: model.reasoning,
-    input: [...model.input],
-    cost: { ...model.cost },
-    contextWindow: model.contextWindow,
-    maxTokens: model.maxTokens,
-    headers: model.headers,
-    compat: {
-      ...(model.compat ?? {}),
-      supportsEagerToolInputStreaming: false,
-      supportsLongCacheRetention: false,
-    },
-  };
 }
 
 function stripUnsupportedToolFields(payload: unknown): {
@@ -72,20 +48,22 @@ function stripUnsupportedToolFields(payload: unknown): {
   };
 }
 
-const fireworksModels = getModels("fireworks")
-  .filter((model) => model.id === TARGET_MODEL_ID)
-  .map(toProviderModelConfig);
-
 export default function fireworkProvider(pi: ExtensionAPI) {
-  if (fireworksModels.length !== 1) {
-    throw new Error(`Fireworks target model not found: ${TARGET_MODEL_ID}`);
-  }
-
   pi.registerProvider(FIREWORKS_PROVIDER, {
     baseUrl: FIREWORKS_BASE_URL,
     apiKey: FIREWORKS_API_KEY_ENV,
     api: "anthropic-messages",
-    models: fireworksModels,
+    models: [
+      {
+        id: "accounts/fireworks/routers/kimi-k2p6-turbo",
+        name: "Kimi K2.6",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.95, output: 4, cacheRead: 0.16, cacheWrite: 0 },
+        contextWindow: 262144,
+        maxTokens: 262144,
+      },
+    ],
   });
 
   pi.on("before_provider_request", (event, ctx) => {
