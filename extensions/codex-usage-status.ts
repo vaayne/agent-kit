@@ -115,6 +115,10 @@ function isSparkModel(modelId: string | undefined): boolean {
   return modelId === SPARK_MODEL_ID;
 }
 
+function isCodexProvider(ctx: ExtensionContext): boolean {
+  return ctx.model?.provider === "openai-codex";
+}
+
 function getStatusLabel(modelId: string | undefined): string {
   return isSparkModel(modelId) ? CODEX_SPARK_LABEL : CODEX_LABEL;
 }
@@ -424,6 +428,10 @@ function createStatusRefresher() {
 
   async function updateFooterStatus(ctx: ExtensionContext, modelId = ctx.model?.id): Promise<void> {
     if (!ctx.hasUI) return;
+    if (!isCodexProvider(ctx)) {
+      ctx.ui.setStatus(EXTENSION_ID, undefined);
+      return;
+    }
     if (isRefreshInFlight) {
       queuedRefresh = { ctx, modelId };
       return;
@@ -480,6 +488,10 @@ function createStatusRefresher() {
 
   async function setLoadingStatus(ctx: ExtensionContext): Promise<void> {
     if (!ctx.hasUI) return;
+    if (!isCodexProvider(ctx)) {
+      ctx.ui.setStatus(EXTENSION_ID, undefined);
+      return;
+    }
 
     try {
       await loadAuthCredentials();
@@ -512,6 +524,10 @@ function createStatusRefresher() {
 
   function renderFromLastSnapshot(ctx: ExtensionContext): boolean {
     if (!ctx.hasUI || !lastUsageSnapshot) return false;
+    if (!isCodexProvider(ctx)) {
+      ctx.ui.setStatus(EXTENSION_ID, undefined);
+      return false;
+    }
     ctx.ui.setStatus(
       EXTENSION_ID,
       formatStatus(ctx, lastUsageSnapshot, percentDisplayMode, resetWindowMode, ctx.model?.id),
