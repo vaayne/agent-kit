@@ -35,4 +35,19 @@ Or install from git/npm once published through your normal Pi package flow.
 3. Restart Pi or run `/reload`
 4. Use the normal Fireworks models in `/model`
 
+## Rate Limits
+
+The extension reads Fireworks rate-limit headers from every response and displays them in the Pi status bar:
+
+```
+Fireworks In:1.2M/3.6M (33%) Out:9K/36K (25%) Total:1.2M/3.6M (33%)
+```
+
+- **In** — prompt (input) token usage against the total prompt TPM limit
+- **Out** — generated (output) token usage against the generated TPM limit
+- **Total** — combined prompt + generated usage
+- Color coding: 🔴 ≥90% used, 🟡 ≥75% used, 🟢 <75% used
+
+See [Fireworks Rate Limits](https://docs.fireworks.ai/serverless/rate-limits) for details on how limits are enforced.
+
 No shadow provider is created. After this override, the Fireworks provider only exposes `fireworks/accounts/fireworks/routers/kimi-k2p6-turbo`.
