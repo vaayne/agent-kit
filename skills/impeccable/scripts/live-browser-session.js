@@ -11,10 +11,9 @@
   function createLiveBrowserSessionState({ prefix, storage, idFactory }) {
     if (!prefix) throw new Error("prefix required");
     const store = storage || root.localStorage;
-    const makeId = idFactory
-      || function() {
-        return Math.random().toString(16).slice(2, 10);
-      };
+    const makeId = idFactory || function() {
+      return Math.random().toString(16).slice(2, 10);
+    };
     const sessionKey = prefix + "-session";
     const handledKey = sessionKey + "-handled";
     const scrollKey = sessionKey + "-scroll";
@@ -32,17 +31,13 @@
     function safeWrite(key, value) {
       try {
         store.setItem(key, value);
-      } catch {
-        /* quota exceeded or private mode */
-      }
+      } catch { /* quota exceeded or private mode */ }
     }
 
     function safeRemove(key) {
       try {
         store.removeItem(key);
-      } catch {
-        /* unavailable storage */
-      }
+      } catch { /* unavailable storage */ }
     }
 
     function loadSession() {

@@ -69,7 +69,7 @@ This is not optional. Vestibular disorders affect ~35% of adults over 40.
 /* Provide alternative for reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .card {
-    animation: fade-in 200ms ease-out; /* Crossfade instead of motion */
+    animation: fade-in 200ms ease-out;  /* Crossfade instead of motion */
   }
 }
 

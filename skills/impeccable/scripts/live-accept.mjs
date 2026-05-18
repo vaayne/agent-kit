@@ -69,9 +69,7 @@ Output (JSON):
   // Find the file containing this session's markers
   const found = findSessionFile(id, process.cwd());
   if (!found) {
-    console.log(
-      JSON.stringify({ handled: false, error: "Session markers not found for id: " + id }),
-    );
+    console.log(JSON.stringify({ handled: false, error: "Session markers not found for id: " + id }));
     process.exit(0);
   }
 
@@ -83,14 +81,12 @@ Output (JSON):
   // accepted variant to true source (or cleaning up on discard). See
   // "Handle fallback" in live.md.
   if (isGeneratedFile(targetFile, { cwd: process.cwd() })) {
-    console.log(
-      JSON.stringify({
-        handled: false,
-        mode: "fallback",
-        file: relFile,
-        hint: "Session is in a generated file. Persist the accepted variant in source; do not rely on this script.",
-      }),
-    );
+    console.log(JSON.stringify({
+      handled: false,
+      mode: "fallback",
+      file: relFile,
+      hint: "Session is in a generated file. Persist the accepted variant in source; do not rely on this script.",
+    }));
     process.exit(0);
   }
 
@@ -103,8 +99,7 @@ Output (JSON):
     // five-step checklist lives in reference/live.md (loaded once per
     // session); repeating it per-event would waste tokens.
     if (result.carbonize) {
-      result.todo = "REQUIRED before next poll: carbonize cleanup in "
-        + relFile
+      result.todo = "REQUIRED before next poll: carbonize cleanup in " + relFile
         + ". See reference/live.md \"Required after accept\".";
     }
     console.log(JSON.stringify({ handled: true, file: relFile, ...result }));
@@ -177,9 +172,7 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   const replacement = [];
 
   if (cssContent) {
-    replacement.push(
-      indent + commentSyntax.open + " impeccable-carbonize-start " + id + " " + commentSyntax.close,
-    );
+    replacement.push(indent + commentSyntax.open + " impeccable-carbonize-start " + id + " " + commentSyntax.close);
     // JSX targets need the CSS body wrapped in a template literal so that the
     // `{` and `}` in CSS rules don't get parsed as JSX expressions.
     replacement.push(indent + "<style data-impeccable-css=\"" + id + "\">" + (isJsx ? "{`" : ""));
@@ -192,19 +185,11 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
       // Preserve the user's knob positions for the carbonize-cleanup agent
       // to bake into the final CSS when it collapses scoped rules.
       replacement.push(
-        indent
-          + commentSyntax.open
-          + " impeccable-param-values "
-          + id
-          + ": "
-          + JSON.stringify(paramValues)
-          + " "
+        indent + commentSyntax.open + " impeccable-param-values " + id + ": " + JSON.stringify(paramValues) + " "
           + commentSyntax.close,
       );
     }
-    replacement.push(
-      indent + commentSyntax.open + " impeccable-carbonize-end " + id + " " + commentSyntax.close,
-    );
+    replacement.push(indent + commentSyntax.open + " impeccable-carbonize-end " + id + " " + commentSyntax.close);
   }
 
   // Keep the `@scope ([data-impeccable-variant="N"])` selectors in the
@@ -218,9 +203,7 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   // property [0] on CSSStyleDeclaration" while parsing the string char-by-char.
   if (cssContent) {
     const styleAttr = isJsx ? "style={{ display: 'contents' }}" : "style=\"display: contents\"";
-    replacement.push(
-      indent + "<div data-impeccable-variant=\"" + variantNum + "\" " + styleAttr + ">",
-    );
+    replacement.push(indent + "<div data-impeccable-variant=\"" + variantNum + "\" " + styleAttr + ">");
     replacement.push(...restored);
     replacement.push(indent + "</div>");
   } else {
@@ -259,7 +242,7 @@ function findMarkerBlock(id, lines) {
     }
   }
 
-  return start !== -1 && end !== -1 ? { start, end } : null;
+  return (start !== -1 && end !== -1) ? { start, end } : null;
 }
 
 /**
@@ -544,7 +527,7 @@ function deindentContent(contentLines, baseIndent) {
   if (minIndent === Infinity) minIndent = 0;
 
   // Strip the extra indentation and re-add base indent
-  return contentLines.map((line) => {
+  return contentLines.map(line => {
     if (line.trim() === "") return "";
     return baseIndent + line.slice(minIndent);
   });
@@ -604,9 +587,7 @@ function searchDir(dir, query, seen, depth) {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
       if (content.includes(query)) return filePath;
-    } catch {
-      /* skip */
-    }
+    } catch { /* skip */ }
   }
 
   for (const entry of entries) {

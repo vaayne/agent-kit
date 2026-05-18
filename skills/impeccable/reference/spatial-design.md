@@ -80,15 +80,15 @@ Buttons can look small but need large touch targets (44px minimum). Use padding 
 
 ```css
 .icon-button {
-  width: 24px; /* Visual size */
+  width: 24px;  /* Visual size */
   height: 24px;
   position: relative;
 }
 
 .icon-button::before {
-  content: "";
+  content: '';
   position: absolute;
-  inset: -10px; /* Expand tap target to 44px */
+  inset: -10px;  /* Expand tap target to 44px */
 }
 ```
 

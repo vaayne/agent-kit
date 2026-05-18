@@ -71,14 +71,12 @@ The agent should then:
   const injectOut = runScript("live-inject.mjs", ["--port", String(serverInfo.port)]);
   const injectResult = safeParse(injectOut);
   if (!injectResult || !injectResult.ok) {
-    console.log(
-      JSON.stringify({
-        ok: false,
-        error: "inject_failed",
-        detail: injectResult || injectOut,
-        serverPort: serverInfo.port,
-      }),
-    );
+    console.log(JSON.stringify({
+      ok: false,
+      error: "inject_failed",
+      detail: injectResult || injectOut,
+      serverPort: serverInfo.port,
+    }));
     process.exit(1);
   }
 
@@ -92,26 +90,24 @@ The agent should then:
   const drift = scanForDrift(process.cwd(), resolvedFiles, checkResult.config);
 
   // 6. Emit everything the agent needs
-  console.log(
-    JSON.stringify(
-      {
-        ok: true,
-        serverPort: serverInfo.port,
-        serverToken: serverInfo.token,
-        pageFiles: resolvedFiles,
-        configDrift: drift,
-        hasProduct: ctx.hasProduct,
-        product: ctx.product,
-        productPath: ctx.productPath,
-        hasDesign: ctx.hasDesign,
-        design: ctx.design,
-        designPath: ctx.designPath,
-        migrated: ctx.migrated,
-      },
-      null,
-      2,
-    ),
-  );
+  console.log(JSON.stringify(
+    {
+      ok: true,
+      serverPort: serverInfo.port,
+      serverToken: serverInfo.token,
+      pageFiles: resolvedFiles,
+      configDrift: drift,
+      hasProduct: ctx.hasProduct,
+      product: ctx.product,
+      productPath: ctx.productPath,
+      hasDesign: ctx.hasDesign,
+      design: ctx.design,
+      designPath: ctx.designPath,
+      migrated: ctx.migrated,
+    },
+    null,
+    2,
+  ));
 }
 
 /**
@@ -145,7 +141,8 @@ function scanForDrift(rootDir, resolvedFiles, config) {
 
   // Files matching the user's `exclude` globs are intentional omissions,
   // not drift. Compile them to regexes so the orphan list stays signal.
-  const userExcludeRegexes = (Array.isArray(config.exclude) ? config.exclude : []).map((p) => globToRegex(p));
+  const userExcludeRegexes = (Array.isArray(config.exclude) ? config.exclude : [])
+    .map((p) => globToRegex(p));
   const isUserExcluded = (rel) => userExcludeRegexes.some((re) => re.test(rel));
 
   const orphans = [];
@@ -230,7 +227,7 @@ function globToRegex(pattern) {
 
 function runScript(name, args) {
   const scriptPath = path.join(__dirname, name);
-  const cmd = `node "${scriptPath}" ${args.map((a) => `"${a}"`).join(" ")}`;
+  const cmd = `node "${scriptPath}" ${args.map(a => `"${a}"`).join(" ")}`;
   try {
     return execSync(cmd, { encoding: "utf-8", cwd: process.cwd(), timeout: 15_000 });
   } catch (err) {
@@ -258,13 +255,9 @@ function ensureServerRunning() {
       try {
         process.kill(existing.pid, 0); // throws if dead
         return existing;
-      } catch {
-        /* stale PID file — the server script will clean it up */
-      }
+      } catch { /* stale PID file — the server script will clean it up */ }
     }
-  } catch {
-    /* no PID file */
-  }
+  } catch { /* no PID file */ }
 
   // Start a new server
   const out = runScript("live-server.mjs", ["--background"]);

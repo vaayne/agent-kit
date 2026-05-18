@@ -15,30 +15,22 @@ Don't chase device sizes; let content tell you where to break. Start narrow, str
 ```css
 /* Fine pointer (mouse, trackpad) */
 @media (pointer: fine) {
-  .button {
-    padding: 8px 16px;
-  }
+  .button { padding: 8px 16px; }
 }
 
 /* Coarse pointer (touch, stylus) */
 @media (pointer: coarse) {
-  .button {
-    padding: 12px 20px;
-  } /* Larger touch target */
+  .button { padding: 12px 20px; }  /* Larger touch target */
 }
 
 /* Device supports hover */
 @media (hover: hover) {
-  .card:hover {
-    transform: translateY(-2px);
-  }
+  .card:hover { transform: translateY(-2px); }
 }
 
 /* Device doesn't support hover (touch) */
 @media (hover: none) {
-  .card {
-    /* No hover state - use active instead */
-  }
+  .card { /* No hover state - use active instead */ }
 }
 ```
 

@@ -95,37 +95,31 @@ The agent should insert variant HTML at insertLine.`);
         if (generatedHit) break;
       }
       if (generatedHit) {
-        console.error(
-          JSON.stringify({
-            error: "element_not_in_source",
-            fallback: "agent-driven",
-            generatedMatch: path.relative(process.cwd(), generatedHit),
-            hint: "Element found only in a generated file. See \"Handle fallback\" in live.md.",
-          }),
-        );
+        console.error(JSON.stringify({
+          error: "element_not_in_source",
+          fallback: "agent-driven",
+          generatedMatch: path.relative(process.cwd(), generatedHit),
+          hint: "Element found only in a generated file. See \"Handle fallback\" in live.md.",
+        }));
       } else {
-        console.error(
-          JSON.stringify({
-            error: "element_not_found",
-            fallback: "agent-driven",
-            hint:
-              "Element not found in any project file. It may be runtime-injected (JS component, etc.). See \"Handle fallback\" in live.md.",
-          }),
-        );
+        console.error(JSON.stringify({
+          error: "element_not_found",
+          fallback: "agent-driven",
+          hint:
+            "Element not found in any project file. It may be runtime-injected (JS component, etc.). See \"Handle fallback\" in live.md.",
+        }));
       }
       process.exit(1);
     }
   } else {
     if (isGeneratedFile(targetFile, genOpts)) {
-      console.error(
-        JSON.stringify({
-          error: "file_is_generated",
-          fallback: "agent-driven",
-          file: path.relative(process.cwd(), path.resolve(process.cwd(), targetFile)),
-          hint:
-            "Explicit --file points at a generated file. Writing here gets wiped by the next build. See \"Handle fallback\" in live.md.",
-        }),
-      );
+      console.error(JSON.stringify({
+        error: "file_is_generated",
+        fallback: "agent-driven",
+        file: path.relative(process.cwd(), path.resolve(process.cwd(), targetFile)),
+        hint:
+          "Explicit --file points at a generated file. Writing here gets wiped by the next build. See \"Handle fallback\" in live.md.",
+      }));
       process.exit(1);
     }
     matchedQuery = queries[0];
@@ -156,10 +150,7 @@ The agent should insert variant HTML at insertLine.`);
     if (candidates.length === 0) {
       console.error(
         JSON.stringify({
-          error: "Found file but could not locate element in "
-            + targetFile
-            + ". Searched for: "
-            + queries.join(", "),
+          error: "Found file but could not locate element in " + targetFile + ". Searched for: " + queries.join(", "),
         }),
       );
       process.exit(1);
@@ -180,19 +171,17 @@ The agent should insert variant HTML at insertLine.`);
         // Multiple candidates ALSO match the text. Truly ambiguous — refuse
         // rather than pick wrong, and hand the agent the candidate locations
         // so it can disambiguate by reading the file.
-        console.error(
-          JSON.stringify({
-            error: "element_ambiguous",
-            fallback: "agent-driven",
-            file: path.relative(process.cwd(), targetFile),
-            candidates: filtered.map((c) => ({
-              startLine: c.startLine + 1,
-              endLine: c.endLine + 1,
-            })),
-            hint:
-              "Multiple source elements match both classes/tag and textContent. Pass --element-id, a more specific --text, or write the wrapper manually. See \"Handle fallback\" in live.md.",
-          }),
-        );
+        console.error(JSON.stringify({
+          error: "element_ambiguous",
+          fallback: "agent-driven",
+          file: path.relative(process.cwd(), targetFile),
+          candidates: filtered.map((c) => ({
+            startLine: c.startLine + 1,
+            endLine: c.endLine + 1,
+          })),
+          hint:
+            "Multiple source elements match both classes/tag and textContent. Pass --element-id, a more specific --text, or write the wrapper manually. See \"Handle fallback\" in live.md.",
+        }));
         process.exit(1);
       }
     }
@@ -204,10 +193,7 @@ The agent should insert variant HTML at insertLine.`);
     if (!match) {
       console.error(
         JSON.stringify({
-          error: "Found file but could not locate element in "
-            + targetFile
-            + ". Searched for: "
-            + queries.join(", "),
+          error: "Found file but could not locate element in " + targetFile + ". Searched for: " + queries.join(", "),
         }),
       );
       process.exit(1);
@@ -254,69 +240,36 @@ The agent should insert variant HTML at insertLine.`);
   // so the entire scaffold gets removed cleanly.
   const wrapperLines = isJsx
     ? [
-      indent
-      + "<div data-impeccable-variants=\""
-      + id
-      + "\" data-impeccable-variant-count=\""
-      + count
-      + "\" "
-      + styleContents
-      + ">",
-      indent
-      + "  "
-      + commentSyntax.open
-      + " impeccable-variants-start "
-      + id
-      + " "
-      + commentSyntax.close,
+      indent + "<div data-impeccable-variants=\"" + id + "\" data-impeccable-variant-count=\"" + count + "\" "
+      + styleContents + ">",
+      indent + "  " + commentSyntax.open + " impeccable-variants-start " + id + " " + commentSyntax.close,
       indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
       indent + "  <div data-impeccable-variant=\"original\">",
       reindentOriginal("    "),
       indent + "  </div>",
-      indent
-      + "  "
-      + commentSyntax.open
-      + " Variants: insert below this line "
-      + commentSyntax.close,
-      indent
-      + "  "
-      + commentSyntax.open
-      + " impeccable-variants-end "
-      + id
-      + " "
-      + commentSyntax.close,
+      indent + "  " + commentSyntax.open + " Variants: insert below this line " + commentSyntax.close,
+      indent + "  " + commentSyntax.open + " impeccable-variants-end " + id + " " + commentSyntax.close,
       indent + "</div>",
     ]
     : [
-      indent
-      + commentSyntax.open
-      + " impeccable-variants-start "
-      + id
-      + " "
-      + commentSyntax.close,
-      indent
-      + "<div data-impeccable-variants=\""
-      + id
-      + "\" data-impeccable-variant-count=\""
-      + count
-      + "\" "
-      + styleContents
-      + ">",
+      indent + commentSyntax.open + " impeccable-variants-start " + id + " " + commentSyntax.close,
+      indent + "<div data-impeccable-variants=\"" + id + "\" data-impeccable-variant-count=\"" + count + "\" "
+      + styleContents + ">",
       indent + "  " + commentSyntax.open + " Original " + commentSyntax.close,
       indent + "  <div data-impeccable-variant=\"original\">",
       originalIndented,
       indent + "  </div>",
-      indent
-      + "  "
-      + commentSyntax.open
-      + " Variants: insert below this line "
-      + commentSyntax.close,
+      indent + "  " + commentSyntax.open + " Variants: insert below this line " + commentSyntax.close,
       indent + "</div>",
       indent + commentSyntax.open + " impeccable-variants-end " + id + " " + commentSyntax.close,
     ];
 
   // Replace the original element with the wrapper
-  const newLines = [...lines.slice(0, startLine), ...wrapperLines, ...lines.slice(endLine + 1)];
+  const newLines = [
+    ...lines.slice(0, startLine),
+    ...wrapperLines,
+    ...lines.slice(endLine + 1),
+  ];
   fs.writeFileSync(targetFile, newLines.join("\n"), "utf-8");
 
   // Calculate insert line (the "insert below this line" comment).
@@ -328,25 +281,23 @@ The agent should insert variant HTML at insertLine.`);
   // extra line count.
   const insertLine = startLine + 6 + (originalLines.length - 1);
 
-  console.log(
-    JSON.stringify({
-      file: path.relative(process.cwd(), targetFile),
-      startLine: startLine + 1, // 1-indexed for the agent
-      // wrapperLines is an array but one element (the original-content slot)
-      // is a `\n`-joined multi-line string, so the actual file-row count is
-      // wrapperLines.length + (originalLines.length - 1). Without the offset,
-      // endLine pointed inside the wrapper for any picked element that
-      // spanned more than one source line.
-      endLine: startLine + wrapperLines.length + (originalLines.length - 1), // 1-indexed
-      insertLine: insertLine + 1, // 1-indexed: where variants go
-      commentSyntax: commentSyntax,
-      styleMode: styleMode.mode,
-      styleTag: styleMode.styleTag,
-      cssSelectorPrefixExamples: buildCssSelectorPrefixExamples(styleMode.mode, count),
-      cssAuthoring: buildCssAuthoring(styleMode, count),
-      originalLineCount: originalLines.length,
-    }),
-  );
+  console.log(JSON.stringify({
+    file: path.relative(process.cwd(), targetFile),
+    startLine: startLine + 1, // 1-indexed for the agent
+    // wrapperLines is an array but one element (the original-content slot)
+    // is a `\n`-joined multi-line string, so the actual file-row count is
+    // wrapperLines.length + (originalLines.length - 1). Without the offset,
+    // endLine pointed inside the wrapper for any picked element that
+    // spanned more than one source line.
+    endLine: startLine + wrapperLines.length + (originalLines.length - 1), // 1-indexed
+    insertLine: insertLine + 1, // 1-indexed: where variants go
+    commentSyntax: commentSyntax,
+    styleMode: styleMode.mode,
+    styleTag: styleMode.styleTag,
+    cssSelectorPrefixExamples: buildCssSelectorPrefixExamples(styleMode.mode, count),
+    cssAuthoring: buildCssAuthoring(styleMode, count),
+    originalLineCount: originalLines.length,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -374,10 +325,7 @@ function buildSearchQueries(elementId, classes, tag, query) {
   // Emit both class="..." (HTML) and className="..." (React/JSX) so whichever
   // convention the file uses will match.
   if (classes) {
-    const classList = classes
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const classList = classes.split(",").map(c => c.trim()).filter(Boolean);
     if (classList.length > 1) {
       const joined = classList.join(" ");
       const sorted = [...classList].sort((a, b) => b.length - a.length);
@@ -441,15 +389,15 @@ function buildCssAuthoring(styleMode, count) {
       styleTag: styleMode.styleTag,
       strategy: "global-prefixed",
       rulePattern: "[data-impeccable-variant=\"N\"] > .variant-class { ... }",
-      selectorExamples: variantNumbers.map(
-        (n) => `[data-impeccable-variant="${n}"] > .variant-class`,
-      ),
+      selectorExamples: variantNumbers.map((n) => `[data-impeccable-variant="${n}"] > .variant-class`),
       requirements: [
         "Use the styleTag exactly; the is:inline attribute is required for this file.",
         "Prefix every preview selector with the matching [data-impeccable-variant=\"N\"] selector.",
         "Keep selectors anchored to the generated variant wrapper; do not rely on component CSS scoping for preview rules.",
       ],
-      forbidden: ["Do not use @scope for this styleMode."],
+      forbidden: [
+        "Do not use @scope for this styleMode.",
+      ],
     };
   }
   return {
@@ -457,8 +405,8 @@ function buildCssAuthoring(styleMode, count) {
     styleTag: styleMode.styleTag,
     strategy: "scope-rule",
     rulePattern: "@scope ([data-impeccable-variant=\"N\"]) { :scope > .variant-class { ... } }",
-    selectorExamples: variantNumbers.map(
-      (n) => `@scope ([data-impeccable-variant="${n}"]) { :scope > .variant-class { ... } }`,
+    selectorExamples: variantNumbers.map((n) =>
+      `@scope ([data-impeccable-variant="${n}"]) { :scope > .variant-class { ... } }`
     ),
     requirements: [
       "Use @scope blocks keyed to each [data-impeccable-variant=\"N\"] wrapper.",
@@ -513,9 +461,7 @@ function searchDir(dir, query, seen, depth, genOpts) {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
       if (content.includes(query)) return filePath;
-    } catch {
-      /* skip unreadable files */
-    }
+    } catch { /* skip unreadable files */ }
   }
 
   // Then recurse into directories. Always skip node_modules and .git (never
@@ -571,9 +517,7 @@ function findElement(lines, query, tag = null) {
     if (!lines[i].includes(query)) continue;
 
     const stripped = lines[i].trim();
-    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) {
-      continue;
-    }
+    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) continue;
     // Skip lines already inside a variant wrapper
     if (lines[i].includes("data-impeccable-variant")) continue;
 
@@ -600,9 +544,7 @@ function findAllElements(lines, query, tag = null) {
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i].includes(query)) continue;
     const stripped = lines[i].trim();
-    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) {
-      continue;
-    }
+    if (stripped.startsWith("<!--") || stripped.startsWith("{/*") || stripped.startsWith("//")) continue;
     if (lines[i].includes("data-impeccable-variant")) continue;
     const openerLine = findOpenerLine(lines, i, tag);
     if (openerLine === -1) continue;

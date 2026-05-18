@@ -56,20 +56,14 @@
     idFactory: () => crypto.randomUUID().replace(/-/g, "").slice(0, 8),
   });
   if (!sessionState) {
-    console.error(
-      "[impeccable] live-browser-session.js was not loaded. Live mode cannot start safely.",
-    );
+    console.error("[impeccable] live-browser-session.js was not loaded. Live mode cannot start safely.");
     window.__IMPECCABLE_LIVE_INIT__ = false;
     return;
   }
-  const HIGHLIGHT_TRANSITION = "top 140ms "
-    + EASE
-    + ", left 140ms "
-    + EASE
-    + ", width 140ms "
-    + EASE
-    + ", height 140ms "
-    + EASE
+  const HIGHLIGHT_TRANSITION = "top 140ms " + EASE
+    + ", left 140ms " + EASE
+    + ", width 140ms " + EASE
+    + ", height 140ms " + EASE
     + ", opacity 150ms ease";
   const TOOLTIP_TRANSITION = "top 140ms " + EASE + ", left 140ms " + EASE + ", opacity 150ms ease";
 
@@ -314,10 +308,8 @@
   function showHighlight(el) {
     if (!el || !highlightEl) return;
     const r = el.getBoundingClientRect();
-    const top = r.top - 2 + "px",
-      left = r.left - 2 + "px";
-    const width = r.width + 4 + "px",
-      height = r.height + 4 + "px";
+    const top = (r.top - 2) + "px", left = (r.left - 2) + "px";
+    const width = (r.width + 4) + "px", height = (r.height + 4) + "px";
     const tipTop = r.top - 20;
     const tipY = (tipTop < 4 ? r.bottom + 4 : tipTop) + "px";
     const tipX = Math.max(4, r.left) + "px";
@@ -336,14 +328,7 @@
       tooltipEl.style.transition = TOOLTIP_TRANSITION;
       tooltipEl.style.opacity = "1";
     } else {
-      Object.assign(highlightEl.style, {
-        top,
-        left,
-        width,
-        height,
-        display: "block",
-        opacity: "1",
-      });
+      Object.assign(highlightEl.style, { top, left, width, height, display: "block", opacity: "1" });
       Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: "block", opacity: "1" });
     }
   }
@@ -615,14 +600,7 @@
       return;
     }
     const p = localCoords(e);
-    annotPointer = {
-      kind: "new",
-      x0: p.x,
-      y0: p.y,
-      moved: false,
-      strokeEl: null,
-      strokePoints: null,
-    };
+    annotPointer = { kind: "new", x0: p.x, y0: p.y, moved: false, strokeEl: null, strokePoints: null };
     try {
       annotOverlayEl.setPointerCapture(e.pointerId);
     } catch {}
@@ -654,8 +632,7 @@
     }
 
     // kind === 'new'
-    const dx = p.x - annotPointer.x0,
-      dy = p.y - annotPointer.y0;
+    const dx = p.x - annotPointer.x0, dy = p.y - annotPointer.y0;
     if (!annotPointer.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       annotPointer.moved = true;
@@ -738,8 +715,8 @@
     if (interactive) wrap.dataset.annotPin = String(idx);
     Object.assign(wrap.style, {
       position: "absolute",
-      left: comment.x - 7 + "px",
-      top: comment.y - 7 + "px",
+      left: (comment.x - 7) + "px",
+      top: (comment.y - 7) + "px",
       pointerEvents: interactive ? "auto" : "none",
       display: "flex",
       alignItems: "flex-start",
@@ -785,7 +762,7 @@
     const wrapEl = annotPinsEl.querySelector("[data-annot-pin=\"" + idx + "\"]");
     if (!wrapEl) return;
     // Strip any existing bubble (but keep the dot)
-    wrapEl.querySelectorAll("div:not(:first-child)").forEach((n) => n.remove());
+    wrapEl.querySelectorAll("div:not(:first-child)").forEach(n => n.remove());
     const input = document.createElement("input");
     input.type = "text";
     input.placeholder = "Note…";
@@ -814,8 +791,8 @@
       if (annotEditing && annotEditing.input === input) finalizeEditingPin();
     });
     // Stop clicks/pointerdowns inside the input from bubbling to the overlay
-    ["pointerdown", "click"].forEach((ev) => {
-      input.addEventListener(ev, (e) => e.stopPropagation());
+    ["pointerdown", "click"].forEach(ev => {
+      input.addEventListener(ev, e => e.stopPropagation());
     });
     setTimeout(() => input.focus(), 0);
   }
@@ -928,9 +905,7 @@
             }
           }
         }
-      } catch {
-        /* cross-origin */
-      }
+      } catch { /* cross-origin */ }
     }
     return {
       tagName: el.tagName.toLowerCase(),
@@ -943,21 +918,20 @@
         "font-size": cs.fontSize,
         "font-weight": cs.fontWeight,
         "line-height": cs.lineHeight,
-        color: cs.color,
-        background: cs.background,
+        "color": cs.color,
+        "background": cs.background,
         "background-color": cs.backgroundColor,
-        padding: cs.padding,
-        margin: cs.margin,
-        display: cs.display,
-        position: cs.position,
-        gap: cs.gap,
+        "padding": cs.padding,
+        "margin": cs.margin,
+        "display": cs.display,
+        "position": cs.position,
+        "gap": cs.gap,
         "border-radius": cs.borderRadius,
         "box-shadow": cs.boxShadow,
       },
       cssCustomProperties: props,
       parentContext: el.parentElement
-        ? "<"
-          + el.parentElement.tagName.toLowerCase()
+        ? "<" + el.parentElement.tagName.toLowerCase()
           + (el.parentElement.id ? " id=\"" + el.parentElement.id + "\"" : "")
           + (el.parentElement.className ? " class=\"" + el.parentElement.className + "\"" : "")
           + ">"
@@ -1109,10 +1083,10 @@
       flexShrink: "0",
     });
     pill.textContent = actionLabel() + " \u25BE";
-    pill.addEventListener("mouseenter", () => (pill.style.background = BP.accent));
-    pill.addEventListener("mouseleave", () => (pill.style.background = BP.mark));
-    pill.addEventListener("mousedown", () => (pill.style.transform = "scale(0.97)"));
-    pill.addEventListener("mouseup", () => (pill.style.transform = "scale(1)"));
+    pill.addEventListener("mouseenter", () => pill.style.background = BP.accent);
+    pill.addEventListener("mouseleave", () => pill.style.background = BP.mark);
+    pill.addEventListener("mousedown", () => pill.style.transform = "scale(0.97)");
+    pill.addEventListener("mouseup", () => pill.style.transform = "scale(1)");
     pill.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleActionPicker();
@@ -1128,9 +1102,7 @@
     const input = document.createElement("input");
     input.id = PREFIX + "-input";
     input.type = "text";
-    input.placeholder = selectedAction === "impeccable"
-      ? "describe what you want..."
-      : "refine further (optional)...";
+    input.placeholder = selectedAction === "impeccable" ? "describe what you want..." : "refine further (optional)...";
     Object.assign(input.style, {
       flex: "1",
       minWidth: "0",
@@ -1225,10 +1197,10 @@
       whiteSpace: "nowrap",
     });
     go.textContent = "Go \u2192";
-    go.addEventListener("mouseenter", () => (go.style.filter = "brightness(1.1)"));
-    go.addEventListener("mouseleave", () => (go.style.filter = "none"));
-    go.addEventListener("mousedown", () => (go.style.transform = "scale(0.97)"));
-    go.addEventListener("mouseup", () => (go.style.transform = "scale(1)"));
+    go.addEventListener("mouseenter", () => go.style.filter = "brightness(1.1)");
+    go.addEventListener("mouseleave", () => go.style.filter = "none");
+    go.addEventListener("mousedown", () => go.style.transform = "scale(0.97)");
+    go.addEventListener("mouseup", () => go.style.transform = "scale(1)");
     go.addEventListener("click", (e) => {
       e.stopPropagation();
       handleGo();
@@ -1370,11 +1342,7 @@
       });
       tuneBadge.textContent = String(visParams.length);
       tune.appendChild(tuneBadge);
-      tune.title = "Tune this variant ("
-        + visParams.length
-        + " knob"
-        + (visParams.length === 1 ? "" : "s")
-        + ")";
+      tune.title = "Tune this variant (" + visParams.length + " knob" + (visParams.length === 1 ? "" : "s") + ")";
       tune.addEventListener("mouseenter", () => {
         if (!tuneOpen) tune.style.background = BP.accentSoft;
       });
@@ -1408,10 +1376,10 @@
       whiteSpace: "nowrap",
     });
     accept.textContent = "\u2713 Accept";
-    accept.addEventListener("mouseenter", () => (accept.style.filter = "brightness(1.08)"));
-    accept.addEventListener("mouseleave", () => (accept.style.filter = "none"));
-    accept.addEventListener("mousedown", () => (accept.style.transform = "scale(0.97)"));
-    accept.addEventListener("mouseup", () => (accept.style.transform = "scale(1)"));
+    accept.addEventListener("mouseenter", () => accept.style.filter = "brightness(1.08)");
+    accept.addEventListener("mouseleave", () => accept.style.filter = "none");
+    accept.addEventListener("mousedown", () => accept.style.transform = "scale(0.97)");
+    accept.addEventListener("mouseup", () => accept.style.transform = "scale(1)");
     accept.addEventListener("click", (e) => {
       e.stopPropagation();
       handleAccept();
@@ -1535,7 +1503,11 @@
       // dots — the previous "accent ring + ash fill" combo read as noisy
       // magenta chips, especially when all variants had arrived and every
       // dot wore an accent ring.
-      const dotBg = active ? C.brand : arrived ? BP.textDim : "transparent";
+      const dotBg = active
+        ? C.brand
+        : arrived
+        ? BP.textDim
+        : "transparent";
       const dotBorder = arrived ? "none" : "1.5px solid " + BP.hairline;
       const dot = el("div", {
         width: active ? "8px" : "6px",
@@ -1545,7 +1517,7 @@
         border: dotBorder,
         boxSizing: "border-box",
         transition: "all 0.2s " + EASE,
-        cursor: clickable && arrived ? "pointer" : "default",
+        cursor: (clickable && arrived) ? "pointer" : "default",
         transform: arrived ? "scale(1)" : "scale(0.85)",
         opacity: arrived ? (active ? "1" : "0.6") : "0.4",
       });
@@ -1593,7 +1565,7 @@
   }
 
   function actionLabel() {
-    const a = ACTIONS.find((a) => a.value === selectedAction);
+    const a = ACTIONS.find(a => a.value === selectedAction);
     return a ? a.label : "Freeform";
   }
 
@@ -1636,7 +1608,7 @@
       gap: "3px",
     });
 
-    ACTIONS.forEach((action) => {
+    ACTIONS.forEach(action => {
       const chip = el("button", {
         display: "flex",
         flexDirection: "column",
@@ -1699,7 +1671,7 @@
     }
     // Rebuild chips to reflect current selection
     const P = pickerEl.__iceq_palette || barPaletteForTheme(detectPageTheme());
-    pickerEl.querySelectorAll("button").forEach((chip) => {
+    pickerEl.querySelectorAll("button").forEach(chip => {
       const isActive = chip.dataset.action === selectedAction;
       chip.style.background = isActive ? P.accentSoft : "transparent";
       chip.style.color = isActive ? P.accent : P.text;
@@ -1860,11 +1832,10 @@
   }
 
   function formatRangeValue(input) {
-    const max = parseFloat(input.max),
-      min = parseFloat(input.min);
+    const max = parseFloat(input.max), min = parseFloat(input.min);
     const v = parseFloat(input.value);
     if (!isFinite(v)) return input.value;
-    return max - min <= 2 ? v.toFixed(2) : String(Math.round(v));
+    return (max - min) <= 2 ? v.toFixed(2) : String(Math.round(v));
   }
 
   function buildParamsPanel(variantEl, params) {
@@ -1955,8 +1926,8 @@
         });
         row.appendChild(track);
       } else if (p.kind === "steps") {
-        const opts = (p.options || []).map((o) => typeof o === "string" ? { value: o, label: o } : o);
-        const activeOpt = opts.find((o) => o.value === p.default) || opts[0];
+        const opts = (p.options || []).map(o => typeof o === "string" ? { value: o, label: o } : o);
+        const activeOpt = opts.find(o => o.value === p.default) || opts[0];
         readout.textContent = activeOpt ? activeOpt.label : String(p.default);
         const segRow = el("div", {
           display: "grid",
@@ -1967,7 +1938,7 @@
           borderRadius: "5px",
         });
         const segBtns = [];
-        opts.forEach((o) => {
+        opts.forEach(o => {
           const active = o.value === p.default;
           const b = el("button", {
             padding: "5px 4px",
@@ -2049,16 +2020,16 @@
     paramsPanelEl.style.width = br.width + "px";
 
     if (direction === "below") {
-      paramsPanelEl.style.top = br.bottom - TUNE_OVERLAP + "px";
+      paramsPanelEl.style.top = (br.bottom - TUNE_OVERLAP) + "px";
       paramsPanelEl.style.borderRadius = "0 0 10px 10px";
-      paramsPanelEl.style.paddingTop = 14 + TUNE_OVERLAP + "px";
+      paramsPanelEl.style.paddingTop = (14 + TUNE_OVERLAP) + "px";
       paramsPanelEl.style.paddingBottom = "14px";
     } else {
       const ih = paramsPanelEl.offsetHeight || 80;
-      paramsPanelEl.style.top = br.top - ih + TUNE_OVERLAP + "px";
+      paramsPanelEl.style.top = (br.top - ih + TUNE_OVERLAP) + "px";
       paramsPanelEl.style.borderRadius = "10px 10px 0 0";
       paramsPanelEl.style.paddingTop = "14px";
-      paramsPanelEl.style.paddingBottom = 14 + TUNE_OVERLAP + "px";
+      paramsPanelEl.style.paddingBottom = (14 + TUNE_OVERLAP) + "px";
     }
     paramsPanelEl.dataset.tuneDirection = direction;
 
@@ -2110,7 +2081,8 @@
     if (tuneOpen) {
       // If already visible (variant cycled while open), refresh in place
       // instead of re-running the clip-path animation.
-      const alreadyVisible = paramsPanelEl.style.display === "block" && paramsPanelEl.style.opacity === "1";
+      const alreadyVisible = paramsPanelEl.style.display === "block"
+        && paramsPanelEl.style.opacity === "1";
       if (alreadyVisible) positionParamsPanel();
       else showParamsPanel();
     } else {
@@ -2165,7 +2137,7 @@
     for (const child of wrapper.children) {
       const v = child.dataset ? child.dataset.impeccableVariant : null;
       if (!v) continue;
-      child.style.display = v === String(num) ? "" : "none";
+      child.style.display = (v === String(num)) ? "" : "none";
     }
     // Unconditional refresh — covers first-reveal (no-op if state isn't
     // CYCLING yet, the subsequent CYCLING transition triggers its own
@@ -2179,18 +2151,13 @@
    * This works even when the dev server caches HTML (Bun, static servers).
    */
   function injectVariantsFromSource(filePath, sessionId) {
-    const url = "http://localhost:"
-      + PORT
-      + "/source?token="
-      + TOKEN
-      + "&path="
-      + encodeURIComponent(filePath);
+    const url = "http://localhost:" + PORT + "/source?token=" + TOKEN + "&path=" + encodeURIComponent(filePath);
     fetch(url)
-      .then((r) => {
+      .then(r => {
         if (!r.ok) throw new Error(r.status);
         return r.text();
       })
-      .then((html) => {
+      .then(html => {
         // Parse the raw source HTML
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
@@ -2204,9 +2171,7 @@
         // The original is inside the wrapper in the source. We find the
         // corresponding element in the live DOM by matching the first child's
         // tag + classes from the original snapshot.
-        const origContent = srcWrapper.querySelector(
-          "[data-impeccable-variant=\"original\"] > :first-child",
-        );
+        const origContent = srcWrapper.querySelector("[data-impeccable-variant=\"original\"] > :first-child");
         if (!origContent) return;
 
         const tag = origContent.tagName.toLowerCase();
@@ -2247,9 +2212,7 @@
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
         visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
           ? previousVisibleVariant
-          : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
-          ? savedVisibleVariant
-          : 1;
+          : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
         showVariantInDOM(sessionId, visibleVariant);
 
         // Update selectedElement to the visible variant's content
@@ -2262,7 +2225,7 @@
         saveSession();
         console.log("[impeccable] Injected " + arrivedVariants + " variants from source file.");
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("[impeccable] Failed to fetch source:", err);
         showToast("Could not load variants. Try refreshing the page.", 5000);
       });
@@ -2290,9 +2253,7 @@
   function readVisibleVariantFromDOM(sessionId) {
     const wrapper = document.querySelector("[data-impeccable-variants=\"" + sessionId + "\"]");
     if (!wrapper) return 0;
-    const variants = wrapper.querySelectorAll(
-      "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
-    );
+    const variants = wrapper.querySelectorAll("[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])");
     for (const variant of variants) {
       if (variant.style.display === "none") continue;
       const idx = parseInt(variant.dataset.impeccableVariant || "0", 10);
@@ -2349,11 +2310,7 @@
       const before = window.scrollY;
       const delta = before - scrollLockTargetY;
       if (Math.abs(delta) < 0.5) {
-        console.log("[impeccable.scroll] correct noop", {
-          why,
-          scrollY: before,
-          targetY: scrollLockTargetY,
-        });
+        console.log("[impeccable.scroll] correct noop", { why, scrollY: before, targetY: scrollLockTargetY });
         return;
       }
       window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: "instant" });
@@ -2373,16 +2330,11 @@
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.target?.closest?.("[data-impeccable-variants=\"" + sessionId + "\"]")) {
-          const childAdds = Array.from(m.addedNodes)
-            .map((n) =>
-              n.nodeType === 1
-                ? n.tagName
-                  + (n.dataset?.impeccableVariant
-                    ? "[variant=" + n.dataset.impeccableVariant + "]"
-                    : "")
-                : n.nodeType
-            )
-            .join(",");
+          const childAdds = Array.from(m.addedNodes).map(n =>
+            n.nodeType === 1
+              ? (n.tagName + (n.dataset?.impeccableVariant ? ("[variant=" + n.dataset.impeccableVariant + "]") : ""))
+              : n.nodeType
+          ).join(",");
           console.log("[impeccable.scroll] mutation inside wrapper", {
             type: m.type,
             target: m.target?.tagName,
@@ -2413,14 +2365,10 @@
     scrollLockObserver.observe(document.body, { childList: true, subtree: true });
 
     scrollLockAbort = new AbortController();
-    scrollLockAbort.signal.addEventListener(
-      "abort",
-      () => {
-        document.documentElement.style.overflowAnchor = prevHtmlAnchor;
-        document.body.style.overflowAnchor = prevBodyAnchor;
-      },
-      { once: true },
-    );
+    scrollLockAbort.signal.addEventListener("abort", () => {
+      document.documentElement.style.overflowAnchor = prevHtmlAnchor;
+      document.body.style.overflowAnchor = prevBodyAnchor;
+    }, { once: true });
     const sig = { signal: scrollLockAbort.signal };
     // Track whether the most recent scroll came from a user gesture. We
     // gate user-scroll re-anchoring on this flag so programmatic smooth
@@ -2437,57 +2385,42 @@
       const prevTarget = scrollLockTargetY;
       scrollLockTargetY = window.scrollY;
       writeScrollY(scrollLockTargetY);
-      console.log("[impeccable.scroll] reanchor", {
-        why,
-        prevTarget,
-        newTarget: scrollLockTargetY,
-      });
+      console.log("[impeccable.scroll] reanchor", { why, prevTarget, newTarget: scrollLockTargetY });
     };
     const markGesture = (why) => {
       userGestureAt = performance.now();
       reanchor(why);
     };
     window.addEventListener("wheel", () => markGesture("wheel"), { passive: true, ...sig });
-    window.addEventListener("touchstart", () => markGesture("touchstart"), {
-      passive: true,
-      ...sig,
-    });
+    window.addEventListener("touchstart", () => markGesture("touchstart"), { passive: true, ...sig });
     window.addEventListener("touchmove", () => markGesture("touchmove"), { passive: true, ...sig });
-    window.addEventListener(
-      "keydown",
-      (e) => {
-        if (["PageDown", "PageUp", " ", "End", "Home", "ArrowDown", "ArrowUp"].includes(e.key)) {
-          markGesture("key:" + e.key);
-        }
-      },
-      sig,
-    );
+    window.addEventListener("keydown", (e) => {
+      if (["PageDown", "PageUp", " ", "End", "Home", "ArrowDown", "ArrowUp"].includes(e.key)) {
+        markGesture("key:" + e.key);
+      }
+    }, sig);
 
     // Correct on EVERY scroll event: whether it's the browser's
     // post-reload animated restore or some other script calling
     // scrollIntoView, we want to snap back immediately. Only skip if a
     // user gesture fired in the last 250ms.
     let lastLoggedScrollY = window.scrollY;
-    window.addEventListener(
-      "scroll",
-      () => {
-        const now = window.scrollY;
-        if (Math.abs(now - lastLoggedScrollY) > 5) {
-          console.log("[impeccable.scroll] scroll event", {
-            from: lastLoggedScrollY,
-            to: now,
-            targetY: scrollLockTargetY,
-          });
-          lastLoggedScrollY = now;
-        }
-        if (scrollLockTargetY == null) return;
-        if (performance.now() - userGestureAt < USER_GESTURE_WINDOW_MS) return;
-        if (Math.abs(now - scrollLockTargetY) < 0.5) return;
-        console.log("[impeccable.scroll] scroll-event snap", { from: now, to: scrollLockTargetY });
-        window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: "instant" });
-      },
-      { passive: true, ...sig },
-    );
+    window.addEventListener("scroll", () => {
+      const now = window.scrollY;
+      if (Math.abs(now - lastLoggedScrollY) > 5) {
+        console.log("[impeccable.scroll] scroll event", {
+          from: lastLoggedScrollY,
+          to: now,
+          targetY: scrollLockTargetY,
+        });
+        lastLoggedScrollY = now;
+      }
+      if (scrollLockTargetY == null) return;
+      if (performance.now() - userGestureAt < USER_GESTURE_WINDOW_MS) return;
+      if (Math.abs(now - scrollLockTargetY) < 0.5) return;
+      console.log("[impeccable.scroll] scroll-event snap", { from: now, to: scrollLockTargetY });
+      window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: "instant" });
+    }, { passive: true, ...sig });
 
     // Apply target synchronously, not via rAF — racing the browser's
     // restore or a smooth-scroll animation means we want to win now.
@@ -2577,9 +2510,7 @@
       if (visibleVariant === 0 && arrivedVariants > 0) {
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant = savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
-          ? savedVisibleVariant
-          : 1;
+        visibleVariant = savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1;
         showVariantInDOM(sessionId, visibleVariant);
         // showVariantInDOM hid the original (display:none); if we were still
         // anchored to the original's content, its boundingRect is now zero
@@ -2709,9 +2640,7 @@
     evtSource.onerror = () => {
       sseRetries++;
       if (sseRetries <= SSE_MAX_RETRIES) {
-        console.log(
-          "[impeccable] SSE connection lost. Retry " + sseRetries + "/" + SSE_MAX_RETRIES + "...",
-        );
+        console.log("[impeccable] SSE connection lost. Retry " + sseRetries + "/" + SSE_MAX_RETRIES + "...");
         return; // EventSource auto-reconnects
       }
       // Server is gone. Clean up gracefully.
@@ -2759,12 +2688,10 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(msg),
-    })
-      .then((res) => {
-        if (res.ok) return res;
-        return handleFailure(new Error("HTTP " + res.status + " " + res.statusText));
-      })
-      .catch(handleFailure);
+    }).then(res => {
+      if (res.ok) return res;
+      return handleFailure(new Error("HTTP " + res.status + " " + res.statusText));
+    }).catch(handleFailure);
   }
 
   function checkpointPayload(reason) {
@@ -2815,22 +2742,11 @@
       hideActionPicker();
     }
     // Close Tune popover on outside click (anything outside panel + bar)
-    if (
-      tuneOpen
-      && paramsPanelEl
-      && !paramsPanelEl.contains(e.target)
-      && barEl
-      && !barEl.contains(e.target)
-    ) {
+    if (tuneOpen && paramsPanelEl && !paramsPanelEl.contains(e.target) && barEl && !barEl.contains(e.target)) {
       closeTunePopover();
     }
     // In CONFIGURING: click outside the bar and selected element returns to PICKING
-    if (
-      state === "CONFIGURING"
-      && !own(e.target)
-      && selectedElement
-      && !selectedElement.contains(e.target)
-    ) {
+    if (state === "CONFIGURING" && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
       hideBar();
       stopScrollTracking();
       hideAnnotOverlay();
@@ -2874,8 +2790,7 @@
     while (node && depth < 12) {
       // 1. Active dialog / modal
       if (
-        node.getAttribute
-        && node.getAttribute("role") === "dialog"
+        node.getAttribute && node.getAttribute("role") === "dialog"
         && node.getAttribute("aria-modal") === "true"
       ) {
         showToast(
@@ -2910,9 +2825,7 @@
       }
       // 4. Collapsible: aria-expanded sibling. Look for the trigger button.
       if (node.id) {
-        const trigger = document.querySelector(
-          `[aria-controls="${CSS.escape(node.id)}"][aria-expanded="true"]`,
-        );
+        const trigger = document.querySelector(`[aria-controls="${CSS.escape(node.id)}"][aria-expanded="true"]`);
         if (trigger) {
           showToast(
             "Heads up: this element lives inside an expandable section. If state resets during generation, re-expand it.",
@@ -2982,11 +2895,8 @@
     }
 
     // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
-    var navEl = state === "PICKING" ? hoveredElement : state === "CONFIGURING" ? selectedElement : null;
-    if (
-      navEl
-      && (e.key === "ArrowUp" || e.key === "ArrowDown" || (e.key === "Enter" && state === "PICKING"))
-    ) {
+    var navEl = (state === "PICKING") ? hoveredElement : (state === "CONFIGURING") ? selectedElement : null;
+    if (navEl && (e.key === "ArrowUp" || e.key === "ArrowDown" || (e.key === "Enter" && state === "PICKING"))) {
       let next = null;
       if (e.key === "ArrowDown" && !e.shiftKey) {
         next = navEl.nextElementSibling;
@@ -3065,8 +2975,8 @@
     const elForCapture = selectedElement;
     const captureRect = elForCapture.getBoundingClientRect();
     const snapshot = {
-      comments: annotState.comments.map((c) => ({ x: c.x, y: c.y, text: c.text })),
-      strokes: annotState.strokes.map((s) => ({ points: s.points.map((p) => [p[0], p[1]]) })),
+      comments: annotState.comments.map(c => ({ x: c.x, y: c.y, text: c.text })),
+      strokes: annotState.strokes.map(s => ({ points: s.points.map(p => [p[0], p[1]]) })),
     };
     const basePayload = {
       type: "generate",
@@ -3091,10 +3001,7 @@
     writeScrollY(window.scrollY);
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
-    console.log("[impeccable.scroll] Go pressed", {
-      scrollY: window.scrollY,
-      sessionId: currentSessionId,
-    });
+    console.log("[impeccable.scroll] Go pressed", { scrollY: window.scrollY, sessionId: currentSessionId });
     startScrollLock(currentSessionId);
 
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
@@ -3155,20 +3062,16 @@
       if (FONT_EXT_RE.test(m[2])) urls.add(m[2]);
     }
     const map = new Map();
-    await Promise.all(
-      [...urls].map(async (url) => {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) return;
-          const buf = await res.arrayBuffer();
-          const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || "woff2";
-          const mime = FONT_MIME[ext] || "application/octet-stream";
-          map.set(url, "data:" + mime + ";base64," + bufferToBase64(buf));
-        } catch {
-          /* skip; fall through to URL */
-        }
-      }),
-    );
+    await Promise.all([...urls].map(async (url) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || "woff2";
+        const mime = FONT_MIME[ext] || "application/octet-stream";
+        map.set(url, "data:" + mime + ";base64," + bufferToBase64(buf));
+      } catch { /* skip; fall through to URL */ }
+    }));
     return cssText.replace(urlRe, (orig, q, url) => {
       const data = map.get(url);
       return data ? "url(" + q + data + q + ")" : orig;
@@ -3181,10 +3084,7 @@
       try {
         const rules = sheet.cssRules;
         for (const rule of rules) {
-          if (
-            rule.constructor.name === "CSSFontFaceRule"
-            || rule.cssText?.startsWith("@font-face")
-          ) {
+          if (rule.constructor.name === "CSSFontFaceRule" || rule.cssText?.startsWith("@font-face")) {
             chunks.push(rule.cssText);
           }
         }
@@ -3196,9 +3096,7 @@
           const text = await res.text();
           let m2;
           while ((m2 = fontFaceRe.exec(text))) chunks.push(m2[0]);
-        } catch {
-          /* ignore; capture is best-effort */
-        }
+        } catch { /* ignore; capture is best-effort */ }
       }
     }
     if (chunks.length === 0) return "";
@@ -3299,12 +3197,8 @@
     if (blob && hasAnnotations) {
       try {
         const uploadRes = await fetch(
-          "http://localhost:"
-            + PORT
-            + "/annotation?token="
-            + encodeURIComponent(TOKEN)
-            + "&eventId="
-            + encodeURIComponent(basePayload.id),
+          "http://localhost:" + PORT + "/annotation?token=" + encodeURIComponent(TOKEN)
+            + "&eventId=" + encodeURIComponent(basePayload.id),
           { method: "POST", headers: { "Content-Type": "image/png" }, body: blob },
         );
         if (uploadRes.ok) {
@@ -3570,11 +3464,7 @@ void main() {
     if (!currentSessionId || arrivedVariants === 0) return;
     const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
     if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
-    const acceptPayload = {
-      type: "accept",
-      id: currentSessionId,
-      variantId: String(visibleVariant),
-    };
+    const acceptPayload = { type: "accept", id: currentSessionId, variantId: String(visibleVariant) };
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
     }
@@ -3598,10 +3488,7 @@ void main() {
       .catch(() => {
         state = "CYCLING";
         updateBarContent("cycling");
-        showToast(
-          "Could not confirm accept with the live server. Session kept for recovery; try Accept again.",
-          5000,
-        );
+        showToast("Could not confirm accept with the live server. Session kept for recovery; try Accept again.", 5000);
       });
 
     function confirmAcceptAfterReceipt() {
@@ -3634,13 +3521,9 @@ void main() {
       // div (with display:contents) so @scope rules anchored to the variant
       // attribute keep matching until reload replaces it with the carbonize block.
       setTimeout(function() {
-        const wrapper = document.querySelector(
-          "[data-impeccable-variants=\"" + acceptedSessionId + "\"]",
-        );
+        const wrapper = document.querySelector("[data-impeccable-variants=\"" + acceptedSessionId + "\"]");
         if (!wrapper) return;
-        const accepted = wrapper.querySelector(
-          "[data-impeccable-variant=\"" + acceptedVariant + "\"]",
-        );
+        const accepted = wrapper.querySelector("[data-impeccable-variant=\"" + acceptedVariant + "\"]");
         if (accepted && accepted.firstElementChild) {
           const parent = wrapper.parentElement;
           if (!parent) return;
@@ -3658,12 +3541,7 @@ void main() {
         markSessionHandled();
         cleanup();
       })
-      .catch(() =>
-        showToast(
-          "Could not confirm discard with the live server. Session kept for recovery.",
-          5000,
-        )
-      );
+      .catch(() => showToast("Could not confirm discard with the live server. Session kept for recovery.", 5000));
   }
 
   // ---------------------------------------------------------------------------
@@ -3719,16 +3597,12 @@ void main() {
     // replaced the wrapper by then (keeps static-server / no-HMR flows alive).
     const cleanupSessionId = currentSessionId;
     if (cleanupSessionId) {
-      const wrapper = document.querySelector(
-        "[data-impeccable-variants=\"" + cleanupSessionId + "\"]",
-      );
+      const wrapper = document.querySelector("[data-impeccable-variants=\"" + cleanupSessionId + "\"]");
       if (wrapper) wrapper.style.display = "none";
     }
     setTimeout(function() {
       if (!cleanupSessionId) return;
-      const wrapper = document.querySelector(
-        "[data-impeccable-variants=\"" + cleanupSessionId + "\"]",
-      );
+      const wrapper = document.querySelector("[data-impeccable-variants=\"" + cleanupSessionId + "\"]");
       if (!wrapper) return;
       const orig = wrapper.querySelector("[data-impeccable-variant=\"original\"]");
       if (orig) {
@@ -3767,7 +3641,9 @@ void main() {
     // with hover-expanded labels — and fall back to a sensible default
     // when the bar isn't mounted yet.
     const barRect = globalBarEl?.getBoundingClientRect();
-    const barTopFromBottom = barRect && barRect.height > 0 ? Math.max(16, window.innerHeight - barRect.top + 12) : 16;
+    const barTopFromBottom = barRect && barRect.height > 0
+      ? Math.max(16, window.innerHeight - barRect.top + 12)
+      : 16;
     toastEl = el("div", {
       position: "fixed",
       bottom: barTopFromBottom + "px",
@@ -3829,19 +3705,15 @@ void main() {
 
     currentSessionId = sessionId;
     expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || "0");
-    const variants = wrapper.querySelectorAll(
-      "[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])",
-    );
+    const variants = wrapper.querySelectorAll("[data-impeccable-variant]:not([data-impeccable-variant=\"original\"])");
     arrivedVariants = variants.length;
 
     // Restore state from localStorage if available
     const saved = loadSession();
     if (saved && saved.id === sessionId) {
-      visibleVariant = saved.visible > 0 && saved.visible <= arrivedVariants
+      visibleVariant = (saved.visible > 0 && saved.visible <= arrivedVariants)
         ? saved.visible
-        : arrivedVariants > 0
-        ? 1
-        : 0;
+        : (arrivedVariants > 0 ? 1 : 0);
       if (saved.action) selectedAction = saved.action;
       if (saved.count) selectedCount = saved.count;
     } else {
@@ -3999,18 +3871,10 @@ void main() {
     if (!document.getElementById(PREFIX + "-bar-focus-style")) {
       const s = document.createElement("style");
       s.id = PREFIX + "-bar-focus-style";
-      s.textContent = "#"
-        + PREFIX
-        + "-global-bar button:focus { outline: none; }"
-        + "#"
-        + PREFIX
-        + "-global-bar button:focus-visible {"
+      s.textContent = "#" + PREFIX + "-global-bar button:focus { outline: none; }"
+        + "#" + PREFIX + "-global-bar button:focus-visible {"
         + "  outline: none;"
-        + "  box-shadow: 0 0 0 2px "
-        + P.accentSoft
-        + ", 0 0 0 3px "
-        + P.accent
-        + ";"
+        + "  box-shadow: 0 0 0 2px " + P.accentSoft + ", 0 0 0 3px " + P.accent + ";"
         + "}";
       document.head.appendChild(s);
     }
@@ -4092,12 +3956,11 @@ void main() {
       b.id = id;
       b.title = ariaLabel || label || "";
       b.setAttribute("aria-label", ariaLabel || label || "");
-      b.innerHTML = svg
-        + (label
-          ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${
-            labelFont || FONT
-          };transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
-          : "");
+      b.innerHTML = svg + (label
+        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${
+          labelFont || FONT
+        };transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
+        : "");
       const labelEl = b.querySelector(".icon-btn-label");
       const expand = () => {
         if (!labelEl) return;
@@ -4288,12 +4151,12 @@ void main() {
     }
 
     if (detectBadge) {
-      detectBadge.style.display = detectActive && detectCount > 0 ? "inline" : "none";
+      detectBadge.style.display = (detectActive && detectCount > 0) ? "inline" : "none";
       detectBadge.textContent = detectCount;
     }
 
     // When pick is active, make detect overlays click-through so the picker works
-    document.querySelectorAll(".impeccable-overlay").forEach((o) => {
+    document.querySelectorAll(".impeccable-overlay").forEach(o => {
       o.style.pointerEvents = pickActive ? "none" : "";
     });
   }
@@ -4434,8 +4297,7 @@ void main() {
     mdNewerThanJson: false, // stale-hint flag
     loading: false,
     error: null,
-    collapsed: {
-      // narrative-section accordion state
+    collapsed: { // narrative-section accordion state
       rules: true,
       dosdonts: true,
       overview: true,
@@ -4453,9 +4315,7 @@ void main() {
       if (prefs.collapsed && typeof prefs.collapsed === "object") {
         Object.assign(designState.collapsed, prefs.collapsed);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 
   function saveDesignPrefs() {
@@ -4467,9 +4327,7 @@ void main() {
           collapsed: designState.collapsed,
         }),
       );
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 
   function initDesignPanel() {
@@ -4831,12 +4689,7 @@ void main() {
 
     const tabs = document.createElement("div");
     tabs.className = "tabs";
-    for (
-      const t of [
-        ["visual", "Visual"],
-        ["raw", "Raw"],
-      ]
-    ) {
+    for (const t of [["visual", "Visual"], ["raw", "Raw"]]) {
       const btn = document.createElement("button");
       btn.className = "tab";
       btn.textContent = t[1];
@@ -4984,9 +4837,7 @@ void main() {
     // synthesize from prose sections.
     const narrative = sidecar?.narrative || synthesizeNarrative(parsed);
     if (narrative.rules?.length) body.appendChild(renderRulesCollapsible(narrative.rules));
-    if (narrative.dos?.length || narrative.donts?.length) {
-      body.appendChild(renderDosDontsCollapsible(narrative));
-    }
+    if ((narrative.dos?.length || narrative.donts?.length)) body.appendChild(renderDosDontsCollapsible(narrative));
     if (narrative.overview || narrative.northStar || narrative.keyCharacteristics?.length) {
       body.appendChild(renderOverviewCollapsible(narrative));
     }
@@ -5050,9 +4901,7 @@ void main() {
   }
 
   function humanizeKey(k) {
-    return String(k || "")
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return String(k || "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   function findProseDescription(proseColors, key, displayName) {
@@ -5186,7 +5035,7 @@ void main() {
     if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes("\"")) {
       return `"${fam}", ${fb}`;
     }
-    return fam && fb ? `"${fam}", ${fb}` : fam || fb;
+    return fam && fb ? `"${fam}", ${fb}` : (fam || fb);
   }
 
   function renderRadiiTile(body, radii) {
@@ -5263,7 +5112,7 @@ void main() {
       const meta = document.createElement("div");
       meta.className = "tile-meta";
       const groupTitle = group.length === 1
-        ? group[0].name || group[0].kind || "Component"
+        ? (group[0].name || group[0].kind || "Component")
         : titleForKind(group[0].kind, group.length);
       meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${
         escapeHtml(group[0].kind || "")
@@ -5331,9 +5180,7 @@ void main() {
       card: "Cards",
       custom: "Components",
     };
-    return (
-      labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + "s" : "Components")
-    );
+    return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + "s" : "Components");
   }
 
   // --- Collapsibles ---------------------------------------------------------
@@ -5583,9 +5430,7 @@ void main() {
     try {
       navigator.clipboard.writeText(text);
       showToast("Copied: " + text);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 
   // ---------------------------------------------------------------------------
@@ -5619,21 +5464,14 @@ void main() {
         if (!wrapper) return;
         scout.disconnect();
         if (resumeSession()) {
-          console.log(
-            "[impeccable] Resumed deferred session " + currentSessionId + " (post-hydration).",
-          );
+          console.log("[impeccable] Resumed deferred session " + currentSessionId + " (post-hydration).");
         }
       });
       scout.observe(document.body, { childList: true, subtree: true });
     } else {
       console.log(
-        "[impeccable] Resumed active variant session "
-          + currentSessionId
-          + " ("
-          + arrivedVariants
-          + "/"
-          + expectedVariants
-          + " variants).",
+        "[impeccable] Resumed active variant session " + currentSessionId + " (" + arrivedVariants + "/"
+          + expectedVariants + " variants).",
       );
     }
   }

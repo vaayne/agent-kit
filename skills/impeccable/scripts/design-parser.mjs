@@ -283,9 +283,7 @@ function extractNamedRules(lines) {
   for (let i = 0; i < lines.length; i++) {
     const h3 = lines[i].match(/^###\s+(.+?)\s*$/);
     if (!h3) continue;
-    const headerName = stripBold(h3[1])
-      .replace(/["“”]/g, "")
-      .trim();
+    const headerName = stripBold(h3[1]).replace(/["“”]/g, "").trim();
     if (!/^The\b.*\b(Rule|Fallback|Principle)\b/i.test(headerName)) continue;
     if (seen.has(headerName.toLowerCase())) continue;
 
@@ -306,10 +304,7 @@ function extractNamedRules(lines) {
   for (const b of collectBullets(lines)) {
     const mm = b.match(/^\*\*([^*]+?)\*\*\s*(.+)$/);
     if (!mm) continue;
-    const nameRaw = mm[1]
-      .replace(/[.:]\s*$/, "")
-      .replace(/["“”]/g, "")
-      .trim();
+    const nameRaw = mm[1].replace(/[.:]\s*$/, "").replace(/["“”]/g, "").trim();
     if (!/^The\b.+\b(Rule|Fallback|Principle)$/i.test(nameRaw)) continue;
     if (seen.has(nameRaw.toLowerCase())) continue;
     seen.add(nameRaw.toLowerCase());
@@ -336,7 +331,9 @@ function extractOverview(section) {
 
   // Philosophy paragraphs: everything that isn't a rule header or key-char block
   const paragraphs = collectParagraphs(section.lines).filter(
-    (p) => !p.startsWith("**Creative North Star") && !p.startsWith("**Key Characteristics"),
+    (p) =>
+      !p.startsWith("**Creative North Star")
+      && !p.startsWith("**Key Characteristics"),
   );
 
   return {
@@ -495,7 +492,9 @@ function parseStitchInlineGroups(lines) {
   for (const line of lines) {
     if (!/^\s*[-*]\s/.test(line)) continue;
     const trimmed = line.replace(/^\s*[-*]\s+/, "").trim();
-    const m = trimmed.match(/^\*\*([A-Z][a-zA-Z]+)\s*\(([^)]+)\):\*\*\s*(.*)$/);
+    const m = trimmed.match(
+      /^\*\*([A-Z][a-zA-Z]+)\s*\(([^)]+)\):\*\*\s*(.*)$/,
+    );
     if (m) {
       const role = m[1];
       const color = buildColor(role, m[2], m[3]);
@@ -539,9 +538,7 @@ function extractTypography(section) {
 
   // Character paragraph — either a **Character:** label, or fall back to the
   // first free paragraph under the section header (Stitch style).
-  const characterMatch = text.match(
-    /\*\*Character:\*\*\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n###|\n##|$)/,
-  );
+  const characterMatch = text.match(/\*\*Character:\*\*\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n###|\n##|$)/);
   let character = characterMatch ? characterMatch[1].replace(/\n/g, " ").trim() : null;
   if (!character) {
     const paragraphs = collectParagraphs(section.lines).filter(
@@ -671,7 +668,8 @@ function parseShadowBullet(bullet) {
   const m = bullet.match(/^\*\*(.+?)\*\*\s*\(`?([^`]+?)`?\):\s*(.*)$/);
   if (!m) return null;
   const rawValue = m[2].replace(/^box-shadow:\s*/i, "").trim();
-  const looksLikeShadow = /box-shadow|rgba?\(|\bpx\b|\brem\b|^-?\d+\s/i.test(rawValue) && /\d/.test(rawValue);
+  const looksLikeShadow = /box-shadow|rgba?\(|\bpx\b|\brem\b|^-?\d+\s/i.test(rawValue)
+    && /\d/.test(rawValue);
   if (!looksLikeShadow) return null;
   const name = stripBold(m[1]).trim();
   return {
@@ -705,9 +703,7 @@ function extractComponents(section) {
         // "Shape", "Background", "Padding" are properties.
         if (
           /^(primary|secondary|tertiary|ghost|hover|focus|active|disabled|default|error|selected|unselected|state)$/i
-            .test(
-              key.split(/[\s/]/)[0],
-            )
+            .test(key.split(/[\s/]/)[0])
         ) {
           variants.push({ name: key, description: value });
         } else {

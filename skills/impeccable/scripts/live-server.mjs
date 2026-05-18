@@ -79,12 +79,8 @@ function enqueueEvent(event) {
   if (
     !event
     || (event.id
-      && state.pendingEvents.some(
-        (entry) => entry.event?.id === event.id && entry.event?.type === event.type,
-      ))
-  ) {
-    return;
-  }
+      && state.pendingEvents.some((entry) => entry.event?.id === event.id && entry.event?.type === event.type))
+  ) return;
   state.pendingEvents.push({ event, leaseUntil: 0 });
   flushPendingPolls();
 }
@@ -131,13 +127,10 @@ function scheduleLeaseFlush() {
     .filter((leaseUntil) => leaseUntil > now)
     .sort((a, b) => a - b)[0];
   if (!nextLeaseUntil) return;
-  state.leaseTimer = setTimeout(
-    () => {
-      state.leaseTimer = null;
-      flushPendingPolls();
-    },
-    Math.max(0, nextLeaseUntil - now),
-  );
+  state.leaseTimer = setTimeout(() => {
+    state.leaseTimer = null;
+    flushPendingPolls();
+  }, Math.max(0, nextLeaseUntil - now));
 }
 
 function flushPendingPolls() {
@@ -159,9 +152,7 @@ function broadcast(msg) {
   for (const res of state.sseClients) {
     try {
       res.write(data);
-    } catch {
-      /* client gone */
-    }
+    } catch { /* client gone */ }
   }
 }
 
@@ -175,23 +166,14 @@ function loadBrowserScripts() {
   // This one IS cached — detect.js rarely changes during a session.
   const detectPaths = [
     path.join(__dirname, "..", "..", "..", "..", "cli", "engine", "detect-antipatterns-browser.js"),
-    path.join(
-      process.cwd(),
-      "node_modules",
-      "impeccable",
-      "cli",
-      "engine",
-      "detect-antipatterns-browser.js",
-    ),
+    path.join(process.cwd(), "node_modules", "impeccable", "cli", "engine", "detect-antipatterns-browser.js"),
   ];
   let detectScript = "";
   for (const p of detectPaths) {
     try {
       detectScript = fs.readFileSync(p, "utf-8");
       break;
-    } catch {
-      /* try next */
-    }
+    } catch { /* try next */ }
   }
 
   // live-browser.js: DO NOT cache. Return the path so the /live.js handler
@@ -269,30 +251,20 @@ function validateEvent(msg) {
     case "generate":
       if (!isValidId(msg.id)) return "generate: missing or malformed id";
       if (!msg.action || !VISUAL_ACTIONS.includes(msg.action)) return "generate: invalid action";
-      if (!Number.isInteger(msg.count) || msg.count < 1 || msg.count > 8) {
-        return "generate: count must be 1-8";
-      }
+      if (!Number.isInteger(msg.count) || msg.count < 1 || msg.count > 8) return "generate: count must be 1-8";
       if (!msg.element || !msg.element.outerHTML) return "generate: missing element context";
       // Optional annotation fields (all-or-nothing: if any present, all must be well-formed).
       if (msg.screenshotPath !== undefined && typeof msg.screenshotPath !== "string") {
         return "generate: screenshotPath must be string";
       }
-      if (msg.comments !== undefined && !Array.isArray(msg.comments)) {
-        return "generate: comments must be array";
-      }
-      if (msg.strokes !== undefined && !Array.isArray(msg.strokes)) {
-        return "generate: strokes must be array";
-      }
+      if (msg.comments !== undefined && !Array.isArray(msg.comments)) return "generate: comments must be array";
+      if (msg.strokes !== undefined && !Array.isArray(msg.strokes)) return "generate: strokes must be array";
       return null;
     case "accept":
       if (!isValidId(msg.id)) return "accept: missing or malformed id";
       if (!isValidVariantId(msg.variantId)) return "accept: missing or malformed variantId";
       if (msg.paramValues !== undefined) {
-        if (
-          typeof msg.paramValues !== "object"
-          || msg.paramValues === null
-          || Array.isArray(msg.paramValues)
-        ) {
+        if (typeof msg.paramValues !== "object" || msg.paramValues === null || Array.isArray(msg.paramValues)) {
           return "accept: paramValues must be an object";
         }
       }
@@ -306,9 +278,7 @@ function validateEvent(msg) {
       }
       if (
         msg.paramValues !== undefined
-        && (typeof msg.paramValues !== "object"
-          || msg.paramValues === null
-          || Array.isArray(msg.paramValues))
+        && (typeof msg.paramValues !== "object" || msg.paramValues === null || Array.isArray(msg.paramValues))
       ) {
         return "checkpoint: paramValues must be an object";
       }
@@ -359,13 +329,12 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
       }
       const body = `window.__IMPECCABLE_TOKEN__ = '${state.token}';\n`
         + `window.__IMPECCABLE_PORT__ = ${state.port};\n`
-        + sessionScript
-        + "\n"
+        + sessionScript + "\n"
         + liveScript;
       res.writeHead(200, {
         "Content-Type": "application/javascript",
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        Pragma: "no-cache",
+        "Pragma": "no-cache",
       });
       res.end(body);
       return;
@@ -473,34 +442,30 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
       }
       const sessions = state.sessionStore ? state.sessionStore.listActiveSessions() : [];
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          status: "ok",
-          port: state.port,
-          connectedClients: state.sseClients.size,
-          pendingEvents: state.pendingEvents.map((entry) => ({
-            id: entry.event?.id,
-            type: entry.event?.type,
-            leased: !!(entry.leaseUntil && entry.leaseUntil > Date.now()),
-            leaseUntil: entry.leaseUntil || null,
-          })),
-          activeSessions: sessions,
-        }),
-      );
+      res.end(JSON.stringify({
+        status: "ok",
+        port: state.port,
+        connectedClients: state.sseClients.size,
+        pendingEvents: state.pendingEvents.map((entry) => ({
+          id: entry.event?.id,
+          type: entry.event?.type,
+          leased: !!(entry.leaseUntil && entry.leaseUntil > Date.now()),
+          leaseUntil: entry.leaseUntil || null,
+        })),
+        activeSessions: sessions,
+      }));
       return;
     }
 
     if (p === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          status: "ok",
-          port: state.port,
-          mode: "variant",
-          hasProjectContext: hasProjectContext(),
-          connectedClients: state.sseClients.size,
-        }),
-      );
+      res.end(JSON.stringify({
+        status: "ok",
+        port: state.port,
+        mode: "variant",
+        hasProjectContext: hasProjectContext(),
+        connectedClients: state.sseClients.size,
+      }));
       return;
     }
 
@@ -617,15 +582,13 @@ function createRequestHandler({ detectScript, sessionPath, livePath }) {
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+        "Connection": "keep-alive",
       });
       res.write(
-        "data: "
-          + JSON.stringify({
-            type: "connected",
-            hasProjectContext: hasProjectContext(),
-          })
-          + "\n\n",
+        "data: " + JSON.stringify({
+          type: "connected",
+          hasProjectContext: hasProjectContext(),
+        }) + "\n\n",
       );
 
       state.sseClients.add(res);
@@ -800,19 +763,11 @@ function handlePollPost(req, res) {
           message: msg.message,
           carbonize: msg.data?.carbonize === true,
         });
-      } catch {
-        /* keep reply path best-effort; browser still needs SSE */
-      }
+      } catch { /* keep reply path best-effort; browser still needs SSE */ }
     }
     flushPendingPolls();
     // Forward the reply to the browser via SSE
-    broadcast({
-      type: msg.type || "done",
-      id: msg.id,
-      message: msg.message,
-      file: msg.file,
-      data: msg.data,
-    });
+    broadcast({ type: msg.type || "done", id: msg.id, message: msg.message, file: msg.file, data: msg.data });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
   });
@@ -922,7 +877,7 @@ if (args.includes("stop")) {
 // print the connection JSON, then exit.  This keeps the startup command
 // simple (no shell backgrounding or chained commands).
 if (args.includes("--background")) {
-  const childArgs = args.filter((a) => a !== "--background");
+  const childArgs = args.filter(a => a !== "--background");
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...childArgs], {
     detached: true,
     stdio: "ignore",
@@ -940,10 +895,8 @@ if (args.includes("--background")) {
         console.log(JSON.stringify(info));
         process.exit(0);
       }
-    } catch {
-      /* not ready yet */
-    }
-    await new Promise((r) => setTimeout(r, 200));
+    } catch { /* not ready yet */ }
+    await new Promise(r => setTimeout(r, 200));
   }
   console.error("Timed out waiting for live server to start.");
   process.exit(1);
@@ -956,9 +909,7 @@ if (existingRecord?.info) {
   try {
     process.kill(existing.pid, 0);
     console.error(`Live server already running on port ${existing.port} (pid ${existing.pid}).`);
-    console.error(
-      "Stop it first with: node " + path.basename(fileURLToPath(import.meta.url)) + " stop",
-    );
+    console.error("Stop it first with: node " + path.basename(fileURLToPath(import.meta.url)) + " stop");
     process.exit(1);
   } catch {
     try {
@@ -970,7 +921,7 @@ if (existingRecord?.info) {
 state.token = randomUUID();
 state.sessionStore = createLiveSessionStore({ cwd: process.cwd() });
 restorePendingEventsFromStore();
-const portArg = args.find((a) => a.startsWith("--port="));
+const portArg = args.find(a => a.startsWith("--port="));
 state.port = portArg ? parseInt(portArg.split("=")[1], 10) : await findOpenPort();
 // Annotation screenshots live in the project root so the agent's Read tool
 // doesn't trip a per-file permission prompt. Sessioned by token so concurrent

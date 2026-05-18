@@ -74,8 +74,8 @@ const HeavyChart = lazy(() => import("./HeavyChart"));
 
 ```css
 @font-face {
-  font-family: "CustomFont";
-  src: url("/fonts/custom.woff2") format("woff2");
+  font-family: 'CustomFont';
+  src: url('/fonts/custom.woff2') format('woff2');
   font-display: swap; /* Show fallback immediately */
   unicode-range: U+0020-007F; /* Basic Latin only */
 }
@@ -95,13 +95,13 @@ const HeavyChart = lazy(() => import("./HeavyChart"));
 
 ```javascript
 // ❌ Bad: Alternating reads and writes (causes reflows)
-elements.forEach((el) => {
+elements.forEach(el => {
   const height = el.offsetHeight; // Read (forces layout)
   el.style.height = height * 2; // Write
 });
 
 // ✅ Good: Batch reads, then batch writes
-const heights = elements.map((el) => el.offsetHeight); // All reads
+const heights = elements.map(el => el.offsetHeight); // All reads
 elements.forEach((el, i) => {
   el.style.height = heights[i] * 2; // All writes
 });
@@ -153,7 +153,7 @@ elements.forEach((el, i) => {
 ```javascript
 // Efficiently detect when elements enter viewport
 const observer = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
+  entries.forEach(entry => {
     if (entry.isIntersecting) {
       // Element is visible, lazy load or animate
     }

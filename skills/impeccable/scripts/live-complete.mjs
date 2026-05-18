@@ -38,13 +38,7 @@ export async function completeCli() {
   if (serverResult?.ok) {
     const store = createLiveSessionStore({ cwd: process.cwd(), sessionId: args.id });
     const snapshot = store.getSnapshot(args.id, { includeCompleted: true });
-    console.log(
-      JSON.stringify(
-        { ok: true, id: args.id, phase: snapshot?.phase || args.status, snapshot },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify({ ok: true, id: args.id, phase: snapshot?.phase || args.status, snapshot }, null, 2));
     return;
   }
 

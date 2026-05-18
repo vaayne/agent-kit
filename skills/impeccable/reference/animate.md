@@ -114,9 +114,9 @@ Use appropriate techniques for each animation:
 
 ```css
 /* Recommended: natural deceleration */
---ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1); /* Smooth */
---ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1); /* Slightly snappier */
---ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* Confident, decisive */
+--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);    /* Smooth */
+--ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);   /* Slightly snappier */
+--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);     /* Confident, decisive */
 
 /* AVOID: feel dated and tacky */
 /* bounce: cubic-bezier(0.34, 1.56, 0.64, 1); */

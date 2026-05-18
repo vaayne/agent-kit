@@ -62,23 +62,23 @@ The layout shift problem: fonts load late, text reflows, and users see content j
 ```css
 /* 1. Use font-display: swap for visibility */
 @font-face {
-  font-family: "CustomFont";
-  src: url("font.woff2") format("woff2");
+  font-family: 'CustomFont';
+  src: url('font.woff2') format('woff2');
   font-display: swap;
 }
 
 /* 2. Match fallback metrics to minimize shift */
 @font-face {
-  font-family: "CustomFont-Fallback";
-  src: local("Arial");
-  size-adjust: 105%; /* Scale to match x-height */
-  ascent-override: 90%; /* Match ascender height */
-  descent-override: 20%; /* Match descender depth */
-  line-gap-override: 10%; /* Match line spacing */
+  font-family: 'CustomFont-Fallback';
+  src: local('Arial');
+  size-adjust: 105%;        /* Scale to match x-height */
+  ascent-override: 90%;     /* Match ascender height */
+  descent-override: 20%;    /* Match descender depth */
+  line-gap-override: 10%;   /* Match line spacing */
 }
 
 body {
-  font-family: "CustomFont", "CustomFont-Fallback", sans-serif;
+  font-family: 'CustomFont', 'CustomFont-Fallback', sans-serif;
 }
 ```
 
@@ -110,29 +110,19 @@ Most developers don't know these exist. Use them for polish:
 
 ```css
 /* Tabular numbers for data alignment */
-.data-table {
-  font-variant-numeric: tabular-nums;
-}
+.data-table { font-variant-numeric: tabular-nums; }
 
 /* Proper fractions */
-.recipe-amount {
-  font-variant-numeric: diagonal-fractions;
-}
+.recipe-amount { font-variant-numeric: diagonal-fractions; }
 
 /* Small caps for abbreviations */
-abbr {
-  font-variant-caps: all-small-caps;
-}
+abbr { font-variant-caps: all-small-caps; }
 
 /* Disable ligatures in code */
-code {
-  font-variant-ligatures: none;
-}
+code { font-variant-ligatures: none; }
 
 /* Enable kerning (usually on by default, but be explicit) */
-body {
-  font-kerning: normal;
-}
+body { font-kerning: normal; }
 ```
 
 Check what features your font supports at [Wakamai Fondue](https://wakamaifondue.com/).
@@ -141,19 +131,13 @@ Check what features your font supports at [Wakamai Fondue](https://wakamaifondue
 
 ```css
 /* Even out heading line lengths (browser picks better break points) */
-h1, h2, h3 {
-  text-wrap: balance;
-}
+h1, h2, h3 { text-wrap: balance; }
 
 /* Reduce orphans and ragged endings in long prose */
-article p {
-  text-wrap: pretty;
-}
+article p { text-wrap: pretty; }
 
 /* Variable fonts: pick the right optical-size master automatically */
-body {
-  font-optical-sizing: auto;
-}
+body { font-optical-sizing: auto; }
 ```
 
 **ALL-CAPS tracking**: capitals sit too close at default spacing. Add 5–12% letter-spacing (`letter-spacing: 0.05em` to `0.12em`) to short all-caps labels, eyebrows, and small headings. Real small caps (via `font-variant-caps`) need the same treatment, slightly gentler.

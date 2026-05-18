@@ -49,11 +49,7 @@ export function createLiveSessionStore({ cwd = process.cwd(), sessionId } = {}) 
       };
       fs.appendFileSync(journalPath, JSON.stringify(entry) + "\n");
       const next = applyEvent(prior.snapshot, entry, prior.diagnostics);
-      snapshotCache.set(normalized.id, {
-        snapshot: next,
-        diagnostics: next.diagnostics || [],
-        nextSeq: seq + 1,
-      });
+      snapshotCache.set(normalized.id, { snapshot: next, diagnostics: next.diagnostics || [], nextSeq: seq + 1 });
       writeSnapshot(snapshotPath, next);
       return next;
     },
@@ -177,17 +173,14 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.pendingEventSeq = entry.seq ?? next.pendingEventSeq;
       next.pendingEvent = toPendingEvent(event);
       if (event.screenshotPath) {
-        upsertArtifact(next.annotationArtifacts, {
-          type: "screenshot",
-          path: event.screenshotPath,
-        });
+        upsertArtifact(next.annotationArtifacts, { type: "screenshot", path: event.screenshotPath });
       }
       break;
     case "variants_ready":
     case "agent_done":
       next.phase = event.carbonize === true ? "carbonize_required" : "variants_ready";
       next.sourceFile = event.file ?? next.sourceFile;
-      next.arrivedVariants = event.arrivedVariants ?? next.arrivedVariants ?? next.expectedVariants;
+      next.arrivedVariants = event.arrivedVariants ?? (next.arrivedVariants ?? next.expectedVariants);
       next.pendingEventSeq = null;
       next.pendingEvent = null;
       if (event.carbonize === true) {
@@ -237,10 +230,7 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.phase = "agent_error";
       next.pendingEventSeq = null;
       next.pendingEvent = null;
-      next.diagnostics.push({
-        error: "agent_error",
-        message: event.message || "unknown agent error",
-      });
+      next.diagnostics.push({ error: "agent_error", message: event.message || "unknown agent error" });
       break;
     default:
       next.diagnostics.push({ error: "unknown_event_type", type: event.type });
@@ -256,11 +246,7 @@ function toPendingEvent(event) {
 }
 
 function upsertArtifact(artifacts, artifact) {
-  if (
-    !artifacts.some(
-      (existing) => existing.path === artifact.path && existing.type === artifact.type,
-    )
-  ) {
+  if (!artifacts.some((existing) => existing.path === artifact.path && existing.type === artifact.type)) {
     artifacts.push(artifact);
   }
 }

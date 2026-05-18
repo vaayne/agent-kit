@@ -286,9 +286,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
       for (const p of result.deletedPaths) console.log(`  - ${p}`);
     }
     if (result.removedLockEntries.length > 0) {
-      console.log(
-        `Cleaned ${result.removedLockEntries.length} entry/entries from skills-lock.json:`,
-      );
+      console.log(`Cleaned ${result.removedLockEntries.length} entry/entries from skills-lock.json:`);
       for (const name of result.removedLockEntries) console.log(`  - ${name}`);
     }
   }

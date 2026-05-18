@@ -111,9 +111,7 @@ padding-inline: 1rem; /* Not padding-left/right */
 border-inline-end: 1px solid; /* Not border-right */
 
 /* Or use dir attribute */
-[dir="rtl"] .arrow {
-  transform: scaleX(-1);
-}
+[dir="rtl"] .arrow { transform: scaleX(-1); }
 ```
 
 **Character set support**:

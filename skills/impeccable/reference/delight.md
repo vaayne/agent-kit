@@ -88,7 +88,7 @@ Add personality and joy through these methods:
 }
 .button:active {
   transform: translateY(2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Ripple effect on click */

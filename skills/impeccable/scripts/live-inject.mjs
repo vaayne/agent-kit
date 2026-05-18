@@ -28,7 +28,10 @@ const MARKER_CLOSE_TEXT = "impeccable-live-end";
  * matching them would silently inject tracking scripts into third-party
  * code. The user cannot turn these off via config — they are the floor.
  */
-const HARD_EXCLUDES = ["**/node_modules/**", "**/.git/**"];
+const HARD_EXCLUDES = [
+  "**/node_modules/**",
+  "**/.git/**",
+];
 
 export async function injectCli() {
   const args = process.argv.slice(2);
@@ -58,27 +61,13 @@ Output (JSON):
     try {
       cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
     } catch (err) {
-      console.log(
-        JSON.stringify({
-          ok: false,
-          error: "config_invalid",
-          message: err.message,
-          path: CONFIG_PATH,
-        }),
-      );
+      console.log(JSON.stringify({ ok: false, error: "config_invalid", message: err.message, path: CONFIG_PATH }));
       return;
     }
     try {
       validateConfig(cfg);
     } catch (err) {
-      console.log(
-        JSON.stringify({
-          ok: false,
-          error: "config_invalid",
-          message: err.message,
-          path: CONFIG_PATH,
-        }),
-      );
+      console.log(JSON.stringify({ ok: false, error: "config_invalid", message: err.message, path: CONFIG_PATH }));
       return;
     }
     console.log(JSON.stringify({ ok: true, config: cfg, path: CONFIG_PATH }));
@@ -129,11 +118,7 @@ Output (JSON):
     const withoutOld = revertCspMeta(removeTag(content, config.commentSyntax));
     const withTag = insertTag(withoutOld, config, port);
     if (withTag === withoutOld) {
-      return {
-        file: relFile,
-        error: "insertion_point_not_found",
-        anchor: config.insertBefore || config.insertAfter,
-      };
+      return { file: relFile, error: "insertion_point_not_found", anchor: config.insertBefore || config.insertAfter };
     }
     const updated = patchCspMeta(withTag, port);
     fs.writeFileSync(absFile, updated, "utf-8");
@@ -279,21 +264,9 @@ function buildTagBlock(syntax, port) {
   const open = commentOpen(syntax);
   const close = commentClose(syntax);
   return (
-    open
-    + " "
-    + MARKER_OPEN_TEXT
-    + " "
-    + close
-    + "\n"
-    + "<script src=\"http://localhost:"
-    + port
-    + "/live.js\"></script>\n"
-    + open
-    + " "
-    + MARKER_CLOSE_TEXT
-    + " "
-    + close
-    + "\n"
+    open + " " + MARKER_OPEN_TEXT + " " + close + "\n"
+    + "<script src=\"http://localhost:" + port + "/live.js\"></script>\n"
+    + open + " " + MARKER_CLOSE_TEXT + " " + close + "\n"
   );
 }
 
