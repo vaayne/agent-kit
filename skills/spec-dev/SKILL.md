@@ -1,5 +1,5 @@
 ---
-name: specs-dev
+name: spec-dev
 description: >
   Plan-first development workflow that stress-tests ideas against the domain model,
   then manages the full plan lifecycle with inline reviews and phased implementation.
