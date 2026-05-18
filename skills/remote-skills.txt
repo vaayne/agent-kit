@@ -42,7 +42,4 @@ cloudflare/skills --skill cloudflare
 cloudflare/skills --skill wrangler
 cloudflare/skills --skill workers-best-practices
 
-mattpocock/skills --skill to-issues
-mattpocock/skills --skill to-prd
-mattpocock/skills --skill grill-with-docs
 mattpocock/skills --skill improve-codebase-architecture
