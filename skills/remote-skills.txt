@@ -31,13 +31,13 @@ zarazhangrui/frontend-slides
 #openai/plugins --skill swiftui-view-refactor
 
 # generate image
-JimLiu/baoyu-skills --skill baoyu-xhs-images
-JimLiu/baoyu-skills --skill baoyu-cover-image
-JimLiu/baoyu-skills --skill baoyu-infographic
+# JimLiu/baoyu-skills --skill baoyu-xhs-images
+# JimLiu/baoyu-skills --skill baoyu-cover-image
+# JimLiu/baoyu-skills --skill baoyu-infographic
 
 # markting
 #kostja94/marketing-skills
 
-cloudflare/skills --skill cloudflare
-cloudflare/skills --skill wrangler
-cloudflare/skills --skill workers-best-practices
+# cloudflare/skills --skill cloudflare
+# cloudflare/skills --skill wrangler
+# cloudflare/skills --skill workers-best-practices
