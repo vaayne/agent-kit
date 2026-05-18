@@ -41,5 +41,3 @@ JimLiu/baoyu-skills --skill baoyu-infographic
 cloudflare/skills --skill cloudflare
 cloudflare/skills --skill wrangler
 cloudflare/skills --skill workers-best-practices
-
-mattpocock/skills --skill improve-codebase-architecture
