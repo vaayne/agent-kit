@@ -2,16 +2,40 @@
 
 Implementation is phase-by-phase. Each phase is its own catch-up → execute → document → commit cycle.
 
+## Review gates
+
+Pause for user approval at two points:
+
+1. **After grilling, before writing the plan.** "Here's what I understand — should I write the plan?"
+2. **After the plan is written, before implementation.** "Here's the plan — should I start building?"
+
+Don't gate every individual phase — that slows things down for no benefit on routine work. But if a phase produces a surprising result or hits a major blocker, pause and ask before continuing.
+
+## When to use subagents
+
+Default to working inline. Only spawn subagents when the phase justifies the overhead:
+
+- **Simple/small phase** → implement inline, self-review. No subagents needed.
+- **Complex phase** → spawn a scout subagent to gather context first, then a worker subagent to implement. See [worker.md](./agents/worker.md).
+- **High-risk phase** → spawn a reviewer subagent after implementation to catch issues before committing. See [reviewer.md](./agents/reviewer.md).
+
+The judgment call: if you'd be comfortable implementing and reviewing the phase yourself in a few minutes, do it inline. If the phase touches unfamiliar code, has unclear dependencies, or could break things in non-obvious ways, use subagents.
+
 ## Phase workflow
 
 For every phase:
 
 1. **Read `plan.md` first.** Reread to catch up on task state, prior review decisions, open questions, and the previous phase's handoff notes.
-2. **Scout if the phase is complex.** If a phase touches unfamiliar code, has unclear dependencies, or is large enough that you'd hesitate to start coding immediately — spawn a subagent to gather context first. Have it read the relevant files, trace call chains, check test coverage, or map the blast radius. Use its findings to refine the phase tasks before writing any code. This is cheap insurance against rework.
-3. **Implement in a subagent.** Keep the subagent focused on the current phase rather than the whole project. Give it the plan, the scout findings (if any), and the specific tasks.
-4. **Commit after every phase.** Each phase produces its own commit — a reviewable, revertable unit. Don't batch multiple phases into one commit, and don't defer commits until the end.
-5. **Update `plan.md` after the commit.** Mark completed tasks, record decision changes, add the phase handoff note.
-6. **Do not commit `plan.md`.** The working tree should reflect the latest state, but `plan.md` itself doesn't need to be in git history.
+2. **Scout if the phase is complex.** Spawn a subagent to read relevant files, trace call chains, check test coverage, or map the blast radius. Use its findings to refine tasks before writing code.
+3. **Implement.** Either inline or in a worker subagent — see "When to use subagents" above. Keep focus on the current phase only.
+4. **Review if high-risk.** Spawn a reviewer subagent for phases that touch critical paths or could fail silently. Skip for routine work.
+5. **Commit after every phase.** Each phase produces its own commit — a reviewable, revertable unit. Don't batch multiple phases into one commit, and don't defer commits until the end.
+6. **Update `plan.md` after the commit.** Mark completed tasks, record decision changes, add the phase handoff note.
+7. **Do not commit `plan.md`.** The working tree should reflect the latest state, but `plan.md` itself doesn't need to be in git history.
+
+## Escalation
+
+If a phase requires major rework — not just small fixes, but rethinking the approach — pause and ask the user for guidance. Don't start the next phase until the rework is resolved. This prevents wasted effort building on a shaky foundation.
 
 ## Parallel phases
 

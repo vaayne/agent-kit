@@ -40,14 +40,21 @@ Both are resolved inline. The plan text is the authoritative record; review/ques
 
 ## Implementation
 
-Phase-by-phase execution with handoffs. Read [implementation-guide.md](./references/implementation-guide.md) before starting. The core loop:
+Phase-by-phase execution with handoffs. Read [implementation-guide.md](./references/implementation-guide.md) before starting.
+
+**Review gates** — pause for user approval after grilling (before writing the plan) and after the plan (before implementation). Don't gate every phase individually.
+
+**Subagents are adaptive** — default to working inline for simple phases. Only spawn a worker subagent for complex phases or a reviewer subagent for high-risk ones. If a phase requires major rework, pause and escalate to the user.
+
+The core loop:
 
 1. Read `plan.md` to catch up
-2. **Scout first** if the phase is complex — spawn a subagent to gather context (read files, trace dependencies, map blast radius) before writing code
-3. **Commit after every phase** — each phase is its own reviewable, revertable unit
-4. Update `plan.md` — mark tasks done, record changes, write handoff note
-5. **Parallelize independent phases** — when phases touch disjoint files with no data dependency, run them simultaneously in separate subagents with their own worktrees
-6. Domain-awareness behaviors from Phase 0 stay active throughout
+2. **Scout first** if the phase is complex — spawn a subagent to gather context before writing code
+3. **Implement** inline or via worker subagent depending on complexity
+4. **Review** via reviewer subagent if the phase is high-risk — skip for routine work
+5. **Commit after every phase** — each phase is its own reviewable, revertable unit
+6. Update `plan.md` — mark tasks done, record changes, write handoff note
+7. **Parallelize independent phases** — when phases touch disjoint files with no data dependency, run them simultaneously in separate subagents
 
 ---
 
@@ -63,6 +70,8 @@ Phase-by-phase execution with handoffs. Read [implementation-guide.md](./referen
 | Resolve review     | `**Resolved:**` after the review block; update plan text above                | [review-patterns.md](./references/review-patterns.md)           |
 | Ask impl question  | `**Question (name):**` indented under the blocked task                        | [review-patterns.md](./references/review-patterns.md)           |
 | Answer question    | `**Answer:**` directly below the question                                     | [review-patterns.md](./references/review-patterns.md)           |
-| Start a phase      | Read `plan.md` first, scout if complex, then implement in a subagent          | [implementation-guide.md](./references/implementation-guide.md) |
+| Start a phase      | Read `plan.md` first, scout if complex, then implement                        | [implementation-guide.md](./references/implementation-guide.md) |
+| Spawn worker       | Complex phases only — give it plan + scout findings + tasks                   | [worker.md](./references/agents/worker.md)                      |
+| Spawn reviewer     | High-risk phases only — after implementation, before commit                   | [reviewer.md](./references/agents/reviewer.md)                  |
 | End a phase        | Commit code, update plan, write handoff note                                  | [implementation-guide.md](./references/implementation-guide.md) |
 | Check open threads | `grep -n "Review\|Resolved" plan.md` and `grep -n "Question\|Answer" plan.md` |                                                                 |
