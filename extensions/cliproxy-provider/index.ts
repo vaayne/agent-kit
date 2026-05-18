@@ -1,7 +1,7 @@
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 /**
  * Pi extension for the Cliproxy provider.
@@ -56,19 +56,19 @@ function isProviderModelConfig(value: unknown): value is ProviderModelConfig {
   if (typeof value !== "object" || value === null) return false;
   const model = value as ProviderModelConfig;
   return (
-    typeof model.id === "string" &&
-    typeof model.name === "string" &&
-    typeof model.reasoning === "boolean" &&
-    Array.isArray(model.input) &&
-    model.input.every((entry) => entry === "text" || entry === "image") &&
-    typeof model.cost === "object" &&
-    model.cost !== null &&
-    typeof model.cost.input === "number" &&
-    typeof model.cost.output === "number" &&
-    typeof model.cost.cacheRead === "number" &&
-    typeof model.cost.cacheWrite === "number" &&
-    typeof model.contextWindow === "number" &&
-    typeof model.maxTokens === "number"
+    typeof model.id === "string"
+    && typeof model.name === "string"
+    && typeof model.reasoning === "boolean"
+    && Array.isArray(model.input)
+    && model.input.every((entry) => entry === "text" || entry === "image")
+    && typeof model.cost === "object"
+    && model.cost !== null
+    && typeof model.cost.input === "number"
+    && typeof model.cost.output === "number"
+    && typeof model.cost.cacheRead === "number"
+    && typeof model.cost.cacheWrite === "number"
+    && typeof model.contextWindow === "number"
+    && typeof model.maxTokens === "number"
   );
 }
 
@@ -76,10 +76,10 @@ function isModelCache(value: unknown): value is ModelCache {
   if (typeof value !== "object" || value === null) return false;
   const cache = value as ModelCache;
   return (
-    typeof cache.baseUrl === "string" &&
-    typeof cache.fetchedAt === "number" &&
-    Array.isArray(cache.models) &&
-    cache.models.every(isProviderModelConfig)
+    typeof cache.baseUrl === "string"
+    && typeof cache.fetchedAt === "number"
+    && Array.isArray(cache.models)
+    && cache.models.every(isProviderModelConfig)
   );
 }
 
