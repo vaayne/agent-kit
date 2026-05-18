@@ -1,92 +1,77 @@
 ---
 name: specs-dev
-description: Plan-first development workflow with review gates. Use when implementing features, refactoring, or any task requiring structured planning, iterative implementation with reviews, and clean commits. Triggers on requests like "implement feature X", "plan and build", "spec-driven development", or when user wants disciplined, reviewed code changes.
+description: >
+  Plan-first development workflow that stress-tests ideas against the domain model,
+  then manages the full plan lifecycle with inline reviews and phased implementation.
+  Use this skill whenever the user wants to: write or review an implementation plan,
+  grill or stress-test a design, challenge domain terminology, add or resolve review
+  comments on a plan, track phased implementation progress, or audit open review threads.
+  Also use when the user says things like "let's think this through", "poke holes in this",
+  "what am I missing", "plan this out", or wants disciplined, reviewed code changes.
+  Covers the full lifecycle: grilling → drafting → reviewing → resolving → implementing.
 ---
 
-# Specs-Dev Workflow
+Plans live in `./.agents/sessions/{date}-{feature}/plan.md` where `{date}` is `YYYY-MM-DD` and `{feature}` is a short kebab-case label. The file is the single source of truth for the plan, review comments, questions, and handoff notes.
 
-A disciplined, review-gated development workflow: plan first, implement in phases, review between phases.
+## Phase 0: Grilling
 
-## Workflow
+Stress-test the design before writing anything down. Read [grilling-guide.md](./references/grilling-guide.md) for the full process — interrogate one question at a time, challenge terms against `CONTEXT.md`, cross-reference with code, and update docs inline as decisions land.
 
-| Phase             | Purpose                 | Gate                  |
-| ----------------- | ----------------------- | --------------------- |
-| 1. Discovery      | Understand requirements | User approves summary |
-| 2. Planning       | Create reviewed plan    | User approves plan    |
-| 3. Implementation | Phase-by-phase coding   | Each phase reviewed   |
+Skip Phase 0 when the domain model and approach are already clear — small bug fixes, straightforward changes, or work where the plan is obvious don't need interrogation.
 
-## Phase 1: Discovery
+---
 
-**Goal:** Shared understanding before planning.
+## Writing a plan
 
-1. State your understanding of the request
-2. Ask clarifying questions (goals, constraints, success criteria, out-of-scope)
-3. Iterate until clear
-4. Present final requirements summary
+Follow the template in [plan-template.md](./references/plan-template.md). The key principle: explain **why**, not just what. For each significant decision, cover what you decided, what alternatives you ruled out, and what tradeoffs you accepted.
 
-**Gate:** "Do I understand correctly? Should I proceed to planning?" — Wait for approval.
+---
 
-## Phase 2: Planning
+## Review and resolution
 
-**Goal:** Create a comprehensive, reviewed implementation plan.
+Reviews and questions use inline patterns documented in [review-patterns.md](./references/review-patterns.md). The key distinction:
 
-1. Draft plan using `references/templates/plan.md`
-2. Review with reviewer subagent (see `references/agents/reviewer.md`) — max 3 rounds
-3. Integrate feedback, iterate until approved
-4. If still not approved after 3 rounds — summarize unresolved concerns and ask user whether to revise scope, continue anyway, or stop
-5. Resolve all Open Questions — convert remaining unknowns into explicit assumptions before proceeding
-6. Present plan to user — wait for approval
-7. Create session folder: `.agents/sessions/{YYYY-MM-DD}-{feature-name}/`
-8. Save `plan.md`, `tasks.md`, and `handoff.md` (initialized from `references/templates/handoff.md`) to session folder
+- **Review comments** (`> quote` + `**Review:**`) — design critique, before work starts
+- **Questions** (`**Question:**` indented under a task) — impl discoveries, need unblocking
 
-**Plan quality check:**
+Both are resolved inline. The plan text is the authoritative record; review/question threads are the audit trail.
 
-- Every requirement from Phase 1 addressed
-- Tasks are actionable and logically ordered
-- Testing strategy specified
-- Risks captured
-- No unresolved Open Questions (converted to assumptions or removed)
+---
 
-## Phase 3: Implementation
+## Implementation
 
-**Goal:** Implement the plan phase-by-phase with reviews between phases.
+Phase-by-phase execution with handoffs. Read [implementation-guide.md](./references/implementation-guide.md) before starting.
 
-> Read `references/loop.md` before starting. It defines the phase loop.
+**Review gates** — pause for user approval after grilling (before writing the plan) and after the plan (before implementation). Don't gate every phase individually.
 
-**Summary of the loop:**
+**Subagents are adaptive** — default to working inline for simple phases. Only spawn a worker subagent for complex phases or a reviewer subagent for high-risk ones. If a phase requires major rework, pause and escalate to the user.
 
-```
-For each phase in the plan:
-  1. Spawn worker subagent → implements all tasks, commits each one
-  2. Worker writes phase summary to handoff.md
-  3. Spawn reviewer subagent → reads handoff.md, reviews the phase
-  4. If changes needed → fix in main agent context
-  5. Continue to next phase
-```
+The core loop:
 
-After the last phase: run full test suite, update session docs, confirm with user.
+1. Read `plan.md` to catch up
+2. **Scout first** if the phase is complex — spawn a subagent to gather context before writing code
+3. **Implement** inline or via worker subagent depending on complexity
+4. **Review** via reviewer subagent if the phase is high-risk — skip for routine work
+5. **Commit after every phase** — each phase is its own reviewable, revertable unit
+6. Update `plan.md` — mark tasks done, record changes, write handoff note
+7. **Parallelize independent phases** — when phases touch disjoint files with no data dependency, run them simultaneously in separate subagents
 
-**Subagents:**
+---
 
-- Worker: `references/agents/worker.md`
-- Reviewer: `references/agents/reviewer.md`
-- Handoff protocol: `references/handoff.md`
+## Quick reference
 
-## Session Structure
-
-```
-.agents/sessions/{YYYY-MM-DD}-{feature-name}/
-├── plan.md       # Strategic plan
-├── tasks.md      # Task checklist
-└── handoff.md    # Phase handoff log (appended each phase)
-```
-
-## References
-
-| File                            | When to Read            |
-| ------------------------------- | ----------------------- |
-| `references/loop.md`            | Start of Phase 3        |
-| `references/handoff.md`         | Start of Phase 3        |
-| `references/agents/reviewer.md` | Plan/phase reviews      |
-| `references/agents/worker.md`   | Phase implementation    |
-| `references/templates/`         | Phase 2 (plan creation) |
+| Action             | What to do                                                                    | Reference                                                       |
+| ------------------ | ----------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Grill a design     | Interrogate one question at a time, challenge terms, cross-reference code     | [grilling-guide.md](./references/grilling-guide.md)             |
+| Update glossary    | Edit `CONTEXT.md` inline as terms resolve                                     | [context-format.md](./references/context-format.md)             |
+| Record a decision  | ADR only when hard-to-reverse + surprising + real tradeoff                    | [adr-format.md](./references/adr-format.md)                     |
+| Write plan         | Create `./.agents/sessions/{date}-{feature}/plan.md`                          | [plan-template.md](./references/plan-template.md)               |
+| Add review         | `> quote` then `**Review (name):**`                                           | [review-patterns.md](./references/review-patterns.md)           |
+| Resolve review     | `**Resolved:**` after the review block; update plan text above                | [review-patterns.md](./references/review-patterns.md)           |
+| Ask impl question  | `**Question (name):**` indented under the blocked task                        | [review-patterns.md](./references/review-patterns.md)           |
+| Answer question    | `**Answer:**` directly below the question                                     | [review-patterns.md](./references/review-patterns.md)           |
+| Start a phase      | Read `plan.md` first, scout if complex, then implement                        | [implementation-guide.md](./references/implementation-guide.md) |
+| Spawn worker       | Complex phases only — give it plan + scout findings + tasks                   | [worker.md](./references/agents/worker.md)                      |
+| Spawn reviewer     | High-risk phases only — after implementation, before commit                   | [reviewer.md](./references/agents/reviewer.md)                  |
+| End a phase        | Commit code, update plan, write handoff note                                  | [implementation-guide.md](./references/implementation-guide.md) |
+| Check open threads | `grep -n "Review\|Resolved" plan.md` and `grep -n "Question\|Answer" plan.md` |                                                                 |
