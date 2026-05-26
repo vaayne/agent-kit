@@ -17,7 +17,7 @@ vaayne/mcphub --skill find-skills
 vaayne/mcphub --skill mcp-skill-gen
 blader/humanizer --skill humanizer
 
-#vaayne/tap --skill tap-web
+# vaayne/tap --skill tap-web
 
 # write slides
 #slidevjs/slidev
@@ -41,3 +41,5 @@ zarazhangrui/frontend-slides
 # cloudflare/skills --skill cloudflare
 # cloudflare/skills --skill wrangler
 # cloudflare/skills --skill workers-best-practices
+
+yetone/native-feel-skill

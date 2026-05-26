@@ -23,6 +23,9 @@ run = """
 mkdir -p ~/.agents/skills
 rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
 
+# Sync Designer
+cd ./skills/designer && bash scripts/sync.sh
+
 # Install remote skills from registry
 if [ -f ./skills/remote-skills.txt ]; then
   while IFS= read -r line; do
