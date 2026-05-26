@@ -43,3 +43,4 @@ zarazhangrui/frontend-slides
 # cloudflare/skills --skill workers-best-practices
 
 yetone/native-feel-skill
+hardikpandya/stop-slop
