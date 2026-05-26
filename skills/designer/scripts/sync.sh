@@ -16,17 +16,22 @@ SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REFS_DIR="$SKILL_DIR/references"
 REPO_URL="https://github.com/nexu-io/open-design.git"
 
-TMP_DIR="$(mktemp -d)"
-cleanup() { rm -rf "$TMP_DIR"; }
-trap cleanup EXIT
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/open-design"
 
-# ── clone ─────────────────────────────────────────────────────────────
+# ── clone or update ──────────────────────────────────────────────────
 
-echo "Cloning open-design (shallow + sparse)…"
-git clone --depth 1 --sparse "$REPO_URL" "$TMP_DIR/od" 2>&1 | tail -1
-git -C "$TMP_DIR/od" sparse-checkout set design-systems design-templates 2>/dev/null
+if [[ -d "$CACHE_DIR/.git" ]]; then
+  echo "Updating cached open-design…"
+  git -C "$CACHE_DIR" fetch --depth 1 origin main 2>&1 | tail -1
+  git -C "$CACHE_DIR" reset --hard origin/main >/dev/null
+else
+  echo "Cloning open-design (shallow + sparse)…"
+  rm -rf "$CACHE_DIR"
+  git clone --depth 1 --sparse "$REPO_URL" "$CACHE_DIR" 2>&1 | tail -1
+  git -C "$CACHE_DIR" sparse-checkout set design-systems design-templates 2>/dev/null
+fi
 
-OD_ROOT="$TMP_DIR/od"
+OD_ROOT="$CACHE_DIR"
 DS_SRC="$OD_ROOT/design-systems"
 DT_SRC="$OD_ROOT/design-templates"
 

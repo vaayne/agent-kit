@@ -21,13 +21,15 @@ description = "Sync all skills (local + remote) to ~/.agents/skills"
 depends = ["sync:impeccable"]
 run = """
 mkdir -p ~/.agents/skills
-rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
 
 # Sync Designer
-cd ./skills/designer && bash scripts/sync.sh
+(cd ./skills/designer && bash scripts/sync.sh)
 
 # Sync Tap-web
 tap skill install --path ./skills/tap-web
+
+# Copy all skills to shared location (after all sources are populated)
+rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
 
 # Install remote skills from registry
 if [ -f ./skills/remote-skills.txt ]; then
