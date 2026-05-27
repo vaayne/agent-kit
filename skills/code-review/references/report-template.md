@@ -74,6 +74,7 @@ Includes severity-based action guidance table below.
 ## Verdict Icons
 
 Use text symbols, not emoji:
+
 - Ship it: `✓`
 - Fix and ship: `⚠`
 - Rethink: `✕`
