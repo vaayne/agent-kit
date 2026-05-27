@@ -2,7 +2,7 @@
 
 ## Quick start
 
-Copy both `scripts/openlist.py` and `scripts/openlist_client.py` to `.agents/scripts/`, then `source ~/.zshenv`.
+Copy both `scripts/openlist.py` and `scripts/openlist_client.py` to `~/.agents/sessions/{project}/scripts/`, then `source ~/.zshenv`.
 
 **For simple operations**, use the CLI directly — see `use-cases.md`.
 

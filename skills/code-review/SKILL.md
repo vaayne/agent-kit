@@ -92,14 +92,14 @@ After all four agents return:
 
 ### Phase 4: Generate HTML Report
 
-Use the `html-artifact` skill patterns or write a standalone HTML file. Save it to `.agents/reviews/{date}-{branch-name}.html` where `{date}` is `YYYY-MM-DD`.
+Use the `html-artifact` skill patterns or write a standalone HTML file. Save it to `~/.agents/sessions/{project}/reviews/{date}-{branch-name}.html` where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, and `{date}` is `YYYY-MM-DD`.
 
 Follow the template in [references/report-template.md](references/report-template.md).
 
 Open the report in the browser after generating it:
 
 ```bash
-open .agents/reviews/{date}-{branch-name}.html  # macOS
+open ~/.agents/sessions/{project}/reviews/{date}-{branch-name}.html  # macOS
 ```
 
 ---

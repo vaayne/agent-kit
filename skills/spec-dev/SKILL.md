@@ -11,7 +11,7 @@ description: >
   Covers the full lifecycle: grilling → drafting → reviewing → resolving → implementing.
 ---
 
-Plans live in `./.agents/sessions/{date}-{feature}/plan.md` where `{date}` is `YYYY-MM-DD` and `{feature}` is a short kebab-case label. The file is the single source of truth for the plan, review comments, questions, and handoff notes.
+Plans live in `~/.agents/sessions/{project}/{date}-{feature}/plan.md` where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{feature}` is a short kebab-case label. The file is the single source of truth for the plan, review comments, questions, and handoff notes.
 
 ## Phase 0: Grilling
 
@@ -65,7 +65,7 @@ The core loop:
 | Grill a design     | Interrogate one question at a time, challenge terms, cross-reference code     | [grilling-guide.md](./references/grilling-guide.md)             |
 | Update glossary    | Edit `CONTEXT.md` inline as terms resolve                                     | [context-format.md](./references/context-format.md)             |
 | Record a decision  | ADR only when hard-to-reverse + surprising + real tradeoff                    | [adr-format.md](./references/adr-format.md)                     |
-| Write plan         | Create `./.agents/sessions/{date}-{feature}/plan.md`                          | [plan-template.md](./references/plan-template.md)               |
+| Write plan         | Create `~/.agents/sessions/{project}/{date}-{feature}/plan.md`                | [plan-template.md](./references/plan-template.md)               |
 | Add review         | `> quote` then `**Review (name):**`                                           | [review-patterns.md](./references/review-patterns.md)           |
 | Resolve review     | `**Resolved:**` after the review block; update plan text above                | [review-patterns.md](./references/review-patterns.md)           |
 | Ask impl question  | `**Question (name):**` indented under the blocked task                        | [review-patterns.md](./references/review-patterns.md)           |

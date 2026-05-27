@@ -1,10 +1,10 @@
 # OpenList Use Cases
 
 Quick reference for common tasks using `scripts/openlist.py`.
-Copy both `scripts/openlist.py` and `scripts/openlist_client.py` to `.agents/scripts/` first, then `source ~/.zshenv`.
+Copy both `scripts/openlist.py` and `scripts/openlist_client.py` to `~/.agents/sessions/{project}/scripts/` first, then `source ~/.zshenv`.
 
 ```bash
-SCRIPT="uv run --script .agents/scripts/openlist.py"
+SCRIPT="uv run --script ~/.agents/sessions/{project}/scripts/openlist.py"
 ```
 
 ---

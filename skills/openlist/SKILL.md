@@ -9,10 +9,12 @@ Manage files on an OpenList server via its REST API. OpenList is an AList-compat
 
 ## Setup
 
-Copy both SDK and CLI to `.agents/scripts/`, then load env vars:
+`{project}` is the git repo name (if in a git repo) or the basename of the current working directory.
+
+Copy both SDK and CLI to `~/.agents/sessions/{project}/scripts/`, then load env vars:
 
 ```bash
-cp skills/openlist/scripts/openlist_client.py skills/openlist/scripts/openlist.py .agents/scripts/
+cp skills/openlist/scripts/openlist_client.py skills/openlist/scripts/openlist.py ~/.agents/sessions/{project}/scripts/
 source ~/.zshenv
 ```
 
@@ -53,7 +55,7 @@ source ~/.zshenv
   ```
 - **`scripts/openlist.py`** — CLI wrapper covering all endpoints. Run as:
   ```bash
-  SCRIPT="uv run --script .agents/scripts/openlist.py"
+  SCRIPT="uv run --script ~/.agents/sessions/{project}/scripts/openlist.py"
   $SCRIPT ls "/quark/来自：分享/TVs"
   $SCRIPT rename "/path/to/old" "new-name"
   ```
@@ -70,7 +72,7 @@ When the user mentions Emby, Jellyfin, or media library organization, read `refe
 
 ## Script conventions
 
-- Save task scripts to `.agents/scripts/{script_name}.py`
+- Save task scripts to `~/.agents/sessions/{project}/scripts/{script_name}.py`
 - Always offer `--dry-run` for destructive operations
 - Print a summary table (via `rich.table`) before executing
 - Quark storage moves are async — add retry/delay between move and rename steps

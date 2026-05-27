@@ -11,16 +11,18 @@ Design and run Python scripts with clear requirements, safety checks, and reprod
 
 ## Workflow
 
+`{project}` is the git repo name (if in a git repo) or the basename of the current working directory.
+
 1. Confirm inputs, outputs, constraints, and preferred libraries.
 2. Identify risky operations and secure explicit approval.
 3. Scaffold a script with PEP 723 metadata and structured logging.
-4. Lint with `uvx ruff check --fix .agents/scripts/{script_name}.py`.
-5. Run with `uv run --script .agents/scripts/{script_name}.py` and monitor logs.
+4. Lint with `uvx ruff check --fix ~/.agents/sessions/{project}/scripts/{script_name}.py`.
+5. Run with `uv run --script ~/.agents/sessions/{project}/scripts/{script_name}.py` and monitor logs.
 6. Report results, risks encountered, and any follow-up steps.
 
 ## Logging requirements
 
-- Log to `.agents/logs/{script_name}.log` and stream to console
+- Log to `~/.agents/sessions/{project}/logs/{script_name}.log` and stream to console
 - Capture start/end timestamps, parameters, file operations, and errors
 - Add `RotatingFileHandler` if logs may grow large
 

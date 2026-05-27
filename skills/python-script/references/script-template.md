@@ -20,7 +20,7 @@ import click
 from rich.console import Console
 from rich.logging import RichHandler
 
-LOG_DIR = Path(".agents/logs")
+LOG_DIR = Path.home() / ".agents/sessions" / Path.cwd().name / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
