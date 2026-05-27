@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Review — {branch-name}</title>
+  <style>
+    /* ── Reset & Foundation ──────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      oklch(16% 0.02 260);
+      --surface: oklch(20% 0.018 260);
+      --surface-raised: oklch(24% 0.016 260);
+      --fg:      oklch(92% 0.01 250);
+      --fg-secondary: oklch(68% 0.012 250);
+      --muted:   oklch(50% 0.018 250);
+      --border:  oklch(30% 0.012 260);
+      --border-subtle: oklch(26% 0.010 260);
+
+      --critical: oklch(65% 0.25 25);
+      --critical-bg: oklch(25% 0.06 25);
+      --critical-border: oklch(35% 0.10 25);
+      --high: oklch(72% 0.18 55);
+      --high-bg: oklch(26% 0.05 55);
+      --high-border: oklch(36% 0.08 55);
+      --medium: oklch(78% 0.15 85);
+      --medium-bg: oklch(26% 0.04 85);
+      --medium-border: oklch(36% 0.07 85);
+      --low: oklch(70% 0.14 250);
+      --low-bg: oklch(24% 0.04 250);
+      --low-border: oklch(34% 0.07 250);
+      --success: oklch(72% 0.18 155);
+      --success-bg: oklch(24% 0.05 155);
+
+      --font-body: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root[data-theme="auto"], :root:not([data-theme]) {
+        --bg:      oklch(98% 0.005 250);
+        --surface: oklch(100% 0 0);
+        --surface-raised: oklch(97% 0.004 250);
+        --fg:      oklch(18% 0.015 250);
+        --fg-secondary: oklch(40% 0.012 250);
+        --muted:   oklch(55% 0.015 250);
+        --border:  oklch(90% 0.008 250);
+        --border-subtle: oklch(93% 0.005 250);
+        --critical-bg: oklch(96% 0.02 25);
+        --critical-border: oklch(85% 0.06 25);
+        --high-bg: oklch(96% 0.02 55);
+        --high-border: oklch(85% 0.05 55);
+        --medium-bg: oklch(96% 0.02 85);
+        --medium-border: oklch(88% 0.04 85);
+        --low-bg: oklch(96% 0.02 250);
+        --low-border: oklch(88% 0.04 250);
+        --success-bg: oklch(96% 0.02 155);
+      }
+    }
+
+    :root[data-theme="light"] {
+      --bg:      oklch(98% 0.005 250);
+      --surface: oklch(100% 0 0);
+      --surface-raised: oklch(97% 0.004 250);
+      --fg:      oklch(18% 0.015 250);
+      --fg-secondary: oklch(40% 0.012 250);
+      --muted:   oklch(55% 0.015 250);
+      --border:  oklch(90% 0.008 250);
+      --border-subtle: oklch(93% 0.005 250);
+      --critical-bg: oklch(96% 0.02 25);
+      --critical-border: oklch(85% 0.06 25);
+      --high-bg: oklch(96% 0.02 55);
+      --high-border: oklch(85% 0.05 55);
+      --medium-bg: oklch(96% 0.02 85);
+      --medium-border: oklch(88% 0.04 85);
+      --low-bg: oklch(96% 0.02 250);
+      --low-border: oklch(88% 0.04 250);
+      --success-bg: oklch(96% 0.02 155);
+    }
+
+    html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: var(--space-xl) var(--space-lg);
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: var(--space-lg);
+      margin-bottom: var(--space-xl);
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .header h1 .branch {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      color: var(--fg-secondary);
+      font-weight: 400;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md) var(--space-lg);
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+    .meta-row .stat {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    .meta-row .additions { color: var(--success); }
+    .meta-row .deletions { color: var(--critical); }
+
+    /* ── Summary Dashboard ───────────────────────────────── */
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    .dash-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-md) var(--space-lg);
+      text-align: center;
+    }
+    .dash-card .count {
+      font-size: 2rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .dash-card .label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: var(--space-xs);
+      color: var(--fg-secondary);
+    }
+    .dash-card.critical { border-left: 3px solid var(--critical); }
+    .dash-card.critical .count { color: var(--critical); }
+    .dash-card.high { border-left: 3px solid var(--high); }
+    .dash-card.high .count { color: var(--high); }
+    .dash-card.medium { border-left: 3px solid var(--medium); }
+    .dash-card.medium .count { color: var(--medium); }
+    .dash-card.low { border-left: 3px solid var(--low); }
+    .dash-card.low .count { color: var(--low); }
+
+    .assessment {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-md) var(--space-lg);
+      margin-bottom: var(--space-xl);
+      font-size: 0.92rem;
+      color: var(--fg-secondary);
+    }
+
+    /* ── Filter Bar ──────────────────────────────────────── */
+    .filter-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: color-mix(in oklch, var(--bg) 85%, transparent);
+      backdrop-filter: blur(12px) saturate(1.4);
+      -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: var(--space-sm) 0;
+      margin-bottom: var(--space-lg);
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: var(--space-xs) var(--space-md);
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .filter-btn:hover { border-color: var(--fg-secondary); }
+    .filter-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+    .filter-btn .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: var(--space-xs);
+      vertical-align: middle;
+    }
+    .filter-btn .dot.critical { background: var(--critical); }
+    .filter-btn .dot.high { background: var(--high); }
+    .filter-btn .dot.medium { background: var(--medium); }
+    .filter-btn .dot.low { background: var(--low); }
+
+    /* ── Section Headers ─────────────────────────────────── */
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* ── Finding Cards ───────────────────────────────────── */
+    .findings { margin-bottom: var(--space-2xl); }
+
+    .finding {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-md);
+      overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+    .finding:hover { border-color: var(--fg-secondary); }
+
+    .finding[data-severity="critical"] { border-left: 3px solid var(--critical); }
+    .finding[data-severity="high"]     { border-left: 3px solid var(--high); }
+    .finding[data-severity="medium"]   { border-left: 3px solid var(--medium); }
+    .finding[data-severity="low"]      { border-left: 3px solid var(--low); }
+
+    .finding summary {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-lg);
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .finding summary::-webkit-details-marker { display: none; }
+    .finding summary::before {
+      content: '\25B8';
+      font-size: 0.75rem;
+      color: var(--muted);
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+    }
+    .finding[open] summary::before { transform: rotate(90deg); }
+
+    .finding-body {
+      padding: 0 var(--space-lg) var(--space-lg);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--fg-secondary);
+    }
+    .finding-body > * + * { margin-top: var(--space-md); }
+
+    /* Severity pill */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 10px;
+      border-radius: 100px;
+      flex-shrink: 0;
+    }
+    .pill.critical { background: var(--critical-bg); color: var(--critical); border: 1px solid var(--critical-border); }
+    .pill.high     { background: var(--high-bg);     color: var(--high);     border: 1px solid var(--high-border); }
+    .pill.medium   { background: var(--medium-bg);   color: var(--medium);   border: 1px solid var(--medium-border); }
+    .pill.low      { background: var(--low-bg);      color: var(--low);      border: 1px solid var(--low-border); }
+
+    /* Category tag */
+    .tag {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+      color: var(--muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* File reference */
+    .file-ref {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--fg-secondary);
+      margin-left: auto;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+    }
+
+    .finding-title {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Description & suggestion */
+    .finding-description { color: var(--fg); }
+    .finding-suggestion {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-md);
+    }
+    .finding-suggestion .suggestion-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--success);
+      margin-bottom: var(--space-sm);
+    }
+
+    /* Code blocks */
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-md);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--surface-raised);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    pre code { background: none; padding: 0; }
+
+    /* Metadata footer inside finding */
+    .finding-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm) var(--space-md);
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .finding-meta span { display: flex; align-items: center; gap: var(--space-xs); }
+
+    /* ── Side Quests ──────────────────────────────────────── */
+    .side-quest .finding {
+      border-style: dashed;
+      opacity: 0.85;
+    }
+    .side-quest-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--surface-raised);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-bottom: var(--space-sm);
+    }
+
+    /* ── Verdict ──────────────────────────────────────────── */
+    .verdict {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      text-align: center;
+      margin-top: var(--space-2xl);
+    }
+    .verdict-icon { font-size: 2.5rem; margin-bottom: var(--space-sm); }
+    .verdict h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-sm);
+    }
+    .verdict.ship    { border-color: var(--success); }
+    .verdict.ship h2 { color: var(--success); }
+    .verdict.fix     { border-color: var(--high); }
+    .verdict.fix h2  { color: var(--high); }
+    .verdict.rethink { border-color: var(--critical); }
+    .verdict.rethink h2 { color: var(--critical); }
+    .verdict p { color: var(--fg-secondary); font-size: 0.9rem; max-width: 540px; margin: 0 auto; }
+
+    /* Severity action table */
+    .action-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: var(--space-lg);
+      font-size: 0.82rem;
+      text-align: left;
+    }
+    .action-table th {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: 1px solid var(--border);
+    }
+    .action-table td {
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--fg-secondary);
+      vertical-align: top;
+    }
+
+    /* ── Theme Toggle ────────────────────────────────────── */
+    .theme-toggle {
+      position: fixed;
+      top: var(--space-md);
+      right: var(--space-md);
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: var(--space-xs) var(--space-sm);
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--fg-secondary);
+      transition: all 0.15s ease;
+      line-height: 1;
+    }
+    .theme-toggle:hover { border-color: var(--fg-secondary); }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .container { padding: var(--space-md); }
+      .dashboard { grid-template-columns: repeat(2, 1fr); }
+      .file-ref { display: none; }
+      .finding summary { flex-wrap: wrap; }
+      .meta-row { gap: var(--space-sm); }
+    }
+
+    /* ── Print ────────────────────────────────────────────── */
+    @media print {
+      :root {
+        --bg: white; --surface: white; --surface-raised: #f5f5f5;
+        --fg: #111; --fg-secondary: #444; --muted: #777;
+        --border: #ddd; --border-subtle: #eee;
+      }
+      .theme-toggle, .filter-bar { display: none !important; }
+      .finding[open] summary ~ * { display: block !important; }
+      details { break-inside: avoid; }
+      details[open] { break-inside: auto; }
+      .finding { break-inside: avoid; }
+      body { font-size: 11pt; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Theme toggle -->
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">&#9684;</button>
+
+  <div class="container">
+    <!-- ── Header ──────────────────────────────────────── -->
+    <header class="header">
+      <h1>Code Review <span class="branch">&rarr; {branch-name}</span></h1>
+      <div class="meta-row">
+        <span class="stat">base: {base-branch}</span>
+        <span class="stat">{date}</span>
+        <span class="stat">{n} commits</span>
+        <span class="stat">{n} files</span>
+        <span class="stat additions">+{lines}</span>
+        <span class="stat deletions">&minus;{lines}</span>
+      </div>
+    </header>
+
+    <!-- ── Summary Dashboard ───────────────────────────── -->
+    <div class="dashboard">
+      <div class="dash-card critical">
+        <div class="count">{n}</div>
+        <div class="label">Critical</div>
+      </div>
+      <div class="dash-card high">
+        <div class="count">{n}</div>
+        <div class="label">High</div>
+      </div>
+      <div class="dash-card medium">
+        <div class="count">{n}</div>
+        <div class="label">Medium</div>
+      </div>
+      <div class="dash-card low">
+        <div class="count">{n}</div>
+        <div class="label">Low</div>
+      </div>
+    </div>
+
+    <div class="assessment">
+      <!-- One-sentence overall assessment -->
+    </div>
+
+    <!-- ── Filter Bar ──────────────────────────────────── -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterFindings('all')">All</button>
+      <button class="filter-btn" onclick="filterFindings('critical')">
+        <span class="dot critical"></span>Critical
+      </button>
+      <button class="filter-btn" onclick="filterFindings('high')">
+        <span class="dot high"></span>High
+      </button>
+      <button class="filter-btn" onclick="filterFindings('medium')">
+        <span class="dot medium"></span>Medium
+      </button>
+      <button class="filter-btn" onclick="filterFindings('low')">
+        <span class="dot low"></span>Low
+      </button>
+    </div>
+
+    <!-- ── Findings ────────────────────────────────────── -->
+    <div class="findings">
+      <div class="section-title">Findings</div>
+
+      <!-- Repeat per finding, grouped by severity (critical first) -->
+      <details class="finding" data-severity="{severity}" open>
+        <summary>
+          <span class="pill {severity}">{SEVERITY}</span>
+          <span class="finding-title">{Title of the finding}</span>
+          <span class="tag">{category}</span>
+          <span class="file-ref">{file/path.ts}:{lines}</span>
+        </summary>
+        <div class="finding-body">
+          <div class="finding-description">
+            <p>{Description — what's wrong and why it matters}</p>
+          </div>
+          <div class="finding-suggestion">
+            <div class="suggestion-label">Suggested Fix</div>
+            <p>{Explanation}</p>
+            <pre><code>{code fix if applicable}</code></pre>
+          </div>
+          <div class="finding-meta">
+            <span>Confidence: {high|medium|low}</span>
+            <span>Flagged by: {Bug Hunter, Correctness Prover}</span>
+          </div>
+        </div>
+      </details>
+      <!-- /finding -->
+
+    </div>
+
+    <!-- ── Side Quests (if any) ────────────────────────── -->
+    <div class="findings side-quest">
+      <div class="section-title">Side Quests</div>
+      <div class="side-quest-label">Pre-existing — not introduced by this PR</div>
+
+      <!-- Same finding card structure, dashed border applied by .side-quest -->
+    </div>
+
+    <!-- ── Verdict ─────────────────────────────────────── -->
+    <div class="verdict {ship|fix|rethink}">
+      <div class="verdict-icon">{icon}</div>
+      <h2>{Ship it | Fix and ship | Rethink}</h2>
+      <p>{Verdict explanation}</p>
+
+      <table class="action-table">
+        <thead>
+          <tr><th>Severity</th><th>Action Required</th><th>Timeline</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill critical">Critical</span></td><td>Must fix before merge</td><td>Immediate</td></tr>
+          <tr><td><span class="pill high">High</span></td><td>Should fix before merge</td><td>This PR</td></tr>
+          <tr><td><span class="pill medium">Medium</span></td><td>Fix soon, can merge</td><td>Next sprint</td></tr>
+          <tr><td><span class="pill low">Low</span></td><td>Consider fixing</td><td>Backlog</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    }
+
+    function filterFindings(severity) {
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.filter-btn').classList.add('active');
+
+      document.querySelectorAll('.finding').forEach(el => {
+        if (severity === 'all' || el.dataset.severity === severity) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
