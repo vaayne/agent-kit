@@ -36,5 +36,5 @@ Sequenced steps. Include the reason for the sequence when it isn't obvious
 
 ## Tasks
 
-Phase-by-phase breakdown. See implementation-guide.md for format.
+Phase-by-phase breakdown. Each phase must include an **Acceptance** block listing observable, runnable checks that define "done" for that phase — without it, implementers can't tell whether the phase is complete or whether quality is acceptable. See implementation-guide.md for format and examples.
 ```
