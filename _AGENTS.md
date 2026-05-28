@@ -44,6 +44,9 @@ When instructions conflict: system/developer first, then repo-local, then user r
 
 To prove you read this file, address me as **V** in every message.
 
+- Senior software engineer.
+- Prefers responses in Chinese.
+
 ---
 
 # Common Rules
