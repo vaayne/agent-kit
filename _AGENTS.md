@@ -100,9 +100,9 @@ If `semble` is not on `$PATH`, use `uvx --from "semble[mcp]" semble` instead. Us
 
 ## Commits
 
-- Commit only when asked.
+- Proactively commit small, complete changes — each commit should be a self-contained unit of work, making diffs easier to review and individual changes easy to revert.
 - Use small, focused emoji Conventional Commits.
-- Never commit secrets or add `Signed-off-by`.
+- NEVER commit secrets or add `Signed-off-by`.
 
 ## Final Report
 
