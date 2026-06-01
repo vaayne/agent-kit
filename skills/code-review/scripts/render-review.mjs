@@ -11,7 +11,7 @@ if (!inputPath || !outputDir) {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const templatePath = join(here, "report-template.html");
+const templatePath = join(here, "..", "references", "report-template.html");
 const template = readFileSync(templatePath, "utf8");
 const review = JSON.parse(readFileSync(inputPath, "utf8"));
 
