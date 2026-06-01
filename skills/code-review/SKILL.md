@@ -179,6 +179,10 @@ Merge findings by `fingerprint`:
    - Append `finding.stale` when marking stale.
 4. Do not delete old findings during normal updates. Preserve review history through statuses and `events.jsonl`.
 
+## Localization
+
+Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — assessment, verdict explanation, finding descriptions, suggestions, and impact statements — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
+
 ## Edge Cases
 
 - **Large diffs (>500 lines)**: Split the diff by file or directory and have each agent review in batches. Summarize cross-file concerns separately.
