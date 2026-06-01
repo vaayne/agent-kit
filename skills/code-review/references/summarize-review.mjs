@@ -28,9 +28,15 @@ function compareFindings(a, b) {
 }
 
 function titleCase(value) {
-  return String(value ?? "")
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const normalized = String(value ?? "").replace(/-/g, " ");
+  const lowerWords = new Set(["and", "or", "the", "a", "an", "it"]);
+  return normalized
+    .split(" ")
+    .map((word, index) => {
+      if (index > 0 && lowerWords.has(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
 }
 
 function location(finding) {
@@ -59,7 +65,7 @@ const openFindings = findings.filter((finding) => openStatuses.has(finding.statu
 const closedFindings = findings.filter(
   (finding) => !openStatuses.has(finding.status ?? "open"),
 );
-const counts = findings.reduce(
+const counts = openFindings.reduce(
   (acc, finding) => {
     const severity = finding.severity ?? "low";
     acc[severity] = (acc[severity] ?? 0) + 1;
@@ -76,7 +82,7 @@ const lines = [
   `- Branch: ${review.branch ?? "unknown"}`,
   `- Base: ${review.base ?? "unknown"}`,
   `- Verdict: ${titleCase(review.verdict ?? "unknown")}`,
-  `- Findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
+  `- Open findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
   "",
   review.assessment ?? "",
   "",

@@ -30,10 +30,37 @@ if (!allowedActions.has(action)) {
   process.exit(1);
 }
 
+const openStatuses = new Set(["open", "reopened"]);
+
 function option(name) {
   const index = args.indexOf(name);
   if (index === -1) return undefined;
   return args[index + 1];
+}
+
+function inferVerdict(review) {
+  const active = (review.findings ?? []).filter((candidate) => openStatuses.has(candidate.status ?? "open"));
+  const critical = active.filter((candidate) => candidate.severity === "critical").length;
+  const high = active.filter((candidate) => candidate.severity === "high").length;
+  if (critical > 1) return "rethink";
+  if (critical > 0 || high > 0) return "fix-and-ship";
+  return "ship-it";
+}
+
+function summarizeAssessment(review) {
+  const active = (review.findings ?? []).filter((candidate) => openStatuses.has(candidate.status ?? "open"));
+  const counts = active.reduce(
+    (acc, candidate) => {
+      acc[candidate.severity] = (acc[candidate.severity] ?? 0) + 1;
+      return acc;
+    },
+    { critical: 0, high: 0, medium: 0, low: 0 },
+  );
+
+  if (active.length === 0) return "No open findings remain.";
+  return `${active.length} open finding${
+    active.length === 1 ? "" : "s"
+  }: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low.`;
 }
 
 const note = option("--note");
@@ -68,6 +95,10 @@ if (action === "reopened") {
   finding.reopened_at = now;
   if (note) finding.reopen_note = note;
 }
+
+review.verdict = inferVerdict(review);
+review.assessment = summarizeAssessment(review);
+review.verdict_explanation = review.assessment;
 
 writeFileSync(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
 

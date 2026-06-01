@@ -92,7 +92,7 @@ After all four agents return:
 
 ### Phase 4: Generate Review Bundle
 
-Create a review bundle directory at `~/.agents/sessions/{project}/reviews/{date}-{branch-name}/`, where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, and `{date}` is `YYYY-MM-DD`.
+Create a review bundle directory at `~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/`, where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{branch-slug}` is the branch name made filesystem-safe by replacing `/` and other non-portable characters with `-`. Keep the original branch name in `review.json.branch`.
 
 Write these files:
 
@@ -107,18 +107,18 @@ After writing `review.json`, initialize `events.jsonl` with `review.created` and
 
 ```bash
 node skills/code-review/references/render-report.mjs \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/review.json \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/report.html
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/report.html
 
 node skills/code-review/references/summarize-review.mjs \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/review.json \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/summary.md
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/summary.md
 ```
 
 Open the HTML report in the browser after generating it:
 
 ```bash
-open ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/report.html  # macOS
+open ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/report.html  # macOS
 ```
 
 ---
@@ -147,7 +147,7 @@ When the user asks to fix issues from a previous review:
 5. After each completed fix, update the finding through `update-review.mjs` so the snapshot, event log, HTML report, and summary stay in sync:
    ```bash
    node skills/code-review/references/update-review.mjs \
-     ~/.agents/sessions/{project}/reviews/{date}-{branch-name}/review.json \
+     ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
      fixed CR-001 \
      --commit <sha> \
      --note "Added validation and regression test."

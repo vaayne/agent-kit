@@ -129,10 +129,11 @@ function inferVerdict() {
 
 const findings = Array.isArray(review.findings) ? review.findings : [];
 const sideQuests = Array.isArray(review.side_quests) ? review.side_quests : [];
+const activeFindings = findings.filter((finding) => openStatuses.has(finding.status ?? "open"));
 const counts = Object.fromEntries(
   severities.map((severity) => [
     severity,
-    findings.filter((finding) => finding.severity === severity).length,
+    activeFindings.filter((finding) => finding.severity === severity).length,
   ]),
 );
 const stats = review.stats ?? {};

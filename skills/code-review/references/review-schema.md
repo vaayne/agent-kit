@@ -5,7 +5,7 @@ The review bundle serves both humans and agents. `review.json` is the canonical 
 ## Files
 
 ```text
-~/.agents/sessions/{project}/reviews/{date}-{branch-name}/
+~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/
   review.json       # mutable current-state snapshot
   events.jsonl      # append-only audit log
   report.html       # human-readable HTML rendered from review.json
@@ -13,6 +13,8 @@ The review bundle serves both humans and agents. `review.json` is the canonical 
 ```
 
 Do not treat `report.html` as source data. Agents fixing issues should read `review.json`.
+
+`{branch-slug}` is a filesystem-safe branch name with `/` and other non-portable characters replaced by `-`. Keep the original branch name in `review.json.branch`.
 
 ## `review.json`
 
