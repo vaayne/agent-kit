@@ -89,6 +89,7 @@ function renderFindingCard(finding, { sideQuest = false } = {}) {
   return `
         <details class="finding${sideQuest ? " side-quest-item" : ""}" data-severity="${severity}"${open}>
           <summary>
+            <span class="finding-chevron">▸</span>
             <span class="pill ${severity}">${escapeHtml(severity.toUpperCase())}</span>
             <span class="finding-title">${
     escapeHtml(finding.id ? `${finding.id}: ${finding.title}` : finding.title)
@@ -147,6 +148,10 @@ function renderReportHtml() {
       </div>`
     : "";
 
+  function countClass(sev) {
+    return counts[sev] > 0 ? `vc ${sev} has-count` : `vc ${sev}`;
+  }
+
   const content = `
     <div class="container">
       <header class="header">
@@ -159,25 +164,20 @@ function renderReportHtml() {
           <span class="stat additions">+${escapeHtml(stats.lines_added ?? 0)}</span>
           <span class="stat deletions">&minus;${escapeHtml(stats.lines_removed ?? 0)}</span>
         </div>
+        <div class="verdict-row">
+          <span class="verdict-label ${verdict.className}">${verdict.icon} ${verdict.title}</span>
+          <span class="verdict-counts">${
+    severities.map((sev) => `<span class="${countClass(sev)}">${counts[sev]} ${sev}</span>`).join(" ")
+  }</span>
+        </div>
+        <div class="assessment">${markdownish(assessment)}</div>
       </header>
 
-      <div class="dashboard">
-        ${
-    severities.map((severity) => `
-        <div class="dash-card ${severity}">
-          <div class="count">${counts[severity]}</div>
-          <div class="label">${titleCase(severity)}</div>
-        </div>`).join("")
-  }
-      </div>
-
-      <div class="assessment">${markdownish(assessment)}</div>
-
       <div class="filter-bar">
-        <button class="filter-btn active" onclick="filterFindings('all')">All</button>
+        <button class="filter-btn active" onclick="filterFindings('all', event)">All</button>
         ${
     severities.map((severity) => `
-        <button class="filter-btn" onclick="filterFindings('${severity}')">
+        <button class="filter-btn" onclick="filterFindings('${severity}', event)">
           <span class="dot ${severity}"></span>${titleCase(severity)}
         </button>`).join("")
   }
@@ -189,22 +189,6 @@ function renderReportHtml() {
       </div>
 
       ${sideQuestsHtml}
-
-      <div class="verdict ${verdict.className}">
-        <div class="verdict-icon">${verdict.icon}</div>
-        <h2>${verdict.title}</h2>
-        <p>${markdownish(review.verdict_explanation ?? assessment)}</p>
-
-        <table class="action-table">
-          <thead><tr><th>Severity</th><th>Action Required</th><th>Timeline</th></tr></thead>
-          <tbody>
-            <tr><td><span class="pill critical">Critical</span></td><td>Must fix before merge</td><td>Immediate</td></tr>
-            <tr><td><span class="pill high">High</span></td><td>Should fix before merge</td><td>This PR</td></tr>
-            <tr><td><span class="pill medium">Medium</span></td><td>Fix soon, can merge</td><td>Next sprint</td></tr>
-            <tr><td><span class="pill low">Low</span></td><td>Consider fixing</td><td>Backlog</td></tr>
-          </tbody>
-        </table>
-      </div>
     </div>`;
 
   return template
