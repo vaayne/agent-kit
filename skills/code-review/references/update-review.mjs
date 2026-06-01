@@ -114,19 +114,10 @@ const event = {
 appendFileSync(eventPath, `${JSON.stringify(event)}\n`);
 
 const here = dirname(fileURLToPath(import.meta.url));
-const renderScript = join(here, "render-report.mjs");
-const summaryScript = join(here, "summarize-review.mjs");
-const reportPath = join(reviewDir, "report.html");
-const summaryPath = join(reviewDir, "summary.md");
+const renderScript = join(here, "render-review.mjs");
 
-for (
-  const [script, output] of [
-    [renderScript, reportPath],
-    [summaryScript, summaryPath],
-  ]
-) {
-  if (!existsSync(script)) continue;
-  const result = spawnSync(process.execPath, [script, reviewPath, output], {
+if (existsSync(renderScript)) {
+  const result = spawnSync(process.execPath, [renderScript, reviewPath, reviewDir], {
     stdio: "inherit",
   });
   if (result.status !== 0) process.exit(result.status ?? 1);

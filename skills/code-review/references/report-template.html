@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Review — {branch-name}</title>
+    <title>__TITLE__</title>
     <style>
     *, *::before, *::after { box-sizing: border-box; }
     * { margin: 0; }
@@ -23,6 +23,11 @@
       --border: oklch(88% 0.009 250);
       --border-subtle: oklch(92% 0.007 250);
       --ring: oklch(56% 0.13 250 / 0.22);
+      --critical: oklch(58% 0.23 25);
+      --high: oklch(62% 0.16 58);
+      --medium: oklch(63% 0.13 92);
+      --low: oklch(56% 0.13 250);
+      --success: oklch(58% 0.16 155);
       --critical-bg: oklch(96% 0.025 25);
       --critical-border: oklch(84% 0.07 25);
       --high-bg: oklch(96% 0.025 58);
@@ -526,10 +531,38 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <header class="header">
-        <h1>Code Review <span class="branch">→ {branch-name}</span></h1>
-      </header>
-    </div>
+    <button
+      class="theme-toggle"
+      onclick="toggleTheme()"
+      aria-label="Toggle theme"
+    >
+      ◐
+    </button>
+    __CONTENT__
+    <script type="application/json" id="review-data">
+    {}
+    </script>
+    <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute("data-theme");
+      html.setAttribute("data-theme", current === "light" ? "dark" : "light");
+    }
+
+    function filterFindings(severity) {
+      document.querySelectorAll(".filter-btn").forEach((btn) =>
+        btn.classList.remove("active")
+      );
+      event.target.closest(".filter-btn").classList.add("active");
+
+      document.querySelectorAll(".finding").forEach((el) => {
+        if (severity === "all" || el.dataset.severity === severity) {
+          el.style.display = "";
+        } else {
+          el.style.display = "none";
+        }
+      });
+    }
+    </script>
   </body>
 </html>

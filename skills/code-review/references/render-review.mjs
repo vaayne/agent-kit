@@ -3,10 +3,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const [inputPath, outputPath] = process.argv.slice(2);
+const [inputPath, outputDir] = process.argv.slice(2);
 
-if (!inputPath || !outputPath) {
-  console.error("Usage: node render-report.mjs <review.json> <report.html>");
+if (!inputPath || !outputDir) {
+  console.error("Usage: node render-review.mjs <review.json> <output-dir>");
   process.exit(1);
 }
 
@@ -17,6 +17,7 @@ const review = JSON.parse(readFileSync(inputPath, "utf8"));
 
 const severities = ["critical", "high", "medium", "low"];
 const openStatuses = new Set(["open", "reopened"]);
+const severityOrder = new Map(severities.map((severity, index) => [severity, index]));
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -36,9 +37,15 @@ function slug(value) {
 }
 
 function titleCase(value) {
-  return String(value ?? "")
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const normalized = String(value ?? "").replace(/-/g, " ");
+  const lowerWords = new Set(["and", "or", "the", "a", "an", "it"]);
+  return normalized
+    .split(" ")
+    .map((word, index) => {
+      if (index > 0 && lowerWords.has(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
 }
 
 function lineRef(finding) {
@@ -53,7 +60,7 @@ function location(finding) {
 
 function sortFindings(a, b) {
   return (
-    severities.indexOf(a.severity) - severities.indexOf(b.severity)
+    (severityOrder.get(a.severity) ?? 99) - (severityOrder.get(b.severity) ?? 99)
     || String(a.id).localeCompare(String(b.id))
   );
 }
@@ -68,7 +75,7 @@ function renderCode(finding) {
   return `<pre><code>${escapeHtml(code)}</code></pre>`;
 }
 
-function renderFinding(finding, { sideQuest = false } = {}) {
+function renderFindingCard(finding, { sideQuest = false } = {}) {
   const severity = slug(finding.severity || "low");
   const status = finding.status ?? "open";
   const open = ["critical", "high"].includes(severity) && openStatuses.has(status) ? " open" : "";
@@ -90,9 +97,7 @@ function renderFinding(finding, { sideQuest = false } = {}) {
             <span class="file-ref">${escapeHtml(location(finding))}</span>
           </summary>
           <div class="finding-body">
-            <div class="finding-description">
-              <p>${markdownish(description)}</p>
-            </div>
+            <div class="finding-description"><p>${markdownish(description)}</p></div>
             <div class="finding-suggestion">
               <div class="suggestion-label">Suggested Fix</div>
               <p>${markdownish(suggestion)}</p>
@@ -107,58 +112,52 @@ function renderFinding(finding, { sideQuest = false } = {}) {
         </details>`;
 }
 
-function verdictInfo() {
-  const verdict = review.verdict ?? inferVerdict();
-  if (["ship", "ship-it"].includes(verdict)) {
-    return { className: "ship", icon: "✓", title: "Ship it" };
-  }
-  if (["rethink"].includes(verdict)) {
-    return { className: "rethink", icon: "✕", title: "Rethink" };
-  }
-  return { className: "fix", icon: "⚠", title: "Fix and ship" };
-}
-
-function inferVerdict() {
-  const active = findings.filter((finding) => openStatuses.has(finding.status ?? "open"));
-  const critical = active.filter((finding) => finding.severity === "critical").length;
-  const high = active.filter((finding) => finding.severity === "high").length;
-  if (critical > 1) return "rethink";
-  if (critical > 0 || high > 0) return "fix-and-ship";
-  return "ship-it";
-}
-
 const findings = Array.isArray(review.findings) ? review.findings : [];
 const sideQuests = Array.isArray(review.side_quests) ? review.side_quests : [];
-const activeFindings = findings.filter((finding) => openStatuses.has(finding.status ?? "open"));
+const openFindings = findings.filter((finding) => openStatuses.has(finding.status ?? "open"));
+const closedFindings = findings.filter((finding) => !openStatuses.has(finding.status ?? "open"));
 const counts = Object.fromEntries(
   severities.map((severity) => [
     severity,
-    activeFindings.filter((finding) => finding.severity === severity).length,
+    openFindings.filter((finding) => finding.severity === severity).length,
   ]),
 );
-const stats = review.stats ?? {};
-const verdict = verdictInfo();
-const assessment = review.assessment ?? "Review completed. See findings below for actionable issues.";
-const generatedDate = review.updated_at ?? review.generated_at ?? new Date().toISOString();
-const branch = review.branch ?? "unknown";
-const title = `Code Review — ${branch}`;
 
-const findingsHtml = findings.length
-  ? findings.sort(sortFindings).map((finding) => renderFinding(finding)).join("\n")
-  : `<div class="assessment">No findings. Clean bill of health.</div>`;
-const sideQuestsHtml = sideQuests.length
-  ? `
+function inferVerdict() {
+  if (counts.critical > 1) return "rethink";
+  if (counts.critical > 0 || counts.high > 0) return "fix-and-ship";
+  return "ship-it";
+}
+
+function verdictInfo() {
+  const verdict = review.verdict ?? inferVerdict();
+  if (["ship", "ship-it"].includes(verdict)) return { className: "ship", icon: "✓", title: "Ship it" };
+  if (verdict === "rethink") return { className: "rethink", icon: "✕", title: "Rethink" };
+  return { className: "fix", icon: "⚠", title: "Fix and ship" };
+}
+
+function renderReportHtml() {
+  const stats = review.stats ?? {};
+  const verdict = verdictInfo();
+  const assessment = review.assessment ?? "Review completed. See findings below for actionable issues.";
+  const generatedDate = review.updated_at ?? review.generated_at ?? new Date().toISOString();
+  const branch = review.branch ?? "unknown";
+  const title = `Code Review — ${branch}`;
+  const findingsHtml = findings.length
+    ? findings.toSorted(sortFindings).map((finding) => renderFindingCard(finding)).join("\n")
+    : `<div class="assessment">No findings. Clean bill of health.</div>`;
+  const sideQuestsHtml = sideQuests.length
+    ? `
       <div class="findings side-quest">
         <div class="section-title">Side Quests</div>
         <div class="side-quest-label">Pre-existing — not introduced by this PR</div>
-        ${sideQuests.sort(sortFindings).map((finding) => renderFinding(finding, { sideQuest: true })).join("\n")}
+        ${
+      sideQuests.toSorted(sortFindings).map((finding) => renderFindingCard(finding, { sideQuest: true })).join("\n")
+    }
       </div>`
-  : "";
+    : "";
 
-const body = `
-  <body>
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">&#9684;</button>
-
+  const content = `
     <div class="container">
       <header class="header">
         <h1>Code Review <span class="branch">&rarr; ${escapeHtml(branch)}</span></h1>
@@ -174,12 +173,12 @@ const body = `
 
       <div class="dashboard">
         ${
-  severities.map((severity) => `
+    severities.map((severity) => `
         <div class="dash-card ${severity}">
           <div class="count">${counts[severity]}</div>
           <div class="label">${titleCase(severity)}</div>
         </div>`).join("")
-}
+  }
       </div>
 
       <div class="assessment">${markdownish(assessment)}</div>
@@ -187,11 +186,11 @@ const body = `
       <div class="filter-bar">
         <button class="filter-btn active" onclick="filterFindings('all')">All</button>
         ${
-  severities.map((severity) => `
+    severities.map((severity) => `
         <button class="filter-btn" onclick="filterFindings('${severity}')">
           <span class="dot ${severity}"></span>${titleCase(severity)}
         </button>`).join("")
-}
+  }
       </div>
 
       <div class="findings">
@@ -216,35 +215,67 @@ const body = `
           </tbody>
         </table>
       </div>
-    </div>
+    </div>`;
 
-    <script type="application/json" id="review-data">${escapeHtml(JSON.stringify(review))}</script>
-    <script>
-    function toggleTheme() {
-      const html = document.documentElement;
-      const current = html.getAttribute("data-theme");
-      html.setAttribute("data-theme", current === "light" ? "dark" : "light");
-    }
+  return template
+    .replace("__TITLE__", escapeHtml(title))
+    .replace("__CONTENT__", content)
+    .replace(
+      "<script type=\"application/json\" id=\"review-data\">{}</script>",
+      `<script type="application/json" id="review-data">${escapeHtml(JSON.stringify(review))}</script>`,
+    );
+}
 
-    function filterFindings(severity) {
-      document.querySelectorAll(".filter-btn").forEach(btn =>
-        btn.classList.remove("active")
-      );
-      event.target.closest(".filter-btn").classList.add("active");
+function renderFindingSummary(finding) {
+  const lines = [
+    `### ${finding.id} ${finding.severity} ${finding.category} — ${finding.title}`,
+    `- File: ${location(finding)}`,
+    `- Status: ${finding.status ?? "open"}`,
+    `- Confidence: ${finding.confidence ?? "unknown"}`,
+    `- Issue: ${finding.description ?? ""}`,
+  ];
 
-      document.querySelectorAll(".finding").forEach(el => {
-        if (severity === "all" || el.dataset.severity === severity) {
-          el.style.display = "";
-        } else {
-          el.style.display = "none";
-        }
-      });
-    }
-    </script>
-  </body>`;
+  if (finding.impact) lines.push(`- Impact: ${finding.impact}`);
+  if (finding.suggestion) lines.push(`- Fix: ${finding.suggestion}`);
+  if (finding.resolution?.note) lines.push(`- Resolution: ${finding.resolution.note}`);
+  return lines.join("\n");
+}
 
-let html = template
-  .replace(/<title>.*?<\/title>/s, `<title>${escapeHtml(title)}</title>`)
-  .replace(/<body>[\s\S]*?<\/body>/, body);
+function renderSummaryMarkdown() {
+  const lines = [
+    "# Code Review Summary",
+    "",
+    `- Review: ${review.review_id ?? "unknown"}`,
+    `- Project: ${review.project ?? "unknown"}`,
+    `- Branch: ${review.branch ?? "unknown"}`,
+    `- Base: ${review.base ?? "unknown"}`,
+    `- Verdict: ${titleCase(review.verdict ?? inferVerdict())}`,
+    `- Open findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
+    "",
+    review.assessment ?? "",
+    "",
+    "## Open Findings",
+    "",
+  ];
 
-writeFileSync(outputPath, html);
+  if (openFindings.length === 0) {
+    lines.push("No open findings.");
+  } else {
+    lines.push(...openFindings.toSorted(sortFindings).map(renderFindingSummary).join("\n\n").split("\n"));
+  }
+
+  if (sideQuests.length > 0) {
+    lines.push("", "## Side Quests", "");
+    lines.push(...sideQuests.toSorted(sortFindings).map(renderFindingSummary).join("\n\n").split("\n"));
+  }
+
+  if (closedFindings.length > 0) {
+    lines.push("", "## Closed Findings", "");
+    lines.push(...closedFindings.toSorted(sortFindings).map(renderFindingSummary).join("\n\n").split("\n"));
+  }
+
+  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n")}\n`;
+}
+
+writeFileSync(join(outputDir, "report.html"), renderReportHtml());
+writeFileSync(join(outputDir, "summary.md"), renderSummaryMarkdown());

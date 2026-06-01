@@ -106,13 +106,9 @@ Follow [references/review-schema.md](references/review-schema.md) for the exact 
 After writing `review.json`, initialize `events.jsonl` with `review.created` and one `finding.added` event per finding, then render the human-facing files:
 
 ```bash
-node skills/code-review/references/render-report.mjs \
+node skills/code-review/references/render-review.mjs \
   ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/report.html
-
-node skills/code-review/references/summarize-review.mjs \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
-  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/summary.md
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/
 ```
 
 Open the HTML report in the browser after generating it:
