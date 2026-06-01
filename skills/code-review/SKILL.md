@@ -106,7 +106,8 @@ Follow [references/review-schema.md](references/review-schema.md) for the exact 
 After writing `review.json`, initialize `events.jsonl` with `review.created` and one `finding.added` event per finding, then render the human-facing files:
 
 ```bash
-node skills/code-review/scripts/render-review.mjs \
+cd skills/code-review
+node scripts/render-review.mjs \
   ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
   ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/
 ```
@@ -142,7 +143,8 @@ When the user asks to fix issues from a previous review:
 4. Fix issues in severity order: critical, high, medium, low.
 5. After each completed fix, update the finding through `update-review.mjs` so the snapshot, event log, HTML report, and summary stay in sync:
    ```bash
-   node skills/code-review/scripts/update-review.mjs \
+   cd skills/code-review
+   node scripts/update-review.mjs \
      ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
      fixed CR-001 \
      --commit <sha> \
