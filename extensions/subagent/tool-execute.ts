@@ -13,6 +13,36 @@ import {
   truncateText,
 } from "./utils.js";
 
+type RunOverrides = {
+  model?: string;
+  thinking?: ThinkingLevel;
+};
+
+type AgentRunRequest = RunOverrides & {
+  name: string;
+  prompt: string;
+  cwd?: string;
+};
+
+type AgentToolParamsShape = {
+  options?: RunOverrides & {
+    scope?: AgentScope;
+    confirmProject?: boolean;
+    cwd?: string;
+  };
+  sequence?: AgentRunRequest[];
+  parallel?: AgentRunRequest[];
+  name?: string;
+  sessionId?: string;
+  prompt?: string;
+};
+
+type AgentToolContext = {
+  cwd: string;
+  hasUI: boolean;
+  ui: { confirm: (title: string, message: string) => Promise<boolean> };
+};
+
 function getCurrentMode(
   hasSequence: boolean,
   hasParallel: boolean,
@@ -33,11 +63,7 @@ function getAvailableAgentsText(agents: AgentConfig[]): string {
 }
 
 function confirmRequestedProjectAgents(
-  params: {
-    sequence?: Array<{ name: string }>;
-    parallel?: Array<{ name: string }>;
-    name?: string;
-  },
+  params: Pick<AgentToolParamsShape, "sequence" | "parallel" | "name">,
   agents: AgentConfig[],
 ): AgentConfig[] {
   const requestedAgentNames = new Set<string>();
@@ -55,19 +81,12 @@ function confirmRequestedProjectAgents(
 }
 
 async function confirmProjectAgentsIfNeeded(
-  ctx: {
-    hasUI: boolean;
-    ui: { confirm: (title: string, message: string) => Promise<boolean> };
-  },
+  ctx: AgentToolContext,
   agentScope: AgentScope,
   confirmProjectAgents: boolean,
   agents: AgentConfig[],
   projectAgentsDir: string | null,
-  params: {
-    sequence?: Array<{ name: string }>;
-    parallel?: Array<{ name: string }>;
-    name?: string;
-  },
+  params: Pick<AgentToolParamsShape, "sequence" | "parallel" | "name">,
 ): Promise<boolean> {
   if ((agentScope !== "project" && agentScope !== "both") || !confirmProjectAgents || !ctx.hasUI) {
     return true;
@@ -92,10 +111,7 @@ function createDetailsFactory(
   return (results) => ({ mode, agentScope, projectAgentsDir, results });
 }
 
-function formatModelLabel(overrides?: {
-  model?: string;
-  thinking?: ThinkingLevel;
-}): string | undefined {
+function formatModelLabel(overrides?: RunOverrides): string | undefined {
   if (!overrides?.model) {
     return undefined;
   }
@@ -106,7 +122,7 @@ function formatModelLabel(overrides?: {
 function createRunningResult(
   agent: string,
   task: string,
-  overrides?: { model?: string; thinking?: ThinkingLevel },
+  overrides?: RunOverrides,
 ): SingleResult {
   return {
     agent,
@@ -134,22 +150,49 @@ function formatSessionSummary(results: SingleResult[]): string {
   return lines.length > 0 ? `\n\nSession IDs:\n${lines.join("\n")}` : "";
 }
 
+function mergeRunOverrides(run: RunOverrides, defaults?: RunOverrides): RunOverrides {
+  return {
+    model: run.model ?? defaults?.model,
+    thinking: run.thinking ?? defaults?.thinking,
+  };
+}
+
+function buildSingleResultResponse(
+  result: SingleResult,
+  makeDetails: (results: SingleResult[]) => SubagentDetails,
+) {
+  if (isResultError(result)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
+        },
+      ],
+      details: makeDetails([result]),
+      isError: true,
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: (getFinalOutput(result.messages) || "(no output)") + formatSessionLine(result),
+      },
+    ],
+    details: makeDetails([result]),
+  };
+}
+
 async function executeChainMode(
   ctx: { cwd: string },
-  params: {
-    sequence: Array<{
-      name: string;
-      prompt: string;
-      cwd?: string;
-      model?: string;
-      thinking?: ThinkingLevel;
-    }>;
-  },
+  params: { sequence: AgentRunRequest[] },
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => SubagentDetails,
-  defaultOverrides?: { model?: string; thinking?: ThinkingLevel },
+  defaultOverrides?: RunOverrides,
 ) {
   const results: SingleResult[] = [];
   let previousOutput = "";
@@ -178,10 +221,7 @@ async function executeChainMode(
       signal,
       chainUpdate,
       makeDetails,
-      {
-        model: step.model ?? defaultOverrides?.model,
-        thinking: step.thinking ?? defaultOverrides?.thinking,
-      },
+      mergeRunOverrides(step, defaultOverrides),
     );
     results.push(result);
     if (isResultError(result)) {
@@ -215,20 +255,12 @@ async function executeChainMode(
 
 async function executeParallelMode(
   ctx: { cwd: string },
-  params: {
-    parallel: Array<{
-      name: string;
-      prompt: string;
-      cwd?: string;
-      model?: string;
-      thinking?: ThinkingLevel;
-    }>;
-  },
+  params: { parallel: AgentRunRequest[] },
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => SubagentDetails,
-  defaultOverrides?: { model?: string; thinking?: ThinkingLevel },
+  defaultOverrides?: RunOverrides,
 ) {
   if (params.parallel.length > MAX_PARALLEL_TASKS) {
     return {
@@ -243,10 +275,7 @@ async function executeParallelMode(
   }
 
   const allResults = params.parallel.map((task) =>
-    createRunningResult(task.name, task.prompt, {
-      model: task.model ?? defaultOverrides?.model,
-      thinking: task.thinking ?? defaultOverrides?.thinking,
-    })
+    createRunningResult(task.name, task.prompt, mergeRunOverrides(task, defaultOverrides))
   );
 
   function emitParallelUpdate(): void {
@@ -283,10 +312,7 @@ async function executeParallelMode(
           emitParallelUpdate();
         },
         makeDetails,
-        {
-          model: task.model ?? defaultOverrides?.model,
-          thinking: task.thinking ?? defaultOverrides?.thinking,
-        },
+        mergeRunOverrides(task, defaultOverrides),
       );
       allResults[index] = result;
       emitParallelUpdate();
@@ -316,13 +342,7 @@ async function executeParallelMode(
 
 async function executeSingleMode(
   ctx: { cwd: string },
-  params: {
-    name: string;
-    prompt: string;
-    cwd?: string;
-    model?: string;
-    thinking?: ThinkingLevel;
-  },
+  params: AgentRunRequest,
   agents: AgentConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
@@ -340,27 +360,7 @@ async function executeSingleMode(
     makeDetails,
     { model: params.model, thinking: params.thinking },
   );
-  if (isResultError(result)) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
-        },
-      ],
-      details: makeDetails([result]),
-      isError: true,
-    };
-  }
-  return {
-    content: [
-      {
-        type: "text",
-        text: (getFinalOutput(result.messages) || "(no output)") + formatSessionLine(result),
-      },
-    ],
-    details: makeDetails([result]),
-  };
+  return buildSingleResultResponse(result, makeDetails);
 }
 
 async function executeResumeMode(
@@ -371,10 +371,7 @@ async function executeResumeMode(
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => SubagentDetails,
-  ctx: {
-    hasUI: boolean;
-    ui: { confirm: (title: string, message: string) => Promise<boolean> };
-  },
+  ctx: AgentToolContext,
   confirmProjectAgents: boolean,
   projectAgentsDir: string | null,
 ) {
@@ -420,64 +417,14 @@ async function executeResumeMode(
     onUpdate,
     makeDetails,
   );
-  if (isResultError(result)) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}`
-            + formatSessionLine(result),
-        },
-      ],
-      details: makeDetails([result]),
-      isError: true,
-    };
-  }
-  return {
-    content: [
-      {
-        type: "text",
-        text: (getFinalOutput(result.messages) || "(no output)") + formatSessionLine(result),
-      },
-    ],
-    details: makeDetails([result]),
-  };
+  return buildSingleResultResponse(result, makeDetails);
 }
 
 export async function executeAgentTool(
-  params: {
-    options?: {
-      scope?: AgentScope;
-      confirmProject?: boolean;
-      cwd?: string;
-      model?: string;
-      thinking?: ThinkingLevel;
-    };
-    sequence?: Array<{
-      name: string;
-      prompt: string;
-      cwd?: string;
-      model?: string;
-      thinking?: ThinkingLevel;
-    }>;
-    parallel?: Array<{
-      name: string;
-      prompt: string;
-      cwd?: string;
-      model?: string;
-      thinking?: ThinkingLevel;
-    }>;
-    name?: string;
-    sessionId?: string;
-    prompt?: string;
-  },
+  params: AgentToolParamsShape,
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  ctx: {
-    cwd: string;
-    hasUI: boolean;
-    ui: { confirm: (title: string, message: string) => Promise<boolean> };
-  },
+  ctx: AgentToolContext,
 ) {
   const agentScope: AgentScope = params.options?.scope ?? "user";
   const discovery = discoverAgents(ctx.cwd, agentScope);
@@ -489,6 +436,8 @@ export async function executeAgentTool(
   const hasResume = Boolean(params.sessionId && params.prompt);
   const modeCount = Number(hasSequence) + Number(hasParallel) + Number(hasSingle) + Number(hasResume);
   const currentMode = getCurrentMode(hasSequence, hasParallel, hasResume);
+  const detailsForMode = (mode: SubagentDetails["mode"]) =>
+    createDetailsFactory(mode, agentScope, discovery.projectAgentsDir);
 
   if (modeCount !== 1) {
     return {
@@ -498,7 +447,7 @@ export async function executeAgentTool(
           text: `Invalid parameters. Provide exactly one mode.\nAvailable agents: ${getAvailableAgentsText(agents)}`,
         },
       ],
-      details: createDetailsFactory("single", agentScope, discovery.projectAgentsDir)([]),
+      details: detailsForMode("single")([]),
     };
   }
 
@@ -518,7 +467,7 @@ export async function executeAgentTool(
           text: "Canceled: project-local agents not approved.",
         },
       ],
-      details: createDetailsFactory(currentMode, agentScope, discovery.projectAgentsDir)([]),
+      details: detailsForMode(currentMode)([]),
     };
   }
 
@@ -529,7 +478,7 @@ export async function executeAgentTool(
       agents,
       signal,
       onUpdate,
-      createDetailsFactory("chain", agentScope, discovery.projectAgentsDir),
+      detailsForMode("chain"),
       {
         model: params.options?.model,
         thinking: params.options?.thinking,
@@ -543,7 +492,7 @@ export async function executeAgentTool(
       agents,
       signal,
       onUpdate,
-      createDetailsFactory("parallel", agentScope, discovery.projectAgentsDir),
+      detailsForMode("parallel"),
       {
         model: params.options?.model,
         thinking: params.options?.thinking,
@@ -563,7 +512,7 @@ export async function executeAgentTool(
       agents,
       signal,
       onUpdate,
-      createDetailsFactory("single", agentScope, discovery.projectAgentsDir),
+      detailsForMode("single"),
     );
   }
   if (params.sessionId && params.prompt) {
@@ -571,7 +520,7 @@ export async function executeAgentTool(
       { sessionId: params.sessionId, prompt: params.prompt },
       signal,
       onUpdate,
-      createDetailsFactory("resume", agentScope, discovery.projectAgentsDir),
+      detailsForMode("resume"),
       ctx,
       confirmProjectAgents,
       discovery.projectAgentsDir,
@@ -585,6 +534,6 @@ export async function executeAgentTool(
         text: `Invalid parameters. Available agents: ${getAvailableAgentsText(agents)}`,
       },
     ],
-    details: createDetailsFactory("single", agentScope, discovery.projectAgentsDir)([]),
+    details: detailsForMode("single")([]),
   };
 }
