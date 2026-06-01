@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentConfig } from "./agents.js";
+import { resolveProfileSettings } from "./model-env.js";
 import { saveSubagentSession } from "./session-store.js";
 import type { SavedSubagentSession, SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
@@ -61,8 +62,9 @@ function resolveRunModel(
     thinking?: ThinkingLevel;
   },
 ): { model?: string; thinking?: ThinkingLevel; label?: string } {
-  const base = splitModelThinking(overrides?.model ?? agent.model);
-  const thinking = overrides?.thinking ?? base.thinking ?? agent.thinking ?? "medium";
+  const profileSettings = resolveProfileSettings(agent.modelProfile);
+  const base = splitModelThinking(overrides?.model ?? profileSettings.model);
+  const thinking = overrides?.thinking ?? base.thinking ?? profileSettings.thinking ?? agent.thinking ?? "medium";
   const label = base.model ? `${base.model}:${thinking}` : undefined;
 
   return { model: base.model, thinking, label };

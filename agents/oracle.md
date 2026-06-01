@@ -1,7 +1,7 @@
 ---
 name: oracle
 description: Strategic technical advisor for architecture and implementation planning
-model: openai-codex/gpt-5.5
+modelProfile: reason
 thinking: medium
 ---
 

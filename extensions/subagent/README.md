@@ -137,9 +137,42 @@ Tool results include a per-run `sessionId` in `details.results[]`. Use that ID w
 | `model`          | string  | No       | Default model override for the whole tool call         |
 | `thinking`       | string  | No       | Default thinking override: `off                        |
 
+## Model Profiles
+
+Agents should declare a stable `modelProfile` instead of a concrete model name:
+
+```yaml
+---
+name: reviewer
+description: Code reviewer focused on correctness, risk, and actionable feedback
+modelProfile: reason
+thinking: medium
+---
+```
+
+Supported profiles are `quick`, `build`, `reason`, and `design`. Configure their models with environment variables:
+
+```bash
+export PI_SUBAGENT_QUICK_MODEL="<model>"
+export PI_SUBAGENT_BUILD_MODEL="<model>"
+export PI_SUBAGENT_REASON_MODEL="<model>"
+export PI_SUBAGENT_DESIGN_MODEL="<model>"
+```
+
+Optional thinking overrides use the same profile names:
+
+```bash
+export PI_SUBAGENT_QUICK_THINKING="low"
+export PI_SUBAGENT_BUILD_THINKING="medium"
+export PI_SUBAGENT_REASON_THINKING="high"
+export PI_SUBAGENT_DESIGN_THINKING="medium"
+```
+
+If a profile used by a discovered agent has no model env configured, the extension shows a TUI warning on session start. Tool parameters still take precedence over profile env values.
+
 ## Agent Discovery
 
-Agent frontmatter may define default `model` and `thinking`, but both can now be overridden at runtime through tool parameters.
+Agent frontmatter may define `modelProfile` and `thinking`; both can be overridden at runtime through tool parameters.
 
 Agents are discovered from:
 

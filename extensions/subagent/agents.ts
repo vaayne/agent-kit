@@ -6,6 +6,7 @@ import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { isModelProfile, type ModelProfile } from "./model-env.js";
 import type { ThinkingLevel } from "./types.js";
 
 export type AgentScope = "user" | "project" | "both";
@@ -14,7 +15,7 @@ export type AgentConfig = {
   name: string;
   description: string;
   tools?: string[];
-  model?: string;
+  modelProfile?: ModelProfile;
   thinking?: ThinkingLevel;
   systemPrompt: string;
   source: "user" | "project";
@@ -56,7 +57,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
       name?: string;
       description?: string;
       tools?: string;
-      model?: string;
+      modelProfile?: string;
       thinking?: ThinkingLevel;
     }>(content);
 
@@ -73,7 +74,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
       name: frontmatter.name,
       description: frontmatter.description,
       tools: tools && tools.length > 0 ? tools : undefined,
-      model: frontmatter.model,
+      modelProfile: isModelProfile(frontmatter.modelProfile) ? frontmatter.modelProfile : undefined,
       thinking: frontmatter.thinking,
       systemPrompt: body,
       source,

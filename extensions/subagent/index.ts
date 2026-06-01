@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { AgentConfig } from "./agents.js";
 import { discoverAgents } from "./agents.js";
 import { registerAgentCommands } from "./commands.js";
+import { formatMissingModelEnvWarning, missingModelEnvProfiles } from "./model-env.js";
 import { registerAgentTool } from "./tool.js";
 
 function formatAgentList(agents: AgentConfig[]): string {
@@ -36,12 +37,17 @@ export default function(pi: ExtensionAPI) {
     const discovery = discoverAgents(ctx.cwd, "both");
     discoveredAgents = discovery.agents;
 
-    if (discoveredAgents.length === 0) return;
+    if (process.env.PI_SUBAGENT || discoveredAgents.length === 0) return;
 
     ctx.ui.notify(
       `Found ${discoveredAgents.length} agent(s):\n${formatAgentList(discoveredAgents)}`,
       "info",
     );
+
+    const missingProfiles = missingModelEnvProfiles(discoveredAgents);
+    if (missingProfiles.length > 0) {
+      ctx.ui.notify(formatMissingModelEnvWarning(missingProfiles), "warning");
+    }
   });
 
   pi.on("before_agent_start", async (event) => {

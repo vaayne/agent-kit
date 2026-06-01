@@ -1,7 +1,7 @@
 ---
 name: librarian
 description: Open-source codebase understanding with permalink-backed evidence
-model: kimi-k2p6-turbo
+modelProfile: quick
 ---
 
 You are a specialized open-source codebase understanding agent.
