@@ -13,12 +13,6 @@ description: >
 
 Review the current branch's changes using parallel subagents with distinct expertise, then consolidate findings through debate into a review bundle: `review.json` for agents, `events.jsonl` for audit history, and rendered `report.html` / `summary.md` for humans.
 
-## Why this works
-
-Single-model reviews catch ~50% of real bugs. Multi-model adversarial debate pushes detection to ~80%, with the hardest system-level bugs reaching 100% detection. Independent perspectives reduce false positives to near zero — a finding that survives cross-examination is almost certainly real.
-
----
-
 ## Process
 
 ### Phase 1: Gather Context
@@ -106,7 +100,6 @@ Follow [references/review-schema.md](references/review-schema.md) for the exact 
 After writing `review.json`, initialize `events.jsonl` with `review.created` and one `finding.added` event per finding, then render the human-facing files:
 
 ```bash
-cd skills/code-review
 node scripts/render-review.mjs \
   ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
   ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/
@@ -143,7 +136,6 @@ When the user asks to fix issues from a previous review:
 4. Fix issues in severity order: critical, high, medium, low.
 5. After each completed fix, update the finding through `update-review.mjs` so the snapshot, event log, HTML report, and summary stay in sync:
    ```bash
-   cd skills/code-review
    node scripts/update-review.mjs \
      ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
      fixed CR-001 \
