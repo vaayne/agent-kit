@@ -71,7 +71,7 @@ function renderCode(finding) {
 function renderFinding(finding, { sideQuest = false } = {}) {
   const severity = slug(finding.severity || "low");
   const status = finding.status ?? "open";
-  const open = severity === "critical" && openStatuses.has(status) ? " open" : "";
+  const open = ["critical", "high"].includes(severity) && openStatuses.has(status) ? " open" : "";
   const description = [finding.description, finding.impact ? `Impact: ${finding.impact}` : null]
     .filter(Boolean)
     .join("\n\n");
@@ -223,7 +223,7 @@ const body = `
     function toggleTheme() {
       const html = document.documentElement;
       const current = html.getAttribute("data-theme");
-      html.setAttribute("data-theme", current === "dark" ? "light" : "dark");
+      html.setAttribute("data-theme", current === "light" ? "dark" : "light");
     }
 
     function filterFindings(severity) {
