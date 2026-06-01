@@ -1,16 +1,16 @@
 {
-  "name": "@vaayne/pi-subagent",
-  "version": "0.3.0",
-  "description": "Pi extension for delegating tasks to specialized agents",
+  "name": "@vaayne/pi-delegate",
+  "version": "0.4.0",
+  "description": "Pi extension for delegating tasks to specialized presets",
   "keywords": [
-    "agent",
+    "delegate",
+    "preset",
     "ai",
     "delegation",
     "pi-extension",
-    "pi-package",
-    "agent"
+    "pi-package"
   ],
-  "homepage": "https://github.com/vaayne/agent-kit/tree/main/extensions/subagent",
+  "homepage": "https://github.com/vaayne/agent-kit/tree/main/extensions/delegate",
   "bugs": {
     "url": "https://github.com/vaayne/agent-kit/issues"
   },
@@ -19,11 +19,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/vaayne/agent-kit.git",
-    "directory": "extensions/subagent"
+    "directory": "extensions/delegate"
   },
   "files": [
     "*.ts",
     "*.md",
+    "presets/*.md",
     "LICENSE"
   ],
   "type": "module",

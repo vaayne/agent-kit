@@ -81,7 +81,6 @@ cp -R $SKILL_DIR ./skills
 description = "Sync _AGENTS.md to all agent frameworks"
 run = """
 AGENTS_FILE="$PWD/_AGENTS.md"
-AGENTS_DIR="$PWD/agents"
 
 link_path() {
   source="$1"
@@ -109,7 +108,5 @@ link_path "$AGENTS_FILE" ~/.codex/AGENTS.md
 link_path "$AGENTS_FILE" ~/.claude/CLAUDE.md
 link_path "$AGENTS_FILE" ~/.factory/AGENTS.md
 link_path "$AGENTS_FILE" ~/.config/amp/AGENTS.md
-link_path "$AGENTS_DIR" ~/.pi/agent/agents true
-
-echo "Linked _AGENTS.md and agents directory to all frameworks"
+echo "Linked _AGENTS.md to all frameworks"
 """

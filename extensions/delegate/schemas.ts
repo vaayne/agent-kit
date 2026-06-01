@@ -11,40 +11,40 @@ export const ThinkingLevelSchema = StringEnum(
   },
 );
 
-const AgentRunItem = Type.Object({
-  name: Type.String({ description: "Name of the agent to invoke" }),
-  prompt: Type.String({ description: "Prompt to send to the agent" }),
-  cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
+const DelegateRunItem = Type.Object({
+  name: Type.String({ description: "Name of the preset to invoke" }),
+  prompt: Type.String({ description: "Prompt to send to the preset" }),
+  cwd: Type.Optional(Type.String({ description: "Working directory for the delegate process" })),
   model: Type.Optional(Type.String({ description: "Model override for this run" })),
   thinking: Type.Optional(ThinkingLevelSchema),
 });
 
 const SequenceItem = Type.Object({
-  name: Type.String({ description: "Name of the agent to invoke" }),
+  name: Type.String({ description: "Name of the preset to invoke" }),
   prompt: Type.String({
     description: "Prompt with optional {previous} placeholder for prior output",
   }),
-  cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
+  cwd: Type.Optional(Type.String({ description: "Working directory for the delegate process" })),
   model: Type.Optional(Type.String({ description: "Model override for this step" })),
   thinking: Type.Optional(ThinkingLevelSchema),
 });
 
-export const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
-  description: "Which agent directories to use. Default: \"user\". Use \"both\" to include project-local agents.",
+export const PresetScopeSchema = StringEnum(["user", "project", "both"] as const, {
+  description: "Which preset directories to use. Default: \"user\". Use \"both\" to include project-local presets.",
   default: "user",
 });
 
-const AgentOptions = Type.Object({
-  scope: Type.Optional(AgentScopeSchema),
+const DelegateOptions = Type.Object({
+  scope: Type.Optional(PresetScopeSchema),
   confirmProject: Type.Optional(
     Type.Boolean({
-      description: "Prompt before running project-local agents. Default: true.",
+      description: "Prompt before running project-local presets. Default: true.",
       default: true,
     }),
   ),
   cwd: Type.Optional(
     Type.String({
-      description: "Working directory for the agent process (single mode)",
+      description: "Working directory for the delegate process (single mode)",
     }),
   ),
   model: Type.Optional(
@@ -55,24 +55,24 @@ const AgentOptions = Type.Object({
   thinking: Type.Optional(ThinkingLevelSchema),
 });
 
-export const AgentToolParams = Type.Object({
+export const DelegateToolParams = Type.Object({
   name: Type.Optional(
     Type.String({
-      description: "Name of the agent to invoke (for single run)",
+      description: "Name of the preset to invoke (for single run)",
     }),
   ),
   sessionId: Type.Optional(
     Type.String({
-      description: "Saved subagent session ID to resume",
+      description: "Saved delegate session ID to resume",
     }),
   ),
   prompt: Type.Optional(
     Type.String({
-      description: "Prompt to send to the agent (for single run or resumed session)",
+      description: "Prompt to send to the preset (for single run or resumed session)",
     }),
   ),
   parallel: Type.Optional(
-    Type.Array(AgentRunItem, {
+    Type.Array(DelegateRunItem, {
       description: "Array of {name, prompt} for parallel execution",
     }),
   ),
@@ -81,5 +81,5 @@ export const AgentToolParams = Type.Object({
       description: "Array of {name, prompt} for sequential execution",
     }),
   ),
-  options: Type.Optional(AgentOptions),
+  options: Type.Optional(DelegateOptions),
 });

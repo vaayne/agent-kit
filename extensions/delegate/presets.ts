@@ -1,44 +1,45 @@
 /**
- * Agent discovery and configuration
+ * Delegate preset discovery and configuration
  */
 
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { isModelProfile, type ModelProfile } from "./model-env.js";
 import type { ThinkingLevel } from "./types.js";
 
-export type AgentScope = "user" | "project" | "both";
+export type PresetScope = "user" | "project" | "both";
 
-export type AgentConfig = {
+export type PresetConfig = {
   name: string;
   description: string;
   tools?: string[];
   modelProfile?: ModelProfile;
   thinking?: ThinkingLevel;
   systemPrompt: string;
-  source: "user" | "project";
+  source: "preset" | "user" | "project";
   filePath: string;
 };
 
-export type AgentDiscoveryResult = {
-  agents: AgentConfig[];
-  projectAgentsDir: string | null;
+export type PresetDiscoveryResult = {
+  presets: PresetConfig[];
+  projectPresetsDir: string | null;
 };
 
-function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig[] {
-  const agents: AgentConfig[] = [];
+function loadPresetsFromDir(dir: string, source: "preset" | "user" | "project"): PresetConfig[] {
+  const presets: PresetConfig[] = [];
 
   if (!fs.existsSync(dir)) {
-    return agents;
+    return presets;
   }
 
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
-    return agents;
+    return presets;
   }
 
   for (const entry of entries) {
@@ -70,7 +71,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
       .map((t: string) => t.trim())
       .filter(Boolean);
 
-    agents.push({
+    presets.push({
       name: frontmatter.name,
       description: frontmatter.description,
       tools: tools && tools.length > 0 ? tools : undefined,
@@ -82,7 +83,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
     });
   }
 
-  return agents;
+  return presets;
 }
 
 function isDirectory(p: string): boolean {
@@ -93,10 +94,10 @@ function isDirectory(p: string): boolean {
   }
 }
 
-function findNearestProjectAgentsDir(cwd: string): string | null {
+function findNearestProjectPresetsDir(cwd: string): string | null {
   let currentDir = path.resolve(cwd);
   while (true) {
-    const candidate = path.join(currentDir, ".pi", "agents");
+    const candidate = path.join(currentDir, ".pi", "delegate-presets");
     if (isDirectory(candidate)) return candidate;
 
     const parentDir = path.dirname(currentDir);
@@ -105,34 +106,37 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
   }
 }
 
-export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
-  const userDir = path.join(os.homedir(), ".pi", "agent", "agents");
-  const projectAgentsDir = findNearestProjectAgentsDir(cwd);
+export function discoverPresets(cwd: string, scope: PresetScope): PresetDiscoveryResult {
+  const presetDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "presets");
+  const userDir = path.join(os.homedir(), ".pi", "agent", "delegate-presets");
+  const projectPresetsDir = findNearestProjectPresetsDir(cwd);
 
-  const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user");
-  const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
+  const builtInPresets = loadPresetsFromDir(presetDir, "preset");
+  const userPresets = scope === "project" ? [] : loadPresetsFromDir(userDir, "user");
+  const projectPresets = scope === "user" || !projectPresetsDir ? [] : loadPresetsFromDir(projectPresetsDir, "project");
 
-  const agentMap = new Map<string, AgentConfig>();
+  const presetMap = new Map<string, PresetConfig>();
+  for (const preset of builtInPresets) presetMap.set(preset.name, preset);
 
   if (scope === "both") {
-    for (const agent of userAgents) agentMap.set(agent.name, agent);
-    for (const agent of projectAgents) agentMap.set(agent.name, agent);
+    for (const preset of userPresets) presetMap.set(preset.name, preset);
+    for (const preset of projectPresets) presetMap.set(preset.name, preset);
   } else if (scope === "user") {
-    for (const agent of userAgents) agentMap.set(agent.name, agent);
+    for (const preset of userPresets) presetMap.set(preset.name, preset);
   } else {
-    for (const agent of projectAgents) agentMap.set(agent.name, agent);
+    for (const preset of projectPresets) presetMap.set(preset.name, preset);
   }
 
-  return { agents: Array.from(agentMap.values()), projectAgentsDir };
+  return { presets: Array.from(presetMap.values()), projectPresetsDir };
 }
 
-export function formatAgentList(
-  agents: AgentConfig[],
+export function formatPresetList(
+  presets: PresetConfig[],
   maxItems: number,
 ): { text: string; remaining: number } {
-  if (agents.length === 0) return { text: "none", remaining: 0 };
-  const listed = agents.slice(0, maxItems);
-  const remaining = agents.length - listed.length;
+  if (presets.length === 0) return { text: "none", remaining: 0 };
+  const listed = presets.slice(0, maxItems);
+  const remaining = presets.length - listed.length;
   return {
     text: listed.map((a) => `${a.name} (${a.source}): ${a.description}`).join("; "),
     remaining,

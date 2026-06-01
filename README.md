@@ -65,17 +65,19 @@ Pi extensions that add new capabilities to the agent.
 | **firework-provider**         | Override Fireworks to one router model and sanitize tool fields      |
 | **mcp**                       | MCP client integration with tool orchestration                       |
 | **rules**                     | Load project rule files into the agent's effective instructions      |
-| **subagent**                  | Delegate tasks to specialized subagents                              |
+| **delegate**                  | Delegate tasks to specialized presets                                |
 | **web-tools**                 | Web fetching and search tools for external content and documentation |
 
-### Subagents (4)
+### Delegate Presets (6)
 
-Specialized agents for delegation via the subagent extension.
+Specialized presets for delegation via the delegate extension.
 
-| Agent           | Description                                         |
+| Preset          | Description                                         |
 | --------------- | --------------------------------------------------- |
 | **librarian**   | Code research across repositories and documentation |
 | **oracle**      | Architecture decisions and deep technical analysis  |
+| **reviewer**    | Code review focused on correctness and risk         |
+| **search**      | Fast codebase retrieval                             |
 | **ui-engineer** | Visual/UI/UX implementation specialist              |
 | **worker**      | General-purpose task execution                      |
 

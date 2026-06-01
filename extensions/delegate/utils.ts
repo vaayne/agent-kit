@@ -191,7 +191,7 @@ export function mapWithConcurrencyLimit<TIn, TOut>(
   return Promise.all(workers).then(() => results);
 }
 
-export function splitAgentTask(args: string): { agent: string; task: string } | null {
+export function splitPresetTask(args: string): { preset: string; task: string } | null {
   const trimmed = args.trim();
   if (!trimmed) {
     return null;
@@ -199,11 +199,11 @@ export function splitAgentTask(args: string): { agent: string; task: string } | 
 
   const firstSpace = trimmed.search(/\s/);
   if (firstSpace === -1) {
-    return { agent: trimmed, task: "" };
+    return { preset: trimmed, task: "" };
   }
 
   return {
-    agent: trimmed.slice(0, firstSpace),
+    preset: trimmed.slice(0, firstSpace),
     task: trimmed.slice(firstSpace).trim(),
   };
 }

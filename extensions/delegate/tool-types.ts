@@ -1,8 +1,8 @@
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import type { AgentScope } from "./agents.js";
-import type { SubagentDetails, ThinkingLevel } from "./types.js";
+import type { PresetScope } from "./presets.js";
+import type { DelegateDetails, ThinkingLevel } from "./types.js";
 
-export type ToolUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
+export type ToolUpdateCallback = (partial: AgentToolResult<DelegateDetails>) => void;
 
 export type ThemeLike = {
   fg: (color: string, text: string) => string;
@@ -16,7 +16,7 @@ export type RenderableResult = {
 
 export type RenderableArgs = {
   options?: {
-    scope?: AgentScope;
+    scope?: PresetScope;
     model?: string;
     thinking?: ThinkingLevel;
   };

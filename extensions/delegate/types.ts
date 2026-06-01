@@ -1,5 +1,5 @@
 import type { Message } from "@mariozechner/pi-ai";
-import type { AgentScope } from "./agents.js";
+import type { PresetScope } from "./presets.js";
 
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -14,8 +14,8 @@ export type UsageStats = {
 };
 
 export type SingleResult = {
-  agent: string;
-  agentSource: "user" | "project" | "unknown";
+  preset: string;
+  presetSource: "preset" | "user" | "project" | "unknown";
   task: string;
   exitCode: number;
   messages: Message[];
@@ -28,17 +28,17 @@ export type SingleResult = {
   step?: number;
 };
 
-export type SubagentDetails = {
-  mode: "single" | "parallel" | "chain" | "resume";
-  agentScope: AgentScope;
-  projectAgentsDir: string | null;
+export type DelegateDetails = {
+  mode: "single" | "parallel" | "sequence" | "resume";
+  presetScope: PresetScope;
+  projectPresetsDir: string | null;
   results: SingleResult[];
 };
 
-export type SavedSubagentSession = {
+export type SavedDelegateSession = {
   sessionId: string;
-  agent: string;
-  agentSource: "user" | "project" | "unknown";
+  preset: string;
+  presetSource: "preset" | "user" | "project" | "unknown";
   cwd: string;
   model?: string;
   thinking?: ThinkingLevel;

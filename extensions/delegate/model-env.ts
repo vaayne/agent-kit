@@ -1,4 +1,4 @@
-import type { AgentConfig } from "./agents.js";
+import type { PresetConfig } from "./presets.js";
 import type { ThinkingLevel } from "./types.js";
 
 export const MODEL_PROFILES = ["quick", "build", "reason", "design"] as const;
@@ -15,11 +15,11 @@ export function isModelProfile(value: string | undefined): value is ModelProfile
 }
 
 export function modelEnvName(profile: ModelProfile): string {
-  return `PI_SUBAGENT_${profile.toUpperCase()}_MODEL`;
+  return `PI_DELEGATE_${profile.toUpperCase()}_MODEL`;
 }
 
 export function thinkingEnvName(profile: ModelProfile): string {
-  return `PI_SUBAGENT_${profile.toUpperCase()}_THINKING`;
+  return `PI_DELEGATE_${profile.toUpperCase()}_THINKING`;
 }
 
 function envValue(name: string): string | undefined {
@@ -46,11 +46,11 @@ export function resolveProfileSettings(profile: ModelProfile | undefined): Resol
   };
 }
 
-export function missingModelEnvProfiles(agents: AgentConfig[]): ModelProfile[] {
+export function missingModelEnvProfiles(presets: PresetConfig[]): ModelProfile[] {
   const missing = new Set<ModelProfile>();
-  for (const agent of agents) {
-    if (agent.modelProfile && !envValue(modelEnvName(agent.modelProfile))) {
-      missing.add(agent.modelProfile);
+  for (const preset of presets) {
+    if (preset.modelProfile && !envValue(modelEnvName(preset.modelProfile))) {
+      missing.add(preset.modelProfile);
     }
   }
   return MODEL_PROFILES.filter((profile) => missing.has(profile));
@@ -59,9 +59,9 @@ export function missingModelEnvProfiles(agents: AgentConfig[]): ModelProfile[] {
 export function formatMissingModelEnvWarning(missingProfiles: ModelProfile[]): string {
   const exports = missingProfiles.map((profile) => `  export ${modelEnvName(profile)}="<model>"`).join("\n");
   return [
-    `Subagent model env is not configured for profile(s): ${missingProfiles.join(", ")}.`,
+    `Delegate model env is not configured for profile(s): ${missingProfiles.join(", ")}.`,
     "",
-    "Subagents using these profiles will use pi's default model unless a model is passed in the agent tool call.",
+    "Delegate presets using these profiles will use pi's default model unless a model is passed in the delegate tool call.",
     "",
     "Set them with:",
     exports,

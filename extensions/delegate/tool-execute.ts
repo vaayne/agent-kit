@@ -1,9 +1,9 @@
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
-import { type OnUpdateCallback, resumeAgentSession, runSingleAgent } from "./runner.js";
+import { discoverPresets, type PresetConfig, type PresetScope } from "./presets.js";
+import { type OnUpdateCallback, resumeDelegateSession, runSingleDelegate } from "./runner.js";
 import { MAX_CONCURRENCY, MAX_PARALLEL_TASKS } from "./schemas.js";
-import { loadSubagentSession } from "./session-store.js";
+import { loadDelegateSession } from "./session-store.js";
 import type { ToolUpdateCallback } from "./tool-types.js";
-import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
+import type { DelegateDetails, SingleResult, ThinkingLevel } from "./types.js";
 import {
   createEmptyUsageStats,
   getFinalOutput,
@@ -18,26 +18,26 @@ type RunOverrides = {
   thinking?: ThinkingLevel;
 };
 
-type AgentRunRequest = RunOverrides & {
+type DelegateRunRequest = RunOverrides & {
   name: string;
   prompt: string;
   cwd?: string;
 };
 
-type AgentToolParamsShape = {
+type DelegateToolParamsShape = {
   options?: RunOverrides & {
-    scope?: AgentScope;
+    scope?: PresetScope;
     confirmProject?: boolean;
     cwd?: string;
   };
-  sequence?: AgentRunRequest[];
-  parallel?: AgentRunRequest[];
+  sequence?: DelegateRunRequest[];
+  parallel?: DelegateRunRequest[];
   name?: string;
   sessionId?: string;
   prompt?: string;
 };
 
-type AgentToolContext = {
+type DelegateToolContext = {
   cwd: string;
   hasUI: boolean;
   ui: { confirm: (title: string, message: string) => Promise<boolean> };
@@ -47,68 +47,68 @@ function getCurrentMode(
   hasSequence: boolean,
   hasParallel: boolean,
   hasResume: boolean,
-): "single" | "parallel" | "chain" | "resume" {
-  if (hasSequence) return "chain";
+): DelegateDetails["mode"] {
+  if (hasSequence) return "sequence";
   if (hasParallel) return "parallel";
   if (hasResume) return "resume";
   return "single";
 }
 
-function getAvailableAgentsText(agents: AgentConfig[]): string {
-  if (agents.length === 0) {
+function getAvailablePresetsText(presets: PresetConfig[]): string {
+  if (presets.length === 0) {
     return "none";
   }
 
-  return agents.map((agent) => `${agent.name} (${agent.source})`).join(", ");
+  return presets.map((preset) => `${preset.name} (${preset.source})`).join(", ");
 }
 
-function confirmRequestedProjectAgents(
-  params: Pick<AgentToolParamsShape, "sequence" | "parallel" | "name">,
-  agents: AgentConfig[],
-): AgentConfig[] {
-  const requestedAgentNames = new Set<string>();
+function confirmRequestedProjectPresets(
+  params: Pick<DelegateToolParamsShape, "sequence" | "parallel" | "name">,
+  presets: PresetConfig[],
+): PresetConfig[] {
+  const requestedPresetNames = new Set<string>();
   if (params.sequence) {
-    for (const step of params.sequence) requestedAgentNames.add(step.name);
+    for (const step of params.sequence) requestedPresetNames.add(step.name);
   }
   if (params.parallel) {
-    for (const task of params.parallel) requestedAgentNames.add(task.name);
+    for (const task of params.parallel) requestedPresetNames.add(task.name);
   }
-  if (params.name) requestedAgentNames.add(params.name);
+  if (params.name) requestedPresetNames.add(params.name);
 
-  return Array.from(requestedAgentNames)
-    .map((name) => agents.find((agent) => agent.name === name))
-    .filter((agent): agent is AgentConfig => agent?.source === "project");
+  return Array.from(requestedPresetNames)
+    .map((name) => presets.find((preset) => preset.name === name))
+    .filter((preset): preset is PresetConfig => preset?.source === "project");
 }
 
-async function confirmProjectAgentsIfNeeded(
-  ctx: AgentToolContext,
-  agentScope: AgentScope,
-  confirmProjectAgents: boolean,
-  agents: AgentConfig[],
-  projectAgentsDir: string | null,
-  params: Pick<AgentToolParamsShape, "sequence" | "parallel" | "name">,
+async function confirmProjectPresetsIfNeeded(
+  ctx: DelegateToolContext,
+  presetScope: PresetScope,
+  confirmProjectPresets: boolean,
+  presets: PresetConfig[],
+  projectPresetsDir: string | null,
+  params: Pick<DelegateToolParamsShape, "sequence" | "parallel" | "name">,
 ): Promise<boolean> {
-  if ((agentScope !== "project" && agentScope !== "both") || !confirmProjectAgents || !ctx.hasUI) {
+  if ((presetScope !== "project" && presetScope !== "both") || !confirmProjectPresets || !ctx.hasUI) {
     return true;
   }
 
-  const projectAgentsRequested = confirmRequestedProjectAgents(params, agents);
-  if (projectAgentsRequested.length === 0) return true;
+  const projectPresetsRequested = confirmRequestedProjectPresets(params, presets);
+  if (projectPresetsRequested.length === 0) return true;
 
-  const names = projectAgentsRequested.map((agent) => agent.name).join(", ");
-  const sourceDir = projectAgentsDir ?? "(unknown)";
+  const names = projectPresetsRequested.map((preset) => preset.name).join(", ");
+  const sourceDir = projectPresetsDir ?? "(unknown)";
   return await ctx.ui.confirm(
-    "Run project-local agents?",
-    `Agents: ${names}\nSource: ${sourceDir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+    "Run project-local presets?",
+    `Presets: ${names}\nSource: ${sourceDir}\n\nProject presets are repo-controlled. Only continue for trusted repositories.`,
   );
 }
 
 function createDetailsFactory(
-  mode: "single" | "parallel" | "chain" | "resume",
-  agentScope: AgentScope,
-  projectAgentsDir: string | null,
-): (results: SingleResult[]) => SubagentDetails {
-  return (results) => ({ mode, agentScope, projectAgentsDir, results });
+  mode: DelegateDetails["mode"],
+  presetScope: PresetScope,
+  projectPresetsDir: string | null,
+): (results: SingleResult[]) => DelegateDetails {
+  return (results) => ({ mode, presetScope, projectPresetsDir, results });
 }
 
 function formatModelLabel(overrides?: RunOverrides): string | undefined {
@@ -120,13 +120,13 @@ function formatModelLabel(overrides?: RunOverrides): string | undefined {
 }
 
 function createRunningResult(
-  agent: string,
+  preset: string,
   task: string,
   overrides?: RunOverrides,
 ): SingleResult {
   return {
-    agent,
-    agentSource: "unknown",
+    preset,
+    presetSource: "unknown",
     task,
     exitCode: -1,
     messages: [],
@@ -145,7 +145,7 @@ function formatSessionSummary(results: SingleResult[]): string {
     .filter((result) => result.sessionId)
     .map((result) => {
       const stepPrefix = result.step ? `Step ${result.step} ` : "";
-      return `${stepPrefix}${result.agent}: ${result.sessionId}`;
+      return `${stepPrefix}${result.preset}: ${result.sessionId}`;
     });
   return lines.length > 0 ? `\n\nSession IDs:\n${lines.join("\n")}` : "";
 }
@@ -159,14 +159,14 @@ function mergeRunOverrides(run: RunOverrides, defaults?: RunOverrides): RunOverr
 
 function buildSingleResultResponse(
   result: SingleResult,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
 ) {
   if (isResultError(result)) {
     return {
       content: [
         {
           type: "text",
-          text: `Agent ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
+          text: `Preset ${result.stopReason || "failed"}: ${getResultOutput(result)}${formatSessionLine(result)}`,
         },
       ],
       details: makeDetails([result]),
@@ -185,13 +185,13 @@ function buildSingleResultResponse(
   };
 }
 
-async function executeChainMode(
+async function executeSequenceMode(
   ctx: { cwd: string },
-  params: { sequence: AgentRunRequest[] },
-  agents: AgentConfig[],
+  params: { sequence: DelegateRunRequest[] },
+  presets: PresetConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
   defaultOverrides?: RunOverrides,
 ) {
   const results: SingleResult[] = [];
@@ -200,7 +200,7 @@ async function executeChainMode(
   for (let index = 0; index < params.sequence.length; index++) {
     const step = params.sequence[index];
     const taskWithContext = step.prompt.replace(/\{previous\}/g, previousOutput);
-    const chainUpdate: OnUpdateCallback | undefined = onUpdate
+    const sequenceUpdate: OnUpdateCallback | undefined = onUpdate
       ? (partial) => {
         const currentResult = partial.details?.results[0];
         if (!currentResult) return;
@@ -211,15 +211,15 @@ async function executeChainMode(
       }
       : undefined;
 
-    const result = await runSingleAgent(
+    const result = await runSingleDelegate(
       ctx.cwd,
-      agents,
+      presets,
       step.name,
       taskWithContext,
       step.cwd,
       index + 1,
       signal,
-      chainUpdate,
+      sequenceUpdate,
       makeDetails,
       mergeRunOverrides(step, defaultOverrides),
     );
@@ -255,11 +255,11 @@ async function executeChainMode(
 
 async function executeParallelMode(
   ctx: { cwd: string },
-  params: { parallel: AgentRunRequest[] },
-  agents: AgentConfig[],
+  params: { parallel: DelegateRunRequest[] },
+  presets: PresetConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
   defaultOverrides?: RunOverrides,
 ) {
   if (params.parallel.length > MAX_PARALLEL_TASKS) {
@@ -297,9 +297,9 @@ async function executeParallelMode(
     params.parallel,
     MAX_CONCURRENCY,
     async (task, index) => {
-      const result = await runSingleAgent(
+      const result = await runSingleDelegate(
         ctx.cwd,
-        agents,
+        presets,
         task.name,
         task.prompt,
         task.cwd,
@@ -326,7 +326,7 @@ async function executeParallelMode(
     const preview = truncateText(output, 100);
     const status = result.exitCode === 0 ? "completed" : "failed";
     const sessionSuffix = result.sessionId ? `\nSession ID: ${result.sessionId}` : "";
-    return `[${result.agent}] ${status}: ${preview || "(no output)"}${sessionSuffix}`;
+    return `[${result.preset}] ${status}: ${preview || "(no output)"}${sessionSuffix}`;
   });
 
   return {
@@ -342,15 +342,15 @@ async function executeParallelMode(
 
 async function executeSingleMode(
   ctx: { cwd: string },
-  params: AgentRunRequest,
-  agents: AgentConfig[],
+  params: DelegateRunRequest,
+  presets: PresetConfig[],
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
 ) {
-  const result = await runSingleAgent(
+  const result = await runSingleDelegate(
     ctx.cwd,
-    agents,
+    presets,
     params.name,
     params.prompt,
     params.cwd,
@@ -370,19 +370,19 @@ async function executeResumeMode(
   },
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
-  ctx: AgentToolContext,
-  confirmProjectAgents: boolean,
-  projectAgentsDir: string | null,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
+  ctx: DelegateToolContext,
+  confirmProjectPresets: boolean,
+  projectPresetsDir: string | null,
 ) {
-  const metadata = loadSubagentSession(params.sessionId);
+  const metadata = loadDelegateSession(params.sessionId);
   if (!metadata) {
     return {
       content: [
         {
           type: "text",
-          text: `Unknown subagent session: ${params.sessionId}\n`
-            + "No saved subagent metadata was found for this session ID.",
+          text: `Unknown delegate session: ${params.sessionId}\n`
+            + "No saved delegate metadata was found for this session ID.",
         },
       ],
       details: makeDetails([]),
@@ -390,18 +390,18 @@ async function executeResumeMode(
     };
   }
 
-  // Check for project-local agent confirmation in resume mode
-  if (confirmProjectAgents && ctx.hasUI && metadata.agentSource === "project") {
+  // Check for project-local preset confirmation in resume mode
+  if (confirmProjectPresets && ctx.hasUI && metadata.presetSource === "project") {
     const confirmed = await ctx.ui.confirm(
-      "Run project-local agent from resumed session?",
-      `Agent: ${metadata.agent}\nSource: project\nSession: ${params.sessionId}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+      "Run project-local preset from resumed session?",
+      `Preset: ${metadata.preset}\nSource: project\nSession: ${params.sessionId}\n\nProject presets are repo-controlled. Only continue for trusted repositories.`,
     );
     if (!confirmed) {
       return {
         content: [
           {
             type: "text",
-            text: "Canceled: project-local agent not approved for resumed session.",
+            text: "Canceled: project-local preset not approved for resumed session.",
           },
         ],
         details: makeDetails([]),
@@ -409,7 +409,7 @@ async function executeResumeMode(
     }
   }
 
-  const result = await resumeAgentSession(
+  const result = await resumeDelegateSession(
     metadata,
     params.prompt,
     undefined,
@@ -420,43 +420,43 @@ async function executeResumeMode(
   return buildSingleResultResponse(result, makeDetails);
 }
 
-export async function executeAgentTool(
-  params: AgentToolParamsShape,
+export async function executeDelegateTool(
+  params: DelegateToolParamsShape,
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
-  ctx: AgentToolContext,
+  ctx: DelegateToolContext,
 ) {
-  const agentScope: AgentScope = params.options?.scope ?? "user";
-  const discovery = discoverAgents(ctx.cwd, agentScope);
-  const agents = discovery.agents;
-  const confirmProjectAgents = params.options?.confirmProject ?? true;
+  const presetScope: PresetScope = params.options?.scope ?? "user";
+  const discovery = discoverPresets(ctx.cwd, presetScope);
+  const presets = discovery.presets;
+  const confirmProjectPresets = params.options?.confirmProject ?? true;
   const hasSequence = (params.sequence?.length ?? 0) > 0;
   const hasParallel = (params.parallel?.length ?? 0) > 0;
   const hasSingle = Boolean(params.name && params.prompt);
   const hasResume = Boolean(params.sessionId && params.prompt);
   const modeCount = Number(hasSequence) + Number(hasParallel) + Number(hasSingle) + Number(hasResume);
   const currentMode = getCurrentMode(hasSequence, hasParallel, hasResume);
-  const detailsForMode = (mode: SubagentDetails["mode"]) =>
-    createDetailsFactory(mode, agentScope, discovery.projectAgentsDir);
+  const detailsForMode = (mode: DelegateDetails["mode"]) =>
+    createDetailsFactory(mode, presetScope, discovery.projectPresetsDir);
 
   if (modeCount !== 1) {
     return {
       content: [
         {
           type: "text",
-          text: `Invalid parameters. Provide exactly one mode.\nAvailable agents: ${getAvailableAgentsText(agents)}`,
+          text: `Invalid parameters. Provide exactly one mode.\nAvailable presets: ${getAvailablePresetsText(presets)}`,
         },
       ],
       details: detailsForMode("single")([]),
     };
   }
 
-  const approved = await confirmProjectAgentsIfNeeded(
+  const approved = await confirmProjectPresetsIfNeeded(
     ctx,
-    agentScope,
-    confirmProjectAgents,
-    agents,
-    discovery.projectAgentsDir,
+    presetScope,
+    confirmProjectPresets,
+    presets,
+    discovery.projectPresetsDir,
     params,
   );
   if (!approved) {
@@ -464,7 +464,7 @@ export async function executeAgentTool(
       content: [
         {
           type: "text",
-          text: "Canceled: project-local agents not approved.",
+          text: "Canceled: project-local presets not approved.",
         },
       ],
       details: detailsForMode(currentMode)([]),
@@ -472,13 +472,13 @@ export async function executeAgentTool(
   }
 
   if (params.sequence?.length) {
-    return await executeChainMode(
+    return await executeSequenceMode(
       ctx,
       { sequence: params.sequence },
-      agents,
+      presets,
       signal,
       onUpdate,
-      detailsForMode("chain"),
+      detailsForMode("sequence"),
       {
         model: params.options?.model,
         thinking: params.options?.thinking,
@@ -489,7 +489,7 @@ export async function executeAgentTool(
     return await executeParallelMode(
       ctx,
       { parallel: params.parallel },
-      agents,
+      presets,
       signal,
       onUpdate,
       detailsForMode("parallel"),
@@ -509,7 +509,7 @@ export async function executeAgentTool(
         model: params.options?.model,
         thinking: params.options?.thinking,
       },
-      agents,
+      presets,
       signal,
       onUpdate,
       detailsForMode("single"),
@@ -522,8 +522,8 @@ export async function executeAgentTool(
       onUpdate,
       detailsForMode("resume"),
       ctx,
-      confirmProjectAgents,
-      discovery.projectAgentsDir,
+      confirmProjectPresets,
+      discovery.projectPresetsDir,
     );
   }
 
@@ -531,7 +531,7 @@ export async function executeAgentTool(
     content: [
       {
         type: "text",
-        text: `Invalid parameters. Available agents: ${getAvailableAgentsText(agents)}`,
+        text: `Invalid parameters. Available presets: ${getAvailablePresetsText(presets)}`,
       },
     ],
     details: detailsForMode("single")([]),

@@ -4,10 +4,10 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentConfig } from "./agents.js";
 import { resolveProfileSettings } from "./model-env.js";
-import { saveSubagentSession } from "./session-store.js";
-import type { SavedSubagentSession, SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
+import type { PresetConfig } from "./presets.js";
+import { saveDelegateSession } from "./session-store.js";
+import type { DelegateDetails, SavedDelegateSession, SingleResult, ThinkingLevel } from "./types.js";
 import { createEmptyUsageStats, getFinalOutput } from "./utils.js";
 
 type JsonEvent = {
@@ -17,8 +17,8 @@ type JsonEvent = {
 };
 
 type RunConfig = {
-  agent: string;
-  agentSource: "user" | "project" | "unknown";
+  preset: string;
+  presetSource: "preset" | "user" | "project" | "unknown";
   task: string;
   cwd: string;
   model?: string;
@@ -29,13 +29,13 @@ type RunConfig = {
   resumeSessionId?: string;
 };
 
-export type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
+export type OnUpdateCallback = (partial: AgentToolResult<DelegateDetails>) => void;
 
 function writePromptToTempFile(
   agentName: string,
   prompt: string,
 ): { dir: string; filePath: string } {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-delegate-"));
   const safeName = agentName.replace(/[^\w.-]+/g, "_");
   const filePath = path.join(tempDir, `prompt-${safeName}.md`);
   fs.writeFileSync(filePath, prompt, { encoding: "utf-8", mode: 0o600 });
@@ -56,15 +56,15 @@ function splitModelThinking(model: string | undefined): {
 }
 
 function resolveRunModel(
-  agent: AgentConfig,
+  preset: PresetConfig,
   overrides?: {
     model?: string;
     thinking?: ThinkingLevel;
   },
 ): { model?: string; thinking?: ThinkingLevel; label?: string } {
-  const profileSettings = resolveProfileSettings(agent.modelProfile);
+  const profileSettings = resolveProfileSettings(preset.modelProfile);
   const base = splitModelThinking(overrides?.model ?? profileSettings.model);
-  const thinking = overrides?.thinking ?? base.thinking ?? profileSettings.thinking ?? agent.thinking ?? "medium";
+  const thinking = overrides?.thinking ?? base.thinking ?? profileSettings.thinking ?? preset.thinking ?? "medium";
   const label = base.model ? `${base.model}:${thinking}` : undefined;
 
   return { model: base.model, thinking, label };
@@ -72,8 +72,8 @@ function resolveRunModel(
 
 function createResult(config: RunConfig): SingleResult {
   return {
-    agent: config.agent,
-    agentSource: config.agentSource,
+    preset: config.preset,
+    presetSource: config.presetSource,
     task: config.task,
     exitCode: 0,
     messages: [],
@@ -85,11 +85,11 @@ function createResult(config: RunConfig): SingleResult {
   };
 }
 
-function buildSavedSession(config: RunConfig, sessionId: string): SavedSubagentSession {
+function buildSavedSession(config: RunConfig, sessionId: string): SavedDelegateSession {
   return {
     sessionId,
-    agent: config.agent,
-    agentSource: config.agentSource,
+    preset: config.preset,
+    presetSource: config.presetSource,
     cwd: path.resolve(config.cwd),
     model: config.model,
     thinking: config.thinking,
@@ -98,11 +98,11 @@ function buildSavedSession(config: RunConfig, sessionId: string): SavedSubagentS
   };
 }
 
-async function runConfiguredAgent(
+async function runConfiguredPreset(
   config: RunConfig,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
 ): Promise<SingleResult> {
   const args: string[] = ["--mode", "json", "-p"];
   if (config.resumeSessionId) {
@@ -133,7 +133,7 @@ async function runConfiguredAgent(
 
   try {
     if (config.systemPrompt.trim()) {
-      const tempPrompt = writePromptToTempFile(config.agent, config.systemPrompt);
+      const tempPrompt = writePromptToTempFile(config.preset, config.systemPrompt);
       tempPromptDir = tempPrompt.dir;
       tempPromptPath = tempPrompt.filePath;
       args.push("--append-system-prompt", tempPromptPath);
@@ -147,7 +147,7 @@ async function runConfiguredAgent(
         cwd: config.cwd,
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PI_SUBAGENT: "1" },
+        env: { ...process.env, PI_DELEGATE: "1" },
       });
       let buffer = "";
 
@@ -185,7 +185,7 @@ async function runConfiguredAgent(
 
         if (event.type === "session" && event.id) {
           currentResult.sessionId = event.id;
-          saveSubagentSession(buildSavedSession(config, event.id));
+          saveDelegateSession(buildSavedSession(config, event.id));
           emitUpdate();
           return;
         }
@@ -252,7 +252,7 @@ async function runConfiguredAgent(
     });
 
     currentResult.exitCode = exitCode;
-    if (wasAborted) throw new Error("Subagent was aborted");
+    if (wasAborted) throw new Error("Delegate preset was aborted");
     return currentResult;
   } finally {
     if (tempPromptPath) {
@@ -272,43 +272,43 @@ async function runConfiguredAgent(
   }
 }
 
-export async function runSingleAgent(
+export async function runSingleDelegate(
   defaultCwd: string,
-  agents: AgentConfig[],
-  agentName: string,
+  presets: PresetConfig[],
+  presetName: string,
   task: string,
   cwd: string | undefined,
   step: number | undefined,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
   overrides?: { model?: string; thinking?: ThinkingLevel },
 ): Promise<SingleResult> {
-  const agent = agents.find((candidate) => candidate.name === agentName);
-  if (!agent) {
+  const preset = presets.find((candidate) => candidate.name === presetName);
+  if (!preset) {
     return {
-      agent: agentName,
-      agentSource: "unknown",
+      preset: presetName,
+      presetSource: "unknown",
       task,
       exitCode: 1,
       messages: [],
-      stderr: `Unknown agent: ${agentName}`,
+      stderr: `Unknown preset: ${presetName}`,
       usage: createEmptyUsageStats(),
       step,
     };
   }
 
-  const resolvedModel = resolveRunModel(agent, overrides);
-  return await runConfiguredAgent(
+  const resolvedModel = resolveRunModel(preset, overrides);
+  return await runConfiguredPreset(
     {
-      agent: agentName,
-      agentSource: agent.source,
+      preset: presetName,
+      presetSource: preset.source,
       task,
       cwd: cwd ?? defaultCwd,
       model: resolvedModel.model,
       thinking: resolvedModel.thinking,
-      tools: agent.tools,
-      systemPrompt: agent.systemPrompt,
+      tools: preset.tools,
+      systemPrompt: preset.systemPrompt,
       step,
     },
     signal,
@@ -317,15 +317,15 @@ export async function runSingleAgent(
   );
 }
 
-export async function resumeAgentSession(
-  metadata: SavedSubagentSession,
+export async function resumeDelegateSession(
+  metadata: SavedDelegateSession,
   task: string,
   step: number | undefined,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback | undefined,
-  makeDetails: (results: SingleResult[]) => SubagentDetails,
+  makeDetails: (results: SingleResult[]) => DelegateDetails,
 ): Promise<SingleResult> {
-  return await runConfiguredAgent(
+  return await runConfiguredPreset(
     {
       ...metadata,
       task,

@@ -1,8 +1,8 @@
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
-import type { AgentScope } from "./agents.js";
+import type { PresetScope } from "./presets.js";
 import type { RenderableArgs, RenderableResult, ThemeLike } from "./tool-types.js";
-import type { SingleResult, SubagentDetails, ThinkingLevel } from "./types.js";
+import type { DelegateDetails, SingleResult, ThinkingLevel } from "./types.js";
 import {
   aggregateUsage,
   COLLAPSED_ITEM_COUNT,
@@ -64,7 +64,7 @@ function formatModelLabel(overrides?: { model?: string; thinking?: ThinkingLevel
   return `${overrides.model}:${overrides.thinking ?? "medium"}`;
 }
 
-function renderAgentLabel(
+function renderPresetLabel(
   theme: ThemeLike,
   name: string,
   overrides?: { model?: string; thinking?: ThinkingLevel },
@@ -96,7 +96,7 @@ function renderDisplayItems(
   return text.trimEnd();
 }
 
-function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: ThemeLike) {
+function renderSingleResult(details: DelegateDetails, expanded: boolean, theme: ThemeLike) {
   const result = details.results[0];
   const isError = isResultError(result);
   const icon = getResultIcon(theme, result);
@@ -105,8 +105,8 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
 
   if (expanded) {
     const container = new Container();
-    let header = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${
-      theme.fg("muted", ` (${result.agentSource})`)
+    let header = `${icon} ${theme.fg("toolTitle", theme.bold(result.preset))}${
+      theme.fg("muted", ` (${result.presetSource})`)
     }`;
     if (isError && result.stopReason) header += ` ${theme.fg("error", `[${result.stopReason}]`)}`;
     container.addChild(new Text(header, 0, 0));
@@ -147,8 +147,8 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
     return container;
   }
 
-  let text = `${icon} ${theme.fg("toolTitle", theme.bold(result.agent))}${
-    theme.fg("muted", ` (${result.agentSource})`)
+  let text = `${icon} ${theme.fg("toolTitle", theme.bold(result.preset))}${
+    theme.fg("muted", ` (${result.presetSource})`)
   }`;
   if (isError && result.stopReason) text += ` ${theme.fg("error", `[${result.stopReason}]`)}`;
   if (result.sessionId) {
@@ -168,7 +168,7 @@ function renderSingleResult(details: SubagentDetails, expanded: boolean, theme: 
   return new Text(text, 0, 0);
 }
 
-function renderChainResult(details: SubagentDetails, expanded: boolean, theme: ThemeLike) {
+function renderSequenceResult(details: DelegateDetails, expanded: boolean, theme: ThemeLike) {
   const successCount = details.results.filter((result) => result.exitCode === 0).length;
   const icon = successCount === details.results.length ? theme.fg("success", "✓") : theme.fg("error", "✗");
 
@@ -191,7 +191,7 @@ function renderChainResult(details: SubagentDetails, expanded: boolean, theme: T
       container.addChild(new Spacer(1));
       container.addChild(
         new Text(
-          `${theme.fg("muted", `─── Step ${result.step}: `) + theme.fg("accent", result.agent)} ${resultIcon}`,
+          `${theme.fg("muted", `─── Step ${result.step}: `) + theme.fg("accent", result.preset)} ${resultIcon}`,
           0,
           0,
         ),
@@ -234,7 +234,7 @@ function renderChainResult(details: SubagentDetails, expanded: boolean, theme: T
   for (const result of details.results) {
     const resultIcon = getResultIcon(theme, result);
     const displayItems = getDisplayItems(result.messages);
-    text += `\n\n${theme.fg("muted", `─── Step ${result.step}: `)}${theme.fg("accent", result.agent)} ${resultIcon}`;
+    text += `\n\n${theme.fg("muted", `─── Step ${result.step}: `)}${theme.fg("accent", result.preset)} ${resultIcon}`;
     if (result.sessionId) {
       text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
     }
@@ -248,7 +248,7 @@ function renderChainResult(details: SubagentDetails, expanded: boolean, theme: T
   return new Text(text, 0, 0);
 }
 
-function renderParallelResult(details: SubagentDetails, expanded: boolean, theme: ThemeLike) {
+function renderParallelResult(details: DelegateDetails, expanded: boolean, theme: ThemeLike) {
   const running = details.results.filter((result) => result.exitCode === -1).length;
   const successCount = details.results.filter((result) => result.exitCode === 0).length;
   const failCount = details.results.filter((result) => result.exitCode > 0).length;
@@ -279,7 +279,7 @@ function renderParallelResult(details: SubagentDetails, expanded: boolean, theme
       container.addChild(new Spacer(1));
       container.addChild(
         new Text(
-          `${theme.fg("muted", "─── ") + theme.fg("accent", result.agent)} ${resultIcon}`,
+          `${theme.fg("muted", "─── ") + theme.fg("accent", result.preset)} ${resultIcon}`,
           0,
           0,
         ),
@@ -319,7 +319,7 @@ function renderParallelResult(details: SubagentDetails, expanded: boolean, theme
   for (const result of details.results) {
     const resultIcon = getParallelResultIcon(theme, result);
     const displayItems = getDisplayItems(result.messages);
-    text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", result.agent)} ${resultIcon}`;
+    text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", result.preset)} ${resultIcon}`;
     if (result.sessionId) {
       text += `\n${theme.fg("dim", `Session: ${result.sessionId}`)}`;
     }
@@ -339,14 +339,14 @@ function renderParallelResult(details: SubagentDetails, expanded: boolean, theme
 }
 
 export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
-  const scope: AgentScope = args.options?.scope ?? "user";
+  const scope: PresetScope = args.options?.scope ?? "user";
   const defaultOverrides = {
     model: args.options?.model,
     thinking: args.options?.thinking,
   };
   const sequence = args.sequence;
   if (sequence && sequence.length > 0) {
-    let text = theme.fg("toolTitle", theme.bold("agent "))
+    let text = theme.fg("toolTitle", theme.bold("delegate "))
       + theme.fg("accent", `sequence (${sequence.length} steps)`)
       + theme.fg("muted", ` [${scope}]`);
     for (let index = 0; index < Math.min(sequence.length, 3); index++) {
@@ -356,7 +356,7 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
       text += "\n  "
         + theme.fg("muted", `${index + 1}.`)
         + " "
-        + renderAgentLabel(theme, step.name, {
+        + renderPresetLabel(theme, step.name, {
           model: step.model ?? defaultOverrides.model,
           thinking: step.thinking ?? defaultOverrides.thinking,
         })
@@ -370,13 +370,13 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 
   const parallel = args.parallel;
   if (parallel && parallel.length > 0) {
-    let text = theme.fg("toolTitle", theme.bold("agent "))
+    let text = theme.fg("toolTitle", theme.bold("delegate "))
       + theme.fg("accent", `parallel (${parallel.length} runs)`)
       + theme.fg("muted", ` [${scope}]`);
     for (const task of parallel.slice(0, 3)) {
       const preview = truncateText(task.prompt, 40);
       text += `\n  ${
-        renderAgentLabel(theme, task.name, {
+        renderPresetLabel(theme, task.name, {
           model: task.model ?? defaultOverrides.model,
           thinking: task.thinking ?? defaultOverrides.thinking,
         })
@@ -390,17 +390,17 @@ export function renderToolCall(args: RenderableArgs, theme: ThemeLike) {
 
   if (args.sessionId) {
     const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
-    let text = theme.fg("toolTitle", theme.bold("agent "))
+    let text = theme.fg("toolTitle", theme.bold("delegate "))
       + theme.fg("accent", "resume")
       + theme.fg("muted", ` (${args.sessionId}) [${scope}]`);
     text += `\n  ${theme.fg("dim", preview)}`;
     return new Text(text, 0, 0);
   }
 
-  const agentName = args.name || "...";
+  const presetName = args.name || "...";
   const preview = args.prompt ? truncateText(args.prompt, 60) : "...";
-  let text = theme.fg("toolTitle", theme.bold("agent "))
-    + renderAgentLabel(theme, agentName, {
+  let text = theme.fg("toolTitle", theme.bold("delegate "))
+    + renderPresetLabel(theme, presetName, {
       model: args.model ?? defaultOverrides.model,
       thinking: args.thinking ?? defaultOverrides.thinking,
     })
@@ -414,15 +414,15 @@ export function renderToolResult(
   options: { expanded: boolean },
   theme: ThemeLike,
 ) {
-  const details = result.details as SubagentDetails | undefined;
+  const details = result.details as DelegateDetails | undefined;
   if (!details || details.results.length === 0) {
     return new Text(getTextContent(result.content), 0, 0);
   }
   if ((details.mode === "single" || details.mode === "resume") && details.results.length === 1) {
     return renderSingleResult(details, options.expanded, theme);
   }
-  if (details.mode === "chain") {
-    return renderChainResult(details, options.expanded, theme);
+  if (details.mode === "sequence") {
+    return renderSequenceResult(details, options.expanded, theme);
   }
   if (details.mode === "parallel") {
     return renderParallelResult(details, options.expanded, theme);
