@@ -405,7 +405,13 @@
     </style>
   </head>
   <body>
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">◐</button>
+    <button
+      class="theme-toggle"
+      onclick="toggleTheme()"
+      aria-label="Toggle theme"
+    >
+      ◐
+    </button>
     __CONTENT__
     <script type="application/json" id="review-data">
     {}
@@ -424,7 +430,10 @@
       evt.target.closest(".filter-btn").classList.add("active");
 
       document.querySelectorAll(".finding").forEach((el) => {
-        el.style.display = (severity === "all" || el.dataset.severity === severity) ? "" : "none";
+        el.style.display =
+          (severity === "all" || el.dataset.severity === severity)
+            ? ""
+            : "none";
       });
     }
     </script>

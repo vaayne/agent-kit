@@ -9,7 +9,9 @@ const MAC_SOUND_PATH = "/System/Library/Sounds/Ping.aiff";
 async function playSound(pi: ExtensionAPI): Promise<void> {
   if (process.platform === "darwin") {
     try {
-      const result = await pi.exec("afplay", [MAC_SOUND_PATH], { timeout: 2000 });
+      const result = await pi.exec("afplay", [MAC_SOUND_PATH], {
+        timeout: 2000,
+      });
       if (result.code === 0) {
         return;
       }

@@ -43,7 +43,9 @@ const DEFAULT_PERCENT_DISPLAY_MODE: PercentDisplayMode = "left";
 const DEFAULT_RESET_WINDOW_MODE: ResetWindowMode = "7d";
 
 const agentDirFromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
-const AGENT_DIR = agentDirFromEnv ? agentDirFromEnv : path.join(os.homedir(), ".pi", "agent");
+const AGENT_DIR = agentDirFromEnv
+  ? agentDirFromEnv
+  : path.join(os.homedir(), ".pi", "agent");
 const AUTH_FILE = path.join(AGENT_DIR, "auth.json");
 const SETTINGS_FILE = path.join(AGENT_DIR, "settings.json");
 
@@ -132,16 +134,25 @@ function formatStatus(
 ): string {
   const theme = ctx.ui.theme;
   const label = getStatusLabel(modelId);
-  const title = usage.isLimited ? theme.fg("error", label) : theme.fg("dim", label);
+  const title = usage.isLimited
+    ? theme.fg("error", label)
+    : theme.fg("dim", label);
   const fiveHourText = colorizePercent(theme, usage.fiveHourLeftPercent, mode);
   const sevenDayText = colorizePercent(theme, usage.sevenDayLeftPercent, mode);
-  const resetSeconds = resetWindowMode === "5h" ? usage.fiveHourResetInSeconds : usage.sevenDayResetInSeconds;
+  const resetSeconds = resetWindowMode === "5h"
+    ? usage.fiveHourResetInSeconds
+    : usage.sevenDayResetInSeconds;
   const resetText = formatResetCountdown(resetSeconds);
   const resetLabel = resetWindowMode === "5h" ? FIVE_HOUR_LABEL : SEVEN_DAY_LABEL;
-  const resetStatus = resetText ? theme.fg("dim", ` (${resetLabel}↺${resetText})`) : "";
+  const resetStatus = resetText
+    ? theme.fg("dim", ` (${resetLabel}↺${resetText})`)
+    : "";
 
   return `${title} ${theme.fg("dim", FIVE_HOUR_LABEL)}${fiveHourText} ${
-    theme.fg("dim", SEVEN_DAY_LABEL)
+    theme.fg(
+      "dim",
+      SEVEN_DAY_LABEL,
+    )
   }${sevenDayText}${resetStatus}`;
 }
 
@@ -150,7 +161,9 @@ function parseModeCommandArgument(
   currentMode: PercentDisplayMode,
 ): PercentDisplayMode | null {
   const token = args.trim().toLowerCase().split(/\s+/)[0] ?? "";
-  if (!token || token === "toggle") return currentMode === "left" ? "used" : "left";
+  if (!token || token === "toggle") {
+    return currentMode === "left" ? "used" : "left";
+  }
   if (token === "left" || token === "used") return token;
   return null;
 }
@@ -255,7 +268,9 @@ async function requestUsageJson(): Promise<CodexUsageResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`Codex usage request failed (${response.status}) for ${USAGE_URL}`);
+    throw new Error(
+      `Codex usage request failed (${response.status}) for ${USAGE_URL}`,
+    );
   }
   return (await response.json()) as CodexUsageResponse;
 }
@@ -298,9 +313,15 @@ async function readAgentSettings(): Promise<Record<string, unknown>> {
   }
 }
 
-async function writeAgentSettings(settings: Record<string, unknown>): Promise<void> {
+async function writeAgentSettings(
+  settings: Record<string, unknown>,
+): Promise<void> {
   await fs.mkdir(path.dirname(SETTINGS_FILE), { recursive: true });
-  await fs.writeFile(SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  await fs.writeFile(
+    SETTINGS_FILE,
+    `${JSON.stringify(settings, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 async function loadPersistedPreferences(): Promise<{
@@ -316,7 +337,9 @@ async function loadPersistedPreferences(): Promise<{
   return { preferences, needsWrite };
 }
 
-async function persistPreferences(preferences: ExtensionPreferences): Promise<void> {
+async function persistPreferences(
+  preferences: ExtensionPreferences,
+): Promise<void> {
   const settings = await readAgentSettings();
   settings[SETTINGS_KEY] = preferences;
   await writeAgentSettings(settings);
@@ -338,16 +361,23 @@ function normalizeRateLimitBucket(value: unknown): RateLimitBucket | null {
   return record as RateLimitBucket;
 }
 
-function extractSparkRateLimitFromEntry(value: unknown): RateLimitBucket | null {
+function extractSparkRateLimitFromEntry(
+  value: unknown,
+): RateLimitBucket | null {
   const record = asObject(value);
   if (!record) return null;
-  if (typeof record.limit_name !== "string" || record.limit_name.trim() !== SPARK_LIMIT_NAME) {
+  if (
+    typeof record.limit_name !== "string"
+    || record.limit_name.trim() !== SPARK_LIMIT_NAME
+  ) {
     return null;
   }
   return normalizeRateLimitBucket(record.rate_limit);
 }
 
-function findSparkRateLimitBucket(data: CodexUsageResponse): RateLimitBucket | null {
+function findSparkRateLimitBucket(
+  data: CodexUsageResponse,
+): RateLimitBucket | null {
   const additional = data.additional_rate_limits;
   if (Array.isArray(additional)) {
     for (const entry of additional) {
@@ -377,9 +407,14 @@ function selectRateLimitBucket(
   return normalizeRateLimitBucket(data.rate_limit);
 }
 
-function getResetSeconds(window: UsageWindow | null | undefined): number | null {
+function getResetSeconds(
+  window: UsageWindow | null | undefined,
+): number | null {
   const resetAfterSeconds = window?.reset_after_seconds;
-  if (typeof resetAfterSeconds === "number" && !Number.isNaN(resetAfterSeconds)) {
+  if (
+    typeof resetAfterSeconds === "number"
+    && !Number.isNaN(resetAfterSeconds)
+  ) {
     return resetAfterSeconds;
   }
 
@@ -390,7 +425,10 @@ function getResetSeconds(window: UsageWindow | null | undefined): number | null 
   return Math.max(0, resetAtSeconds - Date.now() / 1000);
 }
 
-function parseUsageSnapshot(data: CodexUsageResponse, modelId: string | undefined): UsageSnapshot {
+function parseUsageSnapshot(
+  data: CodexUsageResponse,
+  modelId: string | undefined,
+): UsageSnapshot {
   const selectedBucket = selectRateLimitBucket(data, modelId);
   const fiveHourWindow = selectedBucket?.primary_window;
   const fiveHourValue = fiveHourWindow?.used_percent;
@@ -402,7 +440,8 @@ function parseUsageSnapshot(data: CodexUsageResponse, modelId: string | undefine
     sevenDayLeftPercent: usedToLeftPercent(sevenDayValue),
     fiveHourResetInSeconds: getResetSeconds(fiveHourWindow),
     sevenDayResetInSeconds: getResetSeconds(sevenDayWindow),
-    isLimited: selectedBucket?.limit_reached === true || selectedBucket?.allowed === false,
+    isLimited: selectedBucket?.limit_reached === true
+      || selectedBucket?.allowed === false,
   };
 }
 
@@ -426,7 +465,10 @@ function createStatusRefresher() {
   let resetWindowMode: ResetWindowMode = DEFAULT_RESET_WINDOW_MODE;
   let lastUsageSnapshot: UsageSnapshot | undefined;
 
-  async function updateFooterStatus(ctx: ExtensionContext, modelId = ctx.model?.id): Promise<void> {
+  async function updateFooterStatus(
+    ctx: ExtensionContext,
+    modelId = ctx.model?.id,
+  ): Promise<void> {
     if (!ctx.hasUI) return;
     if (!isCodexProvider(ctx)) {
       ctx.ui.setStatus(EXTENSION_ID, undefined);
@@ -464,7 +506,10 @@ function createStatusRefresher() {
     }
   }
 
-  function refreshFor(ctx: ExtensionContext, modelId = ctx.model?.id): Promise<void> {
+  function refreshFor(
+    ctx: ExtensionContext,
+    modelId = ctx.model?.id,
+  ): Promise<void> {
     activeContext = ctx;
     return updateFooterStatus(ctx, modelId);
   }
@@ -530,7 +575,13 @@ function createStatusRefresher() {
     }
     ctx.ui.setStatus(
       EXTENSION_ID,
-      formatStatus(ctx, lastUsageSnapshot, percentDisplayMode, resetWindowMode, ctx.model?.id),
+      formatStatus(
+        ctx,
+        lastUsageSnapshot,
+        percentDisplayMode,
+        resetWindowMode,
+        ctx.model?.id,
+      ),
     );
     return true;
   }
@@ -579,7 +630,9 @@ export default function(pi: ExtensionAPI) {
     });
   }
 
-  async function applyPersistedPreferences(ctx: ExtensionContext): Promise<void> {
+  async function applyPersistedPreferences(
+    ctx: ExtensionContext,
+  ): Promise<void> {
     applyingPersistedPreferences = true;
     try {
       const { preferences, needsWrite } = await loadPersistedPreferences();
@@ -603,7 +656,9 @@ export default function(pi: ExtensionAPI) {
 
       ctx.ui.notify(
         `pi-codex-usage: failed to load ${SETTINGS_FILE}, using defaults (${DEFAULT_PERCENT_DISPLAY_MODE}, ${DEFAULT_RESET_WINDOW_MODE}): ${
-          formatErrorMessage(error)
+          formatErrorMessage(
+            error,
+          )
         }`,
         "warning",
       );
@@ -643,7 +698,10 @@ export default function(pi: ExtensionAPI) {
     description: "Toggle Codex usage display mode, or set it explicitly: left | used",
     getArgumentCompletions: getModeArgumentCompletions,
     handler: async (args, ctx) => {
-      const nextMode = parseModeCommandArgument(args, refresher.getPercentDisplayMode());
+      const nextMode = parseModeCommandArgument(
+        args,
+        refresher.getPercentDisplayMode(),
+      );
       if (!nextMode) return;
 
       if (applyingPersistedPreferences) modeChangedDuringStartupLoad = true;
@@ -659,7 +717,10 @@ export default function(pi: ExtensionAPI) {
     description: "Toggle reset countdown window, or set it explicitly: 5h | 7d",
     getArgumentCompletions: getResetWindowArgumentCompletions,
     handler: async (args, ctx) => {
-      const nextWindow = parseResetWindowCommandArgument(args, refresher.getResetWindowMode());
+      const nextWindow = parseResetWindowCommandArgument(
+        args,
+        refresher.getResetWindowMode(),
+      );
       if (!nextWindow) return;
 
       if (applyingPersistedPreferences) windowChangedDuringStartupLoad = true;

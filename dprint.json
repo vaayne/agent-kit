@@ -16,6 +16,7 @@
     "https://plugins.dprint.dev/oxc-0.21.0.wasm",
     "https://plugins.dprint.dev/ruff-0.7.11.wasm",
     "https://plugins.dprint.dev/g-plane/markup_fmt-v0.27.1.wasm",
-    "https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm"
+    "https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
+    "https://plugins.dprint.dev/biome-0.12.12.wasm"
   ]
 }
