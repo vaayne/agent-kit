@@ -4,20 +4,14 @@ description: >
   Multi-perspective code review using adversarial subagent debate.
   Spawns parallel reviewer agents (bug hunter, security auditor, architecture critic, correctness prover)
   that independently analyze the current branch diff, then consolidates and debates findings
-  to produce a severity-ranked HTML report with near-zero false positives.
+  to produce a machine-readable review bundle plus human-readable HTML report with near-zero false positives.
   Use when the user says "review", "code review", "review my changes", "check this PR",
   "find bugs", "audit this branch", or wants a thorough quality check before merging.
 ---
 
 # Code Review — Multi-Perspective Adversarial Debate
 
-Review the current branch's changes using parallel subagents with distinct expertise, then consolidate findings through debate into a single HTML report.
-
-## Why this works
-
-Single-model reviews catch ~50% of real bugs. Multi-model adversarial debate pushes detection to ~80%, with the hardest system-level bugs reaching 100% detection. Independent perspectives reduce false positives to near zero — a finding that survives cross-examination is almost certainly real.
-
----
+Review the current branch's changes using parallel subagents with distinct expertise, then consolidate findings through debate into a review bundle: `review.json` for agents, `events.jsonl` for audit history, and rendered `report.html` / `summary.md` for humans.
 
 ## Process
 
@@ -90,16 +84,46 @@ After all four agents return:
 4. **Eliminate weak findings** — drop anything with low confidence that no other agent corroborated. The goal is near-zero false positives; it's better to miss a minor issue than to cry wolf.
 5. **Note pre-existing issues** — if reviewers found bugs in unchanged code adjacent to the diff, list them separately as "Side Quests" (borrowing from the Nolan Lawson approach). These are valuable but shouldn't block the PR.
 
-### Phase 4: Generate HTML Report
+### Phase 4: Generate Review Bundle
 
-Use the `html-artifact` skill patterns or write a standalone HTML file. Save it to `~/.agents/sessions/{project}/reviews/{date}-{branch-name}.html` where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, and `{date}` is `YYYY-MM-DD`.
+Create a review bundle directory at `~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/`, where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{branch-slug}` is the branch name made filesystem-safe by replacing `/` and other non-portable characters with `-`. Keep the original branch name in `review.json.branch`.
 
-Follow the template in [references/report-template.md](references/report-template.md).
-
-Open the report in the browser after generating it:
+Before writing anything, check for an existing bundle:
 
 ```bash
-open ~/.agents/sessions/{project}/reviews/{date}-{branch-name}.html  # macOS
+bundle=~/.agents/sessions/{project}/reviews/{date}-{branch-slug}
+test -e "$bundle/review.json" && echo "existing review bundle: $bundle"
+```
+
+If `review.json` already exists, do **not** overwrite it blindly. Read it first and either:
+
+- update it incrementally by fingerprint when reviewing the same branch again;
+- only rerender `report.html` / `summary.md` if the review data did not change;
+- or create a new bundle with a unique suffix such as `{date}-{branch-slug}-{short-sha}` when the user explicitly wants a fresh independent run.
+
+Never use a direct write over an existing `review.json` without preserving prior finding IDs, statuses, resolutions, and `events.jsonl` history.
+
+Write these files:
+
+- `review.json` — canonical machine-readable current-state snapshot for agents and scripts.
+- `events.jsonl` — append-only audit log for review creation, finding additions, status changes, and report renders.
+- `report.html` — human-readable report rendered from `review.json`.
+- `summary.md` — compact Markdown summary rendered from `review.json` for chat, PR comments, and handoff.
+
+Follow [references/review-schema.md](references/review-schema.md) for the exact JSON shape. Do not read or hand-edit `report-template.html` during normal reviews; it is a static asset used by the renderer.
+
+After writing `review.json`, initialize `events.jsonl` with `review.created` and one `finding.added` event per finding, then render the human-facing files:
+
+```bash
+node scripts/render-review.mjs \
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
+  ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/
+```
+
+Open the HTML report in the browser after generating it:
+
+```bash
+open ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/report.html  # macOS
 ```
 
 ---
@@ -117,8 +141,50 @@ Include this in the report footer:
 
 ---
 
+## Follow-up Fix Workflow
+
+When the user asks to fix issues from a previous review:
+
+1. Locate the latest review bundle under `~/.agents/sessions/{project}/reviews/*/` unless the user gives a specific path.
+2. Read `review.json`, not `report.html`.
+3. Select findings whose `status` is `open` or `reopened`.
+4. Fix issues in severity order: critical, high, medium, low.
+5. After each completed fix, update the finding through `update-review.mjs` so the snapshot, event log, HTML report, and summary stay in sync:
+   ```bash
+   node scripts/update-review.mjs \
+     ~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/review.json \
+     fixed CR-001 \
+     --commit <sha> \
+     --note "Added validation and regression test."
+   ```
+6. If a finding is invalid, mark it `false-positive` with a note instead of deleting it.
+7. If the team accepts the risk, mark it `accepted-risk` with a note.
+
+## Incremental Review Merge Rules
+
+When rerunning review for the same branch, update the existing review bundle instead of replacing it.
+
+Merge findings by `fingerprint`:
+
+1. If a new finding matches an existing fingerprint:
+   - Keep the existing `id`.
+   - Update location, description, severity, confidence, and reviewers.
+   - If the existing status is `fixed` but the issue still appears, set status to `reopened` and append `finding.reopened`.
+2. If a new finding has no match:
+   - Assign the next ID, e.g. `CR-002`.
+   - Set status to `open`.
+   - Append `finding.added`.
+3. If an existing open finding no longer appears:
+   - Set status to `stale` or leave it open with a verification note if unsure.
+   - Append `finding.stale` when marking stale.
+4. Do not delete old findings during normal updates. Preserve review history through statuses and `events.jsonl`.
+
+## Localization
+
+Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — assessment, verdict explanation, finding descriptions, suggestions, and impact statements — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
+
 ## Edge Cases
 
 - **Large diffs (>500 lines)**: Split the diff by file or directory and have each agent review in batches. Summarize cross-file concerns separately.
-- **No findings**: Report a clean bill of health. "No findings" is a valid and useful result — don't manufacture issues to fill the report.
+- **No findings**: Write a valid review bundle with an empty `findings` array and a ship-it verdict. "No findings" is valid — don't manufacture issues to fill the report.
 - **User provides a PR number**: Use `gh pr diff <number>` and `gh pr view <number>` for additional context (title, description, linked issues).
