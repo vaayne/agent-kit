@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inferVerdict, summarizeAssessment, validateTransition } from "./review-lib.mjs";
 
 const [reviewPath, action, findingId, ...args] = process.argv.slice(2);
 
@@ -16,51 +17,19 @@ if (!reviewPath || !action || !findingId) {
   process.exit(1);
 }
 
-const allowedActions = new Set([
-  "fixed",
-  "accepted-risk",
-  "false-positive",
-  "reopened",
-  "stale",
-  "open",
-]);
+const allowedActions = new Set(["fixed", "accepted-risk", "false-positive", "reopened", "stale", "open"]);
 
 if (!allowedActions.has(action)) {
   console.error(`Unsupported action: ${action}`);
   process.exit(1);
 }
 
-const openStatuses = new Set(["open", "reopened"]);
-
 function option(name) {
   const index = args.indexOf(name);
   if (index === -1) return undefined;
-  return args[index + 1];
-}
-
-function inferVerdict(review) {
-  const active = (review.findings ?? []).filter((candidate) => openStatuses.has(candidate.status ?? "open"));
-  const critical = active.filter((candidate) => candidate.severity === "critical").length;
-  const high = active.filter((candidate) => candidate.severity === "high").length;
-  if (critical > 1) return "rethink";
-  if (critical > 0 || high > 0) return "fix-and-ship";
-  return "ship-it";
-}
-
-function summarizeAssessment(review) {
-  const active = (review.findings ?? []).filter((candidate) => openStatuses.has(candidate.status ?? "open"));
-  const counts = active.reduce(
-    (acc, candidate) => {
-      acc[candidate.severity] = (acc[candidate.severity] ?? 0) + 1;
-      return acc;
-    },
-    { critical: 0, high: 0, medium: 0, low: 0 },
-  );
-
-  if (active.length === 0) return "No open findings remain.";
-  return `${active.length} open finding${
-    active.length === 1 ? "" : "s"
-  }: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low.`;
+  const value = args[index + 1];
+  if (!value || value.startsWith("--")) return undefined;
+  return value;
 }
 
 const note = option("--note");
@@ -77,10 +46,19 @@ if (!finding) {
   process.exit(1);
 }
 
-finding.status = action === "open" ? "open" : action;
+try {
+  validateTransition(finding.status, action);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
+finding.status = action;
 review.updated_at = now;
 
 if (["fixed", "accepted-risk", "false-positive"].includes(action)) {
+  delete finding.reopened_at;
+  delete finding.reopen_note;
   finding.resolution = {
     status: action,
     resolved_at: now,

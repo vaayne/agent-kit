@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inferVerdict, isOpenStatus, openSeverityCounts, severities, severityOrder } from "./review-lib.mjs";
 
 const [inputPath, outputDir] = process.argv.slice(2);
 
@@ -14,10 +15,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const templatePath = join(here, "..", "references", "report-template.html");
 const template = readFileSync(templatePath, "utf8");
 const review = JSON.parse(readFileSync(inputPath, "utf8"));
-
-const severities = ["critical", "high", "medium", "low"];
-const openStatuses = new Set(["open", "reopened"]);
-const severityOrder = new Map(severities.map((severity, index) => [severity, index]));
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -69,6 +66,10 @@ function markdownish(value) {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
+function safeJsonForScript(value) {
+  return JSON.stringify(value).replace(/<\/script/gi, "<\\/script");
+}
+
 function renderCode(finding) {
   const code = finding.fix_hint?.code ?? finding.code_fix;
   if (!code) return "";
@@ -78,7 +79,7 @@ function renderCode(finding) {
 function renderFindingCard(finding, { sideQuest = false } = {}) {
   const severity = slug(finding.severity || "low");
   const status = finding.status ?? "open";
-  const open = ["critical", "high"].includes(severity) && openStatuses.has(status) ? " open" : "";
+  const open = ["critical", "high"].includes(severity) && isOpenStatus(status) ? " open" : "";
   const description = [finding.description, finding.impact ? `Impact: ${finding.impact}` : null]
     .filter(Boolean)
     .join("\n\n");
@@ -114,23 +115,12 @@ function renderFindingCard(finding, { sideQuest = false } = {}) {
 
 const findings = Array.isArray(review.findings) ? review.findings : [];
 const sideQuests = Array.isArray(review.side_quests) ? review.side_quests : [];
-const openFindings = findings.filter((finding) => openStatuses.has(finding.status ?? "open"));
-const closedFindings = findings.filter((finding) => !openStatuses.has(finding.status ?? "open"));
-const counts = Object.fromEntries(
-  severities.map((severity) => [
-    severity,
-    openFindings.filter((finding) => finding.severity === severity).length,
-  ]),
-);
-
-function inferVerdict() {
-  if (counts.critical > 1) return "rethink";
-  if (counts.critical > 0 || counts.high > 0) return "fix-and-ship";
-  return "ship-it";
-}
+const openFindings = findings.filter((finding) => isOpenStatus(finding.status));
+const closedFindings = findings.filter((finding) => !isOpenStatus(finding.status));
+const counts = openSeverityCounts(review);
 
 function verdictInfo() {
-  const verdict = review.verdict ?? inferVerdict();
+  const verdict = review.verdict ?? inferVerdict(review);
   if (["ship", "ship-it"].includes(verdict)) return { className: "ship", icon: "✓", title: "Ship it" };
   if (verdict === "rethink") return { className: "rethink", icon: "✕", title: "Rethink" };
   return { className: "fix", icon: "⚠", title: "Fix and ship" };
@@ -221,8 +211,8 @@ function renderReportHtml() {
     .replace("__TITLE__", escapeHtml(title))
     .replace("__CONTENT__", content)
     .replace(
-      "<script type=\"application/json\" id=\"review-data\">{}</script>",
-      `<script type="application/json" id="review-data">${escapeHtml(JSON.stringify(review))}</script>`,
+      /<script type="application\/json" id="review-data">[\s\S]*?<\/script>/,
+      `<script type="application/json" id="review-data">${safeJsonForScript(review)}</script>`,
     );
 }
 
@@ -249,7 +239,7 @@ function renderSummaryMarkdown() {
     `- Project: ${review.project ?? "unknown"}`,
     `- Branch: ${review.branch ?? "unknown"}`,
     `- Base: ${review.base ?? "unknown"}`,
-    `- Verdict: ${titleCase(review.verdict ?? inferVerdict())}`,
+    `- Verdict: ${titleCase(review.verdict ?? inferVerdict(review))}`,
     `- Open findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
     "",
     review.assessment ?? "",
