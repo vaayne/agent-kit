@@ -16,6 +16,8 @@ Do not treat `report.html` as source data. Agents fixing issues should read `rev
 
 `{branch-slug}` is a filesystem-safe branch name with `/` and other non-portable characters replaced by `-`. Keep the original branch name in `review.json.branch`.
 
+If a bundle already contains `review.json`, preserve it. Merge reruns by finding fingerprint, keep existing IDs/statuses/resolutions, append events to `events.jsonl`, and rerender derived files. Create a new suffixed bundle only when a fresh independent run is explicitly wanted.
+
 ## `review.json`
 
 ```json

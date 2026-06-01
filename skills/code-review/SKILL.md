@@ -88,6 +88,21 @@ After all four agents return:
 
 Create a review bundle directory at `~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/`, where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{branch-slug}` is the branch name made filesystem-safe by replacing `/` and other non-portable characters with `-`. Keep the original branch name in `review.json.branch`.
 
+Before writing anything, check for an existing bundle:
+
+```bash
+bundle=~/.agents/sessions/{project}/reviews/{date}-{branch-slug}
+test -e "$bundle/review.json" && echo "existing review bundle: $bundle"
+```
+
+If `review.json` already exists, do **not** overwrite it blindly. Read it first and either:
+
+- update it incrementally by fingerprint when reviewing the same branch again;
+- only rerender `report.html` / `summary.md` if the review data did not change;
+- or create a new bundle with a unique suffix such as `{date}-{branch-slug}-{short-sha}` when the user explicitly wants a fresh independent run.
+
+Never use a direct write over an existing `review.json` without preserving prior finding IDs, statuses, resolutions, and `events.jsonl` history.
+
 Write these files:
 
 - `review.json` — canonical machine-readable current-state snapshot for agents and scripts.
