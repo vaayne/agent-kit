@@ -83,20 +83,14 @@ Nowledge Mem (`nmem`) is your external brain. Treat it as mandatory for any non-
 
 ## Code Search
 
-Use `semble search` instead of grep to find code by description or symbol:
+Prefer `ast-grep` for structural code search — match by syntax, not text:
 
 ```bash
-semble search "authentication flow" ./my-project
-semble search "save_pretrained" ./my-project --top-k 10
+ast-grep -p 'function $NAME($$$) { $$$ }'
+ast-grep -p 'await $X' --lang ts
 ```
 
-Use `semble find-related` to discover similar code from a known location:
-
-```bash
-semble find-related src/auth.py 42 ./my-project
-```
-
-If `semble` is not on `$PATH`, use `uvx --from "semble[mcp]" semble` instead. Use grep only for exhaustive literal matches.
+Fall back to `grep`/`rg` for literal strings, comments, or non-code text.
 
 ## Commits
 
