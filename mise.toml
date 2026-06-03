@@ -53,6 +53,7 @@ done
 
 # link claude skills
 ln -sfn ~/.agents/skills ~/.claude/skills
+ln -sfn ~/.agents/skills ~/.gemini/config/skills
 
 mise run format
 echo "Synced all skills to ~/.agents/skills"
