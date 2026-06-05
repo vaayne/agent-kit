@@ -1,7 +1,7 @@
 ---
 name: designer
 description: |
-  Expert designer skill for Claude Code. Produces HTML prototypes, slide decks,
+  Expert designer skill for filesystem-backed agent runtimes. Produces HTML prototypes, slide decks,
   dashboards, landing pages, mobile app screens, editorial artifacts, and polished
   animated UI/micro-interactions. Includes 150+ design systems, 110+ design
   templates from Open Design, motion guidance for transitions, scroll reveals,
@@ -47,15 +47,21 @@ product systems design, or brand design.
 
 ## Runtime adapter
 
-The Open Design references were written for a daemon environment. In Claude Code,
+The Open Design references target the Open Design daemon. For this skill runtime,
 apply these translations before following them:
 
-- Do not output raw `<question-form>` XML. Ask discovery questions as normal chat.
-- Do not output `<artifact>` XML. Write HTML files directly with normal file tools.
-- Do not call TodoWrite. Use a short numbered plan in chat and update progress in prose.
-- Do not use `/frames/` assets. Inline device chrome for mobile/tablet prototypes.
-- Do not call `$OD_NODE_BIN`, `$OD_BIN`, or `od media generate`; this skill is HTML-only.
-- Read design system and template files directly from this skill directory.
+- Treat daemon-only UI blocks such as `<question-form>` and `<artifact>` as intent,
+  not literal output. Ask questions in chat and write HTML files to the workspace.
+- Replace daemon live-todo instructions with a short numbered plan and brief
+  progress updates.
+- Resolve paths relative to this skill directory. Read referenced design systems,
+  templates, and assets directly from `references/...`.
+- Ignore unavailable daemon services, commands, environment variables, and media
+  generation hooks such as `$OD_NODE_BIN`, `$OD_BIN`, and `od media generate`.
+- Inline device chrome when mobile/tablet frames are needed. Do not assume
+  `/frames/` assets are served by the runtime.
+- Use workspace files as the handoff. Summarize file paths and changes; do not
+  wrap final responses in daemon artifact markup.
 
 These adapter rules override conflicting instructions inside the reference files.
 
