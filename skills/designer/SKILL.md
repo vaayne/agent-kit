@@ -4,8 +4,9 @@ description: |
   Expert designer skill for Claude Code. Produces HTML prototypes, slide decks,
   dashboards, landing pages, mobile app screens, editorial artifacts, and polished
   animated UI/micro-interactions. Includes 150+ design systems, 110+ design
-  templates from Open Design, and motion guidance for transitions, scroll reveals,
-  spring physics, loading skeletons, parallax, layout animation, and UI polish.
+  templates from Open Design, motion guidance for transitions, scroll reveals,
+  spring physics, loading skeletons, parallax, layout animation, UI polish, and
+  mandatory anti-slop rules for direct, human copy.
 triggers:
   - "design"
   - "prototype"
@@ -79,6 +80,20 @@ Some concepts need translation for the Claude Code environment:
 - **Turn 1**: Ask discovery questions (output, platform, audience, tone, brand context, scale, constraints). Keep it under 7 questions. Lead with one short prose line.
 - **Turn 2**: Branch on brand answer → extract brand spec (Branch A) or bind design system/direction (Branch B/C).
 - **Turn 3+**: State your plan → read seeds → build → anti-AI-slop audit + 5-dim critique → write the HTML file.
+
+## Mandatory anti-slop copy rules
+
+Apply these rules to every headline, paragraph, caption, button label, speaker note, and visible artifact string. Design fails when the copy sounds like an AI wrote it, even if the layout is pretty. Do not ship until the artifact copy passes this gate.
+
+- Cut throat-clearing: no "Here's the thing", "It turns out", "Let me be clear", "In today's...", "At its core", "This matters because", or meta commentary about what the artifact will explain.
+- Remove filler and softeners: avoid adverbs, hedges, empty intensifiers, business jargon, and vague claims like "the stakes are high" or "the implications are significant".
+- Use active voice with a human actor. Do not let abstractions pretend to act: data does not "tell us", decisions do not "emerge", markets do not "reward".
+- State the point directly. Avoid binary contrast formulas like "not X, but Y", negative lists, rhetorical questions answered immediately, and punchline fragments.
+- Be specific. Replace "people", "users", or "teams" with the concrete audience when the prompt gives one. Replace abstract benefits with observable behavior.
+- Vary rhythm. Avoid three-item slogan cadence, stacked short sentences, repeated paragraph endings, and em dashes in artifact prose.
+- Trust the reader. Do not over-explain, apologize, justify, or add quotable one-liners because they sound clever.
+
+Quick audit before writing the final file: find passive voice, em dashes, Wh-word sentence openers, "not X but Y" pivots, vague declaratives, three-item lists, and narrator-from-a-distance phrasing. Rewrite them before delivery.
 
 ## Motion and animation usage
 
