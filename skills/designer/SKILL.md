@@ -2,8 +2,10 @@
 name: designer
 description: |
   Expert designer skill for Claude Code. Produces HTML prototypes, slide decks,
-  dashboards, landing pages, mobile app screens, and editorial artifacts.
-  Includes 150+ design systems and 110+ design templates from Open Design.
+  dashboards, landing pages, mobile app screens, editorial artifacts, and polished
+  animated UI/micro-interactions. Includes 150+ design systems, 110+ design
+  templates from Open Design, and motion guidance for transitions, scroll reveals,
+  spring physics, loading skeletons, parallax, layout animation, and UI polish.
 triggers:
   - "design"
   - "prototype"
@@ -15,6 +17,19 @@ triggers:
   - "mobile app"
   - "ui design"
   - "html design"
+  - "animation"
+  - "transition"
+  - "motion"
+  - "micro-interaction"
+  - "animate"
+  - "smooth"
+  - "bouncy"
+  - "snappy"
+  - "spring"
+  - "parallax"
+  - "scroll reveal"
+  - "loading skeleton"
+  - "shimmer"
   - "设计"
   - "原型"
   - "幻灯片"
@@ -44,6 +59,7 @@ Some concepts need translation for the Claude Code environment:
 | `references/02-identity-workflow.md` | Designer identity, output guidelines, artifact rules |
 | `references/03-direction-library.md` | 5 built-in direction palettes with OKLch tokens      |
 | `references/04-deck-framework.md`    | Fixed deck framework (nav, counter, print-to-PDF)    |
+| `references/motion-vocabulary.md`    | Motion vocabulary, animation patterns, principles    |
 | `references/design-systems.md`       | 150+ brand design systems catalog                    |
 | `references/design-templates.md`     | 110+ design templates catalog with descriptions      |
 
@@ -54,6 +70,7 @@ Some concepts need translation for the Claude Code environment:
 3. **Read when needed**:
    - Direction choice → `references/03-direction-library.md`
    - Slide deck → `references/04-deck-framework.md`
+   - Motion/animation/micro-interaction → `references/motion-vocabulary.md`
    - Brand/design system → `references/design-systems.md`, then `references/design-systems/<slug>/DESIGN.md` + `tokens.css`
    - Template → `references/design-templates.md`, then `references/design-templates/<slug>/SKILL.md` + `assets/template.html`
 
@@ -62,6 +79,21 @@ Some concepts need translation for the Claude Code environment:
 - **Turn 1**: Ask discovery questions (output, platform, audience, tone, brand context, scale, constraints). Keep it under 7 questions. Lead with one short prose line.
 - **Turn 2**: Branch on brand answer → extract brand spec (Branch A) or bind design system/direction (Branch B/C).
 - **Turn 3+**: State your plan → read seeds → build → anti-AI-slop audit + 5-dim critique → write the HTML file.
+
+## Motion and animation usage
+
+Use motion to clarify relationships, state changes, and hierarchy — not as confetti. When the user asks for animation, transitions, smoothness, bounce, scroll effects, loading states, or any UI that should appear/disappear/move/change gracefully, read `references/motion-vocabulary.md` and translate vague feel words into concrete motion choices.
+
+Decision rules:
+
+- Prefer CSS-only animation for hover/focus/show-hide, entrances, simple keyframes, scroll reveals, and ambient loops.
+- Use the project's existing animation library if one is already installed; do not add a second library for one effect.
+- Use Framer Motion/Motion One/GSAP only for interruptible enter-exit, layout animation, shared element transitions, gestures, springs, or complex orchestration.
+- Animate `transform` and `opacity` for motion. Avoid `width`, `height`, `top`, `left`, `margin`, and `padding` because they cause layout work and jank.
+- Include `prefers-reduced-motion` handling. Replace motion with a near-instant opacity/state change when appropriate.
+- Default timings: 150-250ms for frequent UI feedback, 200-300ms for entrances/exits, 300-500ms for page/view transitions, 30-80ms item stagger, 2-6s ambient loops.
+- Default easing: ease-out for user-triggered responses, ease-in-out for autonomous movement, linear only for spinners/marquees, springs for interruptible or tactile motion.
+- Set transform origins from the user's focus or trigger point when opening menus, popovers, cards, and modals.
 
 ## Design system usage
 
