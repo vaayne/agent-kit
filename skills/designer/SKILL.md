@@ -4,9 +4,10 @@ description: |
   Expert designer skill for filesystem-backed agent runtimes. Produces HTML prototypes, slide decks,
   dashboards, landing pages, mobile app screens, editorial artifacts, and polished
   animated UI/micro-interactions. Includes 150+ design systems, 110+ design
-  templates from Open Design, motion guidance for transitions, scroll reveals,
-  spring physics, loading skeletons, parallax, layout animation, UI polish, and
-  mandatory anti-slop rules for direct, human copy.
+  templates from Open Design, bold frontend aesthetic guidance, motion guidance
+  for transitions, scroll reveals, spring physics, loading skeletons, parallax,
+  layout animation, UI polish, and mandatory anti-slop rules for direct, human
+  copy.
 ---
 
 # Designer Skill
@@ -71,9 +72,10 @@ Before writing files, state a short plan:
 3. Plan sections, slides, or screens.
 4. Build from the best available seed/template.
 5. Fill with specific copy and real or honest placeholder content.
-6. Apply motion only when it clarifies state, hierarchy, or continuity.
-7. Run the copy, motion, and visual quality gates.
-8. Write the final HTML file and summarize changed files.
+6. Commit to a distinctive frontend aesthetic when building web UI.
+7. Apply motion only when it clarifies state, hierarchy, or continuity.
+8. Run the copy, motion, frontend, and visual quality gates.
+9. Write the final HTML file and summarize changed files.
 
 Show something visible early for larger tasks. A rough first pass beats silent
 perfection theater.
@@ -118,6 +120,35 @@ For a selected template, read:
   content. Do not write from scratch when a seed matches the job.
 - For decks, use the deck framework first. Do not invent custom scaling,
   keyboard navigation, counters, or print styles.
+
+## Frontend aesthetic gate
+
+Use this gate for web components, pages, dashboards, app prototypes, posters, and
+any request to style or beautify frontend UI. The goal is production-grade code
+with a clear visual point of view, not tasteful mush.
+
+- Commit to one aesthetic direction before coding: brutally minimal, maximalist,
+  retro-futuristic, organic, luxury, playful, editorial, brutalist, art deco,
+  industrial, or a direction derived from the user's brand/reference.
+- Name the memorable move: one thing someone will remember after closing the
+  preview. It can be a type treatment, composition, interaction, material,
+  texture, or data moment.
+- Match complexity to the concept. Maximalist work can earn elaborate layers and
+  orchestrated motion; refined minimal work earns itself through spacing,
+  typography, contrast, and restraint.
+- Use typography with intent. Pair a characterful display face with a quieter body
+  face unless a design system or utility dashboard calls for system type.
+- Use color as a system. Dominant neutrals or brand colors plus sharp accents beat
+  timid evenly distributed palettes.
+- Compose deliberately: asymmetry, overlap, diagonal flow, grid breaks, generous
+  negative space, or controlled density should come from the brief, not random
+  decoration.
+- Build atmosphere when it serves the concept: grain, geometric patterns, glass,
+  shadows, borders, custom cursors, and layered transparencies are tools, not
+  defaults.
+- Avoid generic frontend slop: purple-gradient hero defaults, cookie-cutter SaaS
+  cards, context-free icon grids, and repeated font/color/layout habits across
+  unrelated outputs.
 
 ## Mandatory copy quality gate
 
