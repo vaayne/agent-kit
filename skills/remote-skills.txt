@@ -11,17 +11,18 @@
 #   https://github.com/anthropics/skills --skill skill-creator
 
 anthropics/skills --skill skill-creator
-anthropics/skills --skill frontend-design
+#anthropics/skills --skill frontend-design
 
-vaayne/mcphub --skill find-skills
+#vaayne/mcphub --skill find-skills
 vaayne/mcphub --skill mcp-skill-gen
-blader/humanizer --skill humanizer
-
 # vaayne/tap --skill tap-web
+
+#blader/humanizer --skill humanizer
+#hardikpandya/stop-slop
 
 # write slides
 #slidevjs/slidev
-zarazhangrui/frontend-slides
+#zarazhangrui/frontend-slides
 
 # build ios/mac apps
 #openai/plugins --skill ios-debugger-agent
@@ -43,4 +44,3 @@ zarazhangrui/frontend-slides
 # cloudflare/skills --skill workers-best-practices
 
 yetone/native-feel-skill
-hardikpandya/stop-slop
