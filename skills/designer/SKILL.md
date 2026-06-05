@@ -7,35 +7,6 @@ description: |
   templates from Open Design, motion guidance for transitions, scroll reveals,
   spring physics, loading skeletons, parallax, layout animation, UI polish, and
   mandatory anti-slop rules for direct, human copy.
-triggers:
-  - "design"
-  - "prototype"
-  - "deck"
-  - "slides"
-  - "ppt"
-  - "landing page"
-  - "dashboard"
-  - "mobile app"
-  - "ui design"
-  - "html design"
-  - "animation"
-  - "transition"
-  - "motion"
-  - "micro-interaction"
-  - "animate"
-  - "smooth"
-  - "bouncy"
-  - "snappy"
-  - "spring"
-  - "parallax"
-  - "scroll reveal"
-  - "loading skeleton"
-  - "shimmer"
-  - "设计"
-  - "原型"
-  - "幻灯片"
-  - "落地页"
-  - "看板"
 ---
 
 # Designer Skill
