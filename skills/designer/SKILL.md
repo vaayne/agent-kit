@@ -101,6 +101,8 @@ Read these only when the task needs them:
 
 For a selected design system, read:
 
+- `references/design-systems/<slug>/USAGE.md` first when it exists — it contains
+  curated usage patterns and component recipes that should guide implementation
 - `references/design-systems/<slug>/DESIGN.md`
 - `references/design-systems/<slug>/tokens.css`
 - `references/design-systems/<slug>/components.html` when component shape matters
