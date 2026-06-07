@@ -101,11 +101,10 @@ Read these only when the task needs them:
 
 For a selected design system, read:
 
-- `references/design-systems/<slug>/USAGE.md` first when it exists — it contains
-  curated usage patterns and component recipes that should guide implementation
-- `references/design-systems/<slug>/DESIGN.md`
-- `references/design-systems/<slug>/tokens.css`
+- `references/design-systems/<slug>/USAGE.md` first when it exists — it bundles
+  design tokens, component patterns, and usage recipes into a single reference
 - `references/design-systems/<slug>/components.html` when component shape matters
+- Fall back to `DESIGN.md` + `tokens.css` only when `USAGE.md` does not exist
 
 For a selected template, read:
 
