@@ -1,21 +1,21 @@
 ---
 name: designer
 description: |
-  Expert designer skill for filesystem-backed agent runtimes. Produces HTML prototypes, slide decks,
-  dashboards, landing pages, mobile app screens, editorial artifacts, and polished
-  animated UI/micro-interactions. Includes 150+ design systems, 110+ design
-  templates from Open Design, bold frontend aesthetic guidance, motion guidance
-  for transitions, scroll reveals, spring physics, loading skeletons, parallax,
-  layout animation, UI polish, and mandatory anti-slop rules for direct, human
-  copy.
+  Expert designer skill for filesystem-backed agent runtimes. Produces React prototypes,
+  HTML artifacts, slide decks, dashboards, landing pages, mobile app screens, editorial
+  artifacts, and polished animated UI/micro-interactions. Includes 150+ design systems,
+  110+ design templates from Open Design, bold frontend aesthetic guidance, motion
+  guidance for transitions, scroll reveals, spring physics, loading skeletons, parallax,
+  layout animation, UI polish, and mandatory anti-slop rules for direct, human copy.
 ---
 
 # Designer Skill
 
-Produce design artifacts in HTML: prototypes, decks, dashboards, landing pages,
-mobile app screens, and editorial pages. Treat HTML as the implementation tool;
-the medium is whatever the user asked for — slide design, interaction design,
-product systems design, or brand design.
+Produce design artifacts as interactive React prototypes or static HTML artifacts:
+dashboards, app screens, product prototypes, decks, landing pages, and editorial
+pages. Treat React/HTML as implementation tools; the medium is whatever the user
+asked for — interaction design, product systems design, slide design, or brand
+design.
 
 ## Runtime adapter
 
@@ -36,6 +36,26 @@ apply these translations before following them:
   wrap final responses in daemon artifact markup.
 
 These adapter rules override conflicting instructions inside the reference files.
+
+## Output strategy
+
+Default to React for interactive UX/product artifacts; use static HTML for
+presentational artifacts.
+
+- **React single-file HTML**: dashboards, tool UIs, mobile/app prototypes,
+  multi-screen flows, and data/state-backed landing pages. Use named components,
+  local state, and sample data arrays so future edits target small boundaries.
+  Without a Node project, load pinned React/ReactDOM/Babel CDNs; Tailwind CDN is
+  allowed by default. Keep custom CSS small and only for globals, complex visual
+  effects, print, or reduced-motion rules.
+- **Static HTML**: slide decks, posters, editorial pages, and simple one-shot
+  landing pages where interaction is minimal.
+- **Project-native React**: when an existing frontend project is present, follow
+  its stack and file layout (`.tsx/.jsx`, router, Tailwind/config, components).
+  Do not install dependencies or introduce a second UI stack without approval.
+
+Token rule: HTML is cheaper for one-shot static output; React is cheaper for
+multi-state UI, repeated structures, and later revisions.
 
 ## Operating flow
 
@@ -73,9 +93,11 @@ Before writing files, state a short plan:
 4. Build from the best available seed/template.
 5. Fill with specific copy and real or honest placeholder content.
 6. Commit to a distinctive frontend aesthetic when building web UI.
-7. Apply motion only when it clarifies state, hierarchy, or continuity.
-8. Run the copy, motion, frontend, and visual quality gates.
-9. Write the final HTML file and summarize changed files.
+7. For interactive UI, define the component tree, sample data, and states before
+   styling details.
+8. Apply motion only when it clarifies state, hierarchy, or continuity.
+9. Run the copy, motion, frontend, and visual quality gates.
+10. Write the final React/HTML artifact and summarize changed files.
 
 Show something visible early for larger tasks. A rough first pass beats silent
 perfection theater.
@@ -225,12 +247,13 @@ every-heading layouts, and exposed demo controls in final product UI.
 
 ## File delivery
 
-- Write descriptive file names such as `landing-page.html`, `dashboard.html`, or
-  `pitch-deck.html`.
+- Write descriptive file names such as `landing-page.html`,
+  `dashboard-prototype.html`, `mobile-app-prototype.html`, or `pitch-deck.html`.
 - For significant revisions, preserve the prior version with a versioned file
   when useful.
-- Keep a single HTML file under about 1000 lines. Split CSS/JS only when the
-  artifact genuinely needs it.
+- Keep a single HTML/React prototype file under about 1000 lines. Split into
+  components/supporting files only when the artifact genuinely needs it or when
+  working inside an existing frontend project.
 - For edits to existing files, summarize the changed file and the design delta.
 - For new files, summarize the entry file and any supporting files. Do not output
   artifact XML in chat.
