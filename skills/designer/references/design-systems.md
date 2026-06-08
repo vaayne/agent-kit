@@ -4,6 +4,7 @@ Pick a design system when the user names a brand, or choose one that matches the
 
 Each folder ships:
 
+- `USAGE.md` — bundled design tokens, component patterns, and usage recipes (when present)
 - `DESIGN.md` — brand spec (palette, typography, component rules, atmosphere)
 - `tokens.css` — CSS custom properties; paste `:root { … }` verbatim into the first `<style>`
 - `components.html` — worked component fixture for shape and class reference
@@ -11,9 +12,9 @@ Each folder ships:
 ## How to use
 
 1. Find the right slug from the table below
-2. Read `references/design-systems/<slug>/DESIGN.md` for brand context
-3. Read `references/design-systems/<slug>/tokens.css` and paste its `:root` block
-4. Reference `references/design-systems/<slug>/components.html` for component shapes
+2. Read `references/design-systems/<slug>/USAGE.md` first when it exists
+3. Reference `references/design-systems/<slug>/components.html` when component shape matters
+4. Fall back to `DESIGN.md` + `tokens.css` only when `USAGE.md` does not exist
 
 ## All design systems
 
