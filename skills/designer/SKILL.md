@@ -1,7 +1,7 @@
 ---
 name: designer
 description: |
-  Expert designer skill for filesystem-backed agent runtimes. Produces React prototypes,
+  Expert designer skill for filesystem-backed agent runtimes. Produces Preact/React prototypes,
   HTML artifacts, slide decks, dashboards, landing pages, mobile app screens, editorial
   artifacts, and polished animated UI/micro-interactions. Includes 150+ design systems,
   110+ design templates from Open Design, bold frontend aesthetic guidance, motion
@@ -11,7 +11,7 @@ description: |
 
 # Designer Skill
 
-Produce design artifacts as interactive React prototypes or static HTML artifacts:
+Produce design artifacts as interactive Preact/React prototypes or static HTML artifacts:
 dashboards, app screens, product prototypes, decks, landing pages, and editorial
 pages. Treat React/HTML as implementation tools; the medium is whatever the user
 asked for — interaction design, product systems design, slide design, or brand
@@ -39,15 +39,15 @@ These adapter rules override conflicting instructions inside the reference files
 
 ## Output strategy
 
-Default to React for interactive UX/product artifacts; use static HTML for
-presentational artifacts.
+Default to Preact single-file HTML for no-build interactive UX/product artifacts;
+use static HTML for presentational artifacts.
 
-- **React single-file HTML**: dashboards, tool UIs, mobile/app prototypes,
-  multi-screen flows, and data/state-backed landing pages. Use named components,
-  local state, and sample data arrays so future edits target small boundaries.
-  Without a Node project, load pinned React/ReactDOM/Babel CDNs; Tailwind CDN is
-  allowed by default. Keep custom CSS small and only for globals, complex visual
-  effects, print, or reduced-motion rules.
+- **Preact single-file HTML**: dashboards, tool UIs, mobile/app prototypes,
+  multi-screen flows, and data/state-backed landing pages. Use Preact + htm from
+  pinned CDNs, Tailwind CDN, named local components, local state, and sample data
+  arrays so future edits target small boundaries. Do not use browser Babel by
+  default. Keep custom CSS small and only for globals, complex visual effects,
+  print, or reduced-motion rules.
 - **Static HTML**: slide decks, posters, editorial pages, and simple one-shot
   landing pages where interaction is minimal.
 - **Project-native React**: when an existing frontend project is present, follow
