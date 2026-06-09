@@ -94,8 +94,20 @@ Fall back to `grep`/`rg` for literal strings, comments, or non-code text.
 
 ## Commits
 
-- Proactively commit small, complete changes — each commit should be a self-contained unit of work, making diffs easier to review and individual changes easy to revert.
-- Use small, focused emoji Conventional Commits.
+- Commit small, complete, reviewable units.
+- Use Scoped Commits — Linux, FreeBSD, and nixpkgs all do this:
+
+  ```text
+  <scope>: <description>
+
+  [optional body]
+
+  [optional trailer(s)]
+  ```
+
+- Scope is the touched area/module (`skills`, `extensions/delegate`, `docs`, `treewide`).
+- Description: clear and imperative; emoji after `:` is fine; no `feat`/`fix`; no hard length limit.
+- Use a body for non-obvious why/tradeoffs/migrations; reverts and merges can use Git defaults.
 - NEVER commit secrets or add `Signed-off-by`.
 
 ## Final Report
