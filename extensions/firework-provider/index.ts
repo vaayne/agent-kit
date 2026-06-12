@@ -15,7 +15,7 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 
 const FIREWORKS_PROVIDER = "fireworks";
 const FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference";
-const FIREWORKS_API_KEY_ENV = "FIREWORKS_API_KEY";
+const FIREWORKS_API_KEY_ENV = "$FIREWORKS_API_KEY";
 const UNSUPPORTED_TOOL_FIELDS = ["cache_control", "eager_input_streaming"] as const;
 const EXTENSION_ID = "firework-ratelimit";
 

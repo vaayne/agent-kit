@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 
 const CLIPROXY_PROVIDER = "cliproxy";
 const CLIPROXY_BASE_URL_ENV = "CLIPROXY_BASE_URL";
-const CLIPROXY_API_KEY_ENV = "CLIPROXY_API_KEY";
+const CLIPROXY_API_KEY_ENV = "$CLIPROXY_API_KEY";
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
 const MODEL_CACHE_PATH = join(homedir(), ".cache", "pi", "cliproxy-models.json");
 
