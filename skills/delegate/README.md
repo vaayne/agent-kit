@@ -23,6 +23,8 @@ gpt-5.5 | GLM-5 | kimi-k2.6 | <provider/model>      -> Pi
 - Any other non-Claude token is resolved against `pi --list-models`; if it matches exactly one model it routes to Pi, otherwise it errors and asks for a full id.
 - `--backend pi|claude` forces a backend regardless of the model.
 
+To add a new model alias or backend mapping, edit `scripts/routes.ts` — no router code changes needed.
+
 ## Basic usage
 
 Run from this skill directory (`skills/delegate/`).
@@ -128,7 +130,8 @@ bun scripts/delegate.ts --model haiku --no-session "Answer in one sentence"
 ```text
 scripts/
   delegate.ts        # entry: parse args, route by model, dispatch
-  router.ts          # model token -> {backend, model}
+  router.ts          # routing logic (slash = full id, search fallback)
+  routes.ts          # routing DATA — edit this to add models/aliases
   types.ts           # shared RunOptions / Backend types
   backends/
     claude.ts        # claude -p backend

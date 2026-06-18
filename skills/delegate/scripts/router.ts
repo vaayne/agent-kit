@@ -1,17 +1,16 @@
 import { spawnSync } from "node:child_process";
+import { routes } from "./routes.ts";
 
 export type BackendName = "claude" | "pi";
 
 export type Route = { backend: BackendName; model?: string };
 
-// Claude Code runs these directly as model aliases; anything else is Pi's job.
-const CLAUDE_ALIASES = new Set(["opus", "sonnet", "haiku", "fable"]);
+const CLAUDE_ALIASES = new Set(routes.claude.aliases);
+const PI_ALIASES = routes.pi.aliases;
 
-// Friendly names that map to a specific Pi model id. `codex` is ambiguous in a
-// raw model search (it also matches Qwen3-Coder), so pin it explicitly.
-const PI_ALIASES: Record<string, string> = {
-  codex: "openai-codex/gpt-5.5",
-};
+function isClaudeToken(lower: string): boolean {
+  return CLAUDE_ALIASES.has(lower) || routes.claude.prefixes.some((p) => lower.startsWith(p));
+}
 
 // Parse `provider model ...` rows from `pi --list-models <query>`, skipping the
 // header. Returns full Pi model ids as `provider/model`.
@@ -34,8 +33,9 @@ function resolvePiModel(token: string): string {
   const matches = searchPiModels(token);
   if (matches.length === 0) {
     throw new Error(
-      `Unknown model "${token}". Use a Claude alias (opus|sonnet|haiku|fable), ` +
-        `"codex", or a full Pi provider/model id. Run: pi --list-models ${token}`,
+      `Unknown model "${token}". Use a Claude alias (${routes.claude.aliases.join("|")}), ` +
+        `a Pi alias (${Object.keys(PI_ALIASES).join("|")}), or a full Pi provider/model id. ` +
+        `Run: pi --list-models ${token}`,
     );
   }
   const exact = matches.find((m) => m.slice(m.lastIndexOf("/") + 1).toLowerCase() === lower);
@@ -46,9 +46,9 @@ function resolvePiModel(token: string): string {
   );
 }
 
-// Decide which runtime handles a request from the user-facing model token.
-// Routing is the *only* place that knows pi-vs-claude; everything downstream is
-// backend-native.
+// Decide which runtime handles a request from the user-facing model token. This
+// is the *only* place that knows pi-vs-claude; everything downstream is
+// backend-native. Routing data lives in routes.ts.
 export function route(model: string | undefined, backend: BackendName | undefined): Route {
   if (backend === "claude") return { backend, model: model && model.toLowerCase() !== "claude" ? model : undefined };
   if (backend === "pi") {
@@ -56,11 +56,7 @@ export function route(model: string | undefined, backend: BackendName | undefine
     return { backend, model: resolvePiModel(model) };
   }
 
-  if (!model || model.toLowerCase() === "claude") return { backend: "claude" };
-
-  const lower = model.toLowerCase();
-  if (CLAUDE_ALIASES.has(lower) || lower.startsWith("claude-")) {
-    return { backend: "claude", model };
-  }
+  if (!model || model.toLowerCase() === "claude") return { backend: routes.defaultBackend as BackendName };
+  if (isClaudeToken(model.toLowerCase())) return { backend: "claude", model };
   return { backend: "pi", model: resolvePiModel(model) };
 }
