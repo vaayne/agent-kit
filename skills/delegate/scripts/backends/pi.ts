@@ -47,11 +47,20 @@ async function findSessionPath(SessionManager: any, cwd: string, session: string
 export async function run(opts: RunOptions): Promise<number> {
   process.env.PI_DELEGATE ??= "1";
   if (opts.passthrough.length) {
-    console.error(`[warn] ignoring passthrough args (Pi backend is SDK-based, not a CLI): ${opts.passthrough.join(" ")}`);
+    console.error(
+      `[warn] ignoring passthrough args (Pi backend is SDK-based, not a CLI): ${opts.passthrough.join(" ")}`,
+    );
   }
 
-  const { AuthStorage, createAgentSession, DefaultResourceLoader, getAgentDir, ModelRegistry, SessionManager, SettingsManager } =
-    await importPiSdk();
+  const {
+    AuthStorage,
+    createAgentSession,
+    DefaultResourceLoader,
+    getAgentDir,
+    ModelRegistry,
+    SessionManager,
+    SettingsManager,
+  } = await importPiSdk();
 
   const agentDir = getAgentDir();
   const authStorage = AuthStorage.create();
@@ -71,7 +80,9 @@ export async function run(opts: RunOptions): Promise<number> {
   if (opts.model) {
     const parsed = splitModel(opts.model);
     model = modelRegistry.find(parsed.provider, parsed.id);
-    if (!model) throw new Error(`Pi model not found: ${parsed.provider}/${parsed.id}. Try: pi --list-models ${parsed.provider}`);
+    if (!model) {
+      throw new Error(`Pi model not found: ${parsed.provider}/${parsed.id}. Try: pi --list-models ${parsed.provider}`);
+    }
     thinkingLevel = thinkingLevel ?? parsed.thinking;
   }
 
@@ -106,7 +117,9 @@ export async function run(opts: RunOptions): Promise<number> {
       }
       if (event.type === "tool_execution_start") console.error(`\n[tool:start] ${event.toolName}`);
       if (event.type === "tool_execution_end") console.error(`[tool:end] ${event.isError ? "error" : "ok"}`);
-      if (event.type === "auto_retry_start") console.error(`[retry] ${event.attempt}/${event.maxAttempts}: ${event.errorMessage}`);
+      if (event.type === "auto_retry_start") {
+        console.error(`[retry] ${event.attempt}/${event.maxAttempts}: ${event.errorMessage}`);
+      }
     });
 
     await session.prompt(`Task: ${opts.task.trim()}`);

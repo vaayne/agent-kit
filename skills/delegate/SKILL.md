@@ -17,12 +17,12 @@ Run from this skill directory; paths are skill-relative. The script is self-docu
 
 The model token is the only thing that selects the runtime — you never pick it directly:
 
-| You say…                                   | Model token                                  | Backend     |
-| ------------------------------------------ | -------------------------------------------- | ----------- |
-| "let opus/sonnet/claude look at it"        | `opus` `sonnet` `haiku` `fable` `claude-*`   | Claude Code |
-| no model named                             | (omitted) / `claude`                         | Claude Code |
-| "let codex look at it"                     | `codex`                                      | Pi → `openai-codex/gpt-5.5` |
-| a specific OpenAI/HF model                 | `gpt-5.5`, `GLM-5`, `kimi-k2.6`, `provider/model` | Pi      |
+| You say…                            | Model token                                       | Backend                     |
+| ----------------------------------- | ------------------------------------------------- | --------------------------- |
+| "let opus/sonnet/claude look at it" | `opus` `sonnet` `haiku` `fable` `claude-*`        | Claude Code                 |
+| no model named                      | (omitted) / `claude`                              | Claude Code                 |
+| "let codex look at it"              | `codex`                                           | Pi → `openai-codex/gpt-5.5` |
+| a specific OpenAI/HF model          | `gpt-5.5`, `GLM-5`, `kimi-k2.6`, `provider/model` | Pi                          |
 
 Unknown Pi tokens are resolved against `pi --list-models`; ambiguous ones error and ask for a full `provider/model` id. Force a backend with `--backend pi|claude` when you must.
 

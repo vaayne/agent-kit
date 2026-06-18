@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
-import { route, type BackendName } from "./router.ts";
+import { type BackendName, route } from "./router.ts";
 import type { Effort, RunOptions } from "./types.ts";
 
 type Args = RunOptions & { backend?: BackendName; readOnly: boolean };
@@ -74,7 +74,10 @@ function parseArgs(argv: string[]): Args {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--") { args.passthrough = argv.slice(i + 1); break; }
+    if (arg === "--") {
+      args.passthrough = argv.slice(i + 1);
+      break;
+    }
     if (arg === "-h" || arg === "--help") usage(0);
     else if (arg === "--task") args.task = readArg(argv, i++, arg);
     else if (arg === "--task-file") args.task = readFileSync(readArg(argv, i++, arg), "utf-8");
@@ -82,8 +85,9 @@ function parseArgs(argv: string[]): Args {
     else if (arg === "--backend") args.backend = readArg(argv, i++, arg) as BackendName;
     else if (arg === "--cwd") args.cwd = readArg(argv, i++, arg);
     else if (arg === "--effort") args.effort = readArg(argv, i++, arg) as Effort;
-    else if (arg === "--tools") args.tools = readArg(argv, i++, arg).split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
-    else if (arg === "--read-only") args.readOnly = true;
+    else if (arg === "--tools") {
+      args.tools = readArg(argv, i++, arg).split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
+    } else if (arg === "--read-only") args.readOnly = true;
     else if (arg === "--session") args.session = readArg(argv, i++, arg);
     else if (arg === "--fork-session") args.fork = true;
     else if (arg === "--no-session") args.noSession = true;
@@ -95,7 +99,9 @@ function parseArgs(argv: string[]): Args {
   }
 
   if (!args.task && positional.length > 0) args.task = positional.join(" ");
-  if (args.backend && args.backend !== "pi" && args.backend !== "claude") throw new Error("--backend must be pi or claude");
+  if (args.backend && args.backend !== "pi" && args.backend !== "claude") {
+    throw new Error("--backend must be pi or claude");
+  }
   if (!args.task.trim()) usage();
   return args;
 }

@@ -33,9 +33,9 @@ function resolvePiModel(token: string): string {
   const matches = searchPiModels(token);
   if (matches.length === 0) {
     throw new Error(
-      `Unknown model "${token}". Use a Claude alias (${routes.claude.aliases.join("|")}), ` +
-        `a Pi alias (${Object.keys(PI_ALIASES).join("|")}), or a full Pi provider/model id. ` +
-        `Run: pi --list-models ${token}`,
+      `Unknown model "${token}". Use a Claude alias (${routes.claude.aliases.join("|")}), `
+        + `a Pi alias (${Object.keys(PI_ALIASES).join("|")}), or a full Pi provider/model id. `
+        + `Run: pi --list-models ${token}`,
     );
   }
   const exact = matches.find((m) => m.slice(m.lastIndexOf("/") + 1).toLowerCase() === lower);

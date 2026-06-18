@@ -5,10 +5,12 @@ import type { RunOptions } from "../types.ts";
 function buildArgs(opts: RunOptions): string[] {
   const out = [
     "-p",
-    "--output-format", "stream-json",
+    "--output-format",
+    "stream-json",
     "--verbose",
     "--include-partial-messages",
-    "--permission-mode", opts.permissionMode,
+    "--permission-mode",
+    opts.permissionMode,
   ];
   if (opts.model) out.push("--model", opts.model);
   if (opts.effort) out.push("--effort", opts.effort);
