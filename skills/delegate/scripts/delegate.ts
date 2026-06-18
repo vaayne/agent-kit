@@ -33,6 +33,8 @@ Options:
   --permission-mode <m>    Claude only: default|acceptEdits|bypassPermissions|plan
   --system <text>          Append a system prompt (repeatable)
   --system-file <path>     Append a system prompt from file (repeatable)
+  -- <args...>             Forward everything after -- to the backend CLI verbatim
+                           (Claude backend only; ignored with a warning for Pi)
   -h, --help               Show this help
 
 Examples:
@@ -40,6 +42,7 @@ Examples:
   bun scripts/delegate.ts --model codex "Audit this Rust crate for UB"
   bun scripts/delegate.ts --model sonnet --read-only "Map the login code paths"
   bun scripts/delegate.ts --session <id> "Continue and focus on tests"
+  bun scripts/delegate.ts --model opus "Plan it" -- --add-dir ../other-repo --max-turns 3
 `);
   process.exit(exitCode);
 }
@@ -65,11 +68,13 @@ function parseArgs(argv: string[]): Args {
     readOnly: false,
     system: [],
     permissionMode: "bypassPermissions",
+    passthrough: [],
   };
   const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === "--") { args.passthrough = argv.slice(i + 1); break; }
     if (arg === "-h" || arg === "--help") usage(0);
     else if (arg === "--task") args.task = readArg(argv, i++, arg);
     else if (arg === "--task-file") args.task = readFileSync(readArg(argv, i++, arg), "utf-8");

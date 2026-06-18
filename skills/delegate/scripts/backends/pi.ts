@@ -46,6 +46,9 @@ async function findSessionPath(SessionManager: any, cwd: string, session: string
 // stdout/stderr contract so the router can treat the two interchangeably.
 export async function run(opts: RunOptions): Promise<number> {
   process.env.PI_DELEGATE ??= "1";
+  if (opts.passthrough.length) {
+    console.error(`[warn] ignoring passthrough args (Pi backend is SDK-based, not a CLI): ${opts.passthrough.join(" ")}`);
+  }
 
   const { AuthStorage, createAgentSession, DefaultResourceLoader, getAgentDir, ModelRegistry, SessionManager, SettingsManager } =
     await importPiSdk();

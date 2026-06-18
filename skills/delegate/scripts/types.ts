@@ -14,6 +14,8 @@ export type RunOptions = {
   noSession: boolean;
   system: string[];
   permissionMode: string;
+  // Raw args after `--`, forwarded verbatim to the backend CLI (Claude only).
+  passthrough: string[];
 };
 
 // A backend turns a RunOptions into a running session and returns its exit code.

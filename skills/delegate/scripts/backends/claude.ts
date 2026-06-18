@@ -18,6 +18,9 @@ function buildArgs(opts: RunOptions): string[] {
   if (opts.noSession) out.push("--no-session-persistence");
   for (const sys of opts.system) out.push("--append-system-prompt", sys);
   out.push(`Task: ${opts.task.trim()}`);
+  // User escape hatch, after the prompt so a variadic flag (e.g. --add-dir
+  // <dirs...>) can't swallow the prompt positional.
+  out.push(...opts.passthrough);
   return out;
 }
 

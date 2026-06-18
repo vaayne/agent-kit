@@ -59,4 +59,10 @@ Read-only review:
 bun scripts/delegate.ts --model sonnet --read-only "Task: <prompt>"
 ```
 
+Forward backend-specific flags the wrapper doesn't expose (Claude backend only; Pi ignores them with a warning):
+
+```bash
+bun scripts/delegate.ts --model opus "Task: <prompt>" -- --add-dir ../other-repo --max-turns 3
+```
+
 For parallel work, run independent invocations with separate stdout/stderr files, then reconcile the results yourself.

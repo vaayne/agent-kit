@@ -81,6 +81,18 @@ bun scripts/delegate.ts --model opus --tools Read,Grep,Glob --permission-mode de
 bun scripts/delegate.ts --model codex --tools read,grep,find,ls "..."
 ```
 
+## Passthrough flags
+
+For anything the wrapper doesn't expose, put `--` and then raw flags forwarded
+verbatim to the backend CLI:
+
+```bash
+bun scripts/delegate.ts --model opus "Plan it" -- --add-dir ../other-repo --max-turns 3
+```
+
+Passthrough works with the **Claude** backend only (it spawns `claude`). The Pi
+backend is SDK-based, so passthrough args there are ignored with a warning.
+
 ## Permissions (Claude backend)
 
 Defaults to `bypassPermissions` so a non-interactive `claude -p` can actually run tools. Tighten with `--permission-mode default|acceptEdits|plan` or `--read-only`. (Pi runs its tools directly; this flag is a no-op there.)
