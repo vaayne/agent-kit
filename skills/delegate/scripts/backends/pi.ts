@@ -115,8 +115,8 @@ export async function run(opts: RunOptions): Promise<number> {
         wroteText = true;
         process.stdout.write(event.assistantMessageEvent.delta);
       }
-      if (event.type === "tool_execution_start") console.error(`\n[tool:start] ${event.toolName}`);
-      if (event.type === "tool_execution_end") console.error(`[tool:end] ${event.isError ? "error" : "ok"}`);
+      // Stay quiet on success; only surface tool failures, with the tool name.
+      if (event.type === "tool_execution_end" && event.isError) console.error(`[tool:error] ${event.toolName}`);
       if (event.type === "auto_retry_start") {
         console.error(`[retry] ${event.attempt}/${event.maxAttempts}: ${event.errorMessage}`);
       }

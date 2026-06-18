@@ -36,6 +36,7 @@ export function run(opts: RunOptions): Promise<number> {
     let wroteText = false;
     let resultError: string | undefined;
     let stderrTail = "";
+    const toolNames = new Map<string, string>(); // tool_use_id -> name, to label failures
 
     child.stderr.on("data", (chunk: Buffer) => {
       stderrTail = (stderrTail + chunk.toString()).slice(-4000);
@@ -68,13 +69,16 @@ export function run(opts: RunOptions): Promise<number> {
       }
       if (event.type === "assistant") {
         for (const block of event.message?.content ?? []) {
-          if (block.type === "tool_use") console.error(`\n[tool:start] ${block.name}`);
+          if (block.type === "tool_use") toolNames.set(block.id, block.name);
         }
         return;
       }
       if (event.type === "user") {
+        // Stay quiet on success; only surface tool failures, with the tool name.
         for (const block of event.message?.content ?? []) {
-          if (block.type === "tool_result") console.error(`[tool:end] ${block.is_error ? "error" : "ok"}`);
+          if (block.type === "tool_result" && block.is_error) {
+            console.error(`[tool:error] ${toolNames.get(block.tool_use_id) ?? "?"}`);
+          }
         }
         return;
       }

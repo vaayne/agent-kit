@@ -42,13 +42,13 @@ Output:
 Example stderr:
 
 ```text
-[backend] pi (openai-codex/gpt-5.5)
+[backend] claude (opus)
 [session] 019ed89d-...
-[tool:start] read
-[tool:end] ok
+[cost] $0.0249 | turns: 2
 ```
 
-`[session] <id>` is resumable; `[session:ephemeral] <id>` is not.
+Tool calls run silently; only failures are reported, as `[tool:error] <name>`. The
+`[cost]` line is Claude-only. `[session] <id>` is resumable; `[session:ephemeral]` is not.
 
 ## Resume
 
