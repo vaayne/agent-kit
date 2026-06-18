@@ -80,7 +80,7 @@ Nowledge Mem (`nmem`) is your external brain. Treat it as mandatory for any non-
 - When using a skill, read its `SKILL.md` first and follow referenced files relative to it.
 - Use specialized agents only when they reduce risk or materially speed up focused work.
 - Summarize delegated findings; do not blindly apply them.
-- **Default delegation to Pi.** When delegating tasks (research, review, isolated work, parallel subtasks), use `/pi-delegate` instead of built-in Agent/subagent tools. It gives isolated context, resumable sessions, and model flexibility. Check the pi-delegate skill for CLI usage and patterns.
+- **Default delegation via `/delegate`.** When delegating tasks (research, review, isolated work, parallel subtasks), use `/delegate` instead of built-in Agent/subagent tools. It routes by model to Pi (codex/gpt/open models) or Claude Code (opus/sonnet/…), giving isolated context, resumable sessions, and model flexibility. Check the delegate skill for CLI usage and patterns.
 
 ## Code Search
 
