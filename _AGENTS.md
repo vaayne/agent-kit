@@ -80,7 +80,17 @@ Nowledge Mem (`nmem`) is your external brain. Treat it as mandatory for any non-
 - When using a skill, read its `SKILL.md` first and follow referenced files relative to it.
 - Use specialized agents only when they reduce risk or materially speed up focused work.
 - Summarize delegated findings; do not blindly apply them.
-- **Default delegation via `/delegate`.** When delegating tasks (research, review, isolated work, parallel subtasks), use `/delegate` instead of built-in Agent/subagent tools. It routes by model to Pi (codex/gpt/open models) or Claude Code (opus/sonnet/…), giving isolated context, resumable sessions, and model flexibility. Check the delegate skill for CLI usage and patterns.
+- **Default delegation via `/delegate`.** Prefer it over built-in Agent/subagent tools for research, review, isolated/parallel work — it gives isolated context, resumable sessions, and model flexibility. The backend is picked from the model name, never chosen directly. Invoke the `delegate` skill, then run its CLI from the skill dir (paths are skill-relative):
+
+  ```bash
+  bun scripts/delegate.ts --model <model> "Task: <self-contained prompt>"
+  ```
+
+  - **Routing:** `opus`/`sonnet`/`haiku`/`fable`/`claude-*` or omitted → Claude Code; `codex` → Pi (`gpt-5.5`); any other `provider/model` → Pi. Force with `--backend pi|claude`.
+  - **Prompt must stand alone:** goal, cwd/repo, constraints, expected output, stop conditions.
+  - **Key flags:** `--effort`, `--cwd`, `--read-only` (untrusted work), `--tools`, `--system[-file]`, `--session <id>` (resume), `--no-session`. Forward extra Claude-only flags after `--`.
+  - **Sessions:** capture `[session] ...` from stderr to resume; `[session:ephemeral]` isn't resumable. `[backend] ...` shows which runtime ran. Pi tool names are lowercase (`read,grep`), Claude's CamelCase (`Read,Grep`).
+  - Claude runs default to `bypassPermissions`; use `--read-only` for untrusted tasks. Treat output as evidence, not truth — verify high-impact claims. Read `skills/delegate/SKILL.md` only for edge cases.
 
 ## Code Search
 
