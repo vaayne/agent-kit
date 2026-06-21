@@ -3,8 +3,13 @@ import { createInterface } from "node:readline";
 import type { RunOptions } from "../types.ts";
 
 function buildArgs(opts: RunOptions): string[] {
+  // Prompt goes first, before any variadic flag. claude's --tools <tools...>
+  // and --add-dir <dirs...> greedily consume trailing args, so a prompt
+  // positional placed after them gets swallowed (claude then errors with
+  // "Input must be provided"). Anchoring it right after -p keeps it safe.
   const out = [
     "-p",
+    `Task: ${opts.task.trim()}`,
     "--output-format",
     "stream-json",
     "--verbose",
@@ -19,10 +24,7 @@ function buildArgs(opts: RunOptions): string[] {
   if (opts.fork) out.push("--fork-session");
   if (opts.noSession) out.push("--no-session-persistence");
   for (const sys of opts.system) out.push("--append-system-prompt", sys);
-  out.push(`Task: ${opts.task.trim()}`);
-  // User escape hatch, after the prompt so a variadic flag (e.g. --add-dir
-  // <dirs...>) can't swallow the prompt positional.
-  out.push(...opts.passthrough);
+  out.push(...opts.passthrough); // user escape hatch, verbatim
   return out;
 }
 
