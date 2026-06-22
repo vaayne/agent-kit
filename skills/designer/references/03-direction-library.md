@@ -1,10 +1,11 @@
 # Direction library
 
-> Source: `apps/daemon/src/prompts/directions.ts` — renderDirectionSpecBlock()
-
-## Direction library — bind into `:root` when the user picks one
-
-Each direction below carries a CSS-ready palette (OKLch values) and font stacks. When the user selects one in the direction-form, replace the seed template's `:root` block with that direction's palette and font stacks **verbatim** — do not improvise. Posture cues describe how that direction _behaves_ (border weight, radius, accent budget); honour them in the layout choices.
+Read this when no brand spec or design system is supplied (01-core-directives.md
+Branch B). Each direction below carries a CSS-ready palette (OKLch values) and font
+stacks. Pick the best match for the brief's tone, then replace the seed template's
+`:root` block with that direction's palette and font stacks **verbatim** — do not
+improvise. Posture cues describe how that direction _behaves_ (border weight, radius,
+accent budget); honour them in the layout choices.
 
 ### Editorial — Monocle / FT magazine `(id: editorial-monocle)`
 

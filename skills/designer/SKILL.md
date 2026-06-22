@@ -1,12 +1,16 @@
 ---
 name: designer
 description: |
-  Expert designer skill for filesystem-backed agent runtimes. Produces Preact/React prototypes,
-  HTML artifacts, slide decks, dashboards, landing pages, mobile app screens, editorial
-  artifacts, and polished animated UI/micro-interactions. Includes 150+ design systems,
-  110+ design templates from Open Design, bold frontend aesthetic guidance, motion
-  guidance for transitions, scroll reveals, spring physics, loading skeletons, parallax,
-  layout animation, UI polish, and mandatory anti-slop rules for direct, human copy.
+  Expert designer skill for filesystem-backed agent runtimes. The single skill for any
+  UI/UX work: building new interfaces or restyling/reshaping existing ones with a
+  distinctive, intentional aesthetic direction that doesn't read as templated. Produces
+  Preact/React prototypes, HTML artifacts, slide decks, dashboards, landing pages,
+  mobile app screens, editorial artifacts, and polished animated UI/micro-interactions.
+  Includes 150+ design systems, 110+ design templates from Open Design, bold frontend
+  aesthetic guidance, deliberate typography and palette choices, motion guidance for
+  transitions, scroll reveals, spring physics, loading skeletons, parallax, layout
+  animation, UI polish, interface copywriting, and mandatory anti-slop rules for direct,
+  human copy.
 ---
 
 # Designer Skill
@@ -153,9 +157,16 @@ with a clear visual point of view, not tasteful mush.
 - Commit to one aesthetic direction before coding: brutally minimal, maximalist,
   retro-futuristic, organic, luxury, playful, editorial, brutalist, art deco,
   industrial, or a direction derived from the user's brand/reference.
-- Name the memorable move: one thing someone will remember after closing the
-  preview. It can be a type treatment, composition, interaction, material,
-  texture, or data moment.
+- Ground choices in the subject's world. If the brief doesn't pin the product,
+  audience, and the page's single job, pin them yourself and say so. Distinctive
+  choices come from the subject's own materials, instruments, artifacts, and
+  vernacular — not from generic UI.
+- Name the memorable move: one signature element the page is remembered by. It can
+  be a type treatment, composition, interaction, material, texture, or data moment.
+  Spend your boldness there and keep everything around it quiet.
+- Make structural devices encode meaning. Numbering, eyebrows, dividers, and labels
+  should reflect something true about the content. Numbered markers (01 / 02 / 03)
+  belong only when the content is a real sequence, not as decoration.
 - Match complexity to the concept. Maximalist work can earn elaborate layers and
   orchestrated motion; refined minimal work earns itself through spacing,
   typography, contrast, and restraint.
@@ -172,6 +183,21 @@ with a clear visual point of view, not tasteful mush.
 - Avoid generic frontend slop: purple-gradient hero defaults, cookie-cutter SaaS
   cards, context-free icon grids, and repeated font/color/layout habits across
   unrelated outputs.
+
+Calibration — current AI-design defaults cluster in three looks: (1) warm cream
+(~#F4F1EA) + high-contrast serif display + terracotta accent; (2) near-black canvas
+
+- a single acid-green or vermilion accent; (3) broadsheet hairline rules, zero radius,
+  dense newspaper columns. Each is legitimate when the brief asks for it, but they
+  appear regardless of subject. Where the brief leaves an axis free, don't spend that
+  freedom on one of these.
+
+Before coding, write a compact plan: palette (4–6 named hex), type roles (display +
+body + optional utility), layout concept, and the one signature element. Then check it
+against the brief — if any part reads like the default you'd produce for any similar
+prompt, revise it and say what changed. Build the revised plan exactly. Hold a quality
+floor without announcing it: responsive down to mobile, visible keyboard focus,
+reduced motion respected.
 
 ## Mandatory copy quality gate
 
@@ -199,6 +225,14 @@ Rules:
 Before delivery, scan for passive voice, em dashes, Wh-word sentence openers,
 "not X but Y" pivots, vague declaratives, three-item lists, and distant-narrator
 phrasing. Rewrite failures before writing the final file.
+
+Interface copy (labels, buttons, empty/error states) follows the same bar plus a few
+UX rules: name things by what the user controls and recognizes, never by how the
+system is built ("Notifications", not "Webhook config"). A control says what happens
+when used ("Save changes", not "Submit"), and an action keeps the same name through
+the whole flow (a "Publish" button produces a "Published" toast). Errors don't
+apologize and are never vague about what happened or how to fix it. An empty screen is
+an invitation to act, not a mood.
 
 ## Motion quality gate
 
