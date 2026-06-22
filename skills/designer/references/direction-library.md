@@ -1,8 +1,8 @@
 # Direction library
 
-Read this when no brand spec or design system is supplied (01-core-directives.md
-Branch B). Each direction below carries a CSS-ready palette (OKLch values) and font
-stacks. Pick the best match for the brief's tone, then replace the seed template's
+Read this when no brand spec or design system is supplied (SKILL.md Operating flow §3).
+Each direction below carries a CSS-ready palette (OKLch values) and font stacks. Pick
+the best match for the brief's tone, then replace the seed template's
 `:root` block with that direction's palette and font stacks **verbatim** — do not
 improvise. Posture cues describe how that direction _behaves_ (border weight, radius,
 accent budget); honour them in the layout choices.

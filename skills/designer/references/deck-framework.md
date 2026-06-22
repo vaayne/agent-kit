@@ -1,16 +1,12 @@
-# Slide deck fixed framework
+# Slide deck — fixed framework (non-negotiable for deck mode)
 
-> Source: `apps/daemon/src/prompts/deck-framework.ts` — DECK_FRAMEWORK_DIRECTIVE
-
-# Slide deck — fixed framework (this is non-negotiable for deck mode)
-
-Decks regress when each turn re-authors the scale-to-fit logic, the keyboard handler, the slide visibility toggle, the counter, and the print rules. The user has hit this enough times that we now ship a **fixed framework**: 1920×1080 canvas, scale-to-fit, prev/next + counter, capture-phase keyboard, click-anywhere focus, localStorage position restore, and a print stylesheet that emits a multi-page vertical PDF on Save-as-PDF — all baked in.
+Decks regress when each turn re-authors the scale-to-fit logic, the keyboard handler, the slide visibility toggle, the counter, and the print rules. So this skill ships a **fixed framework**: 1920×1080 canvas, scale-to-fit, prev/next + counter, capture-phase keyboard, click-anywhere focus, localStorage position restore, and a print stylesheet that emits a multi-page vertical PDF on Save-as-PDF — all baked in.
 
 **You do not write any of that. You do not modify any of that.** Your job is to fill content slots only.
 
 ## Workflow — copy framework first, then fill content
 
-When the user asks for slides, your TodoWrite plan **must** start with "copy the deck framework verbatim" before any content step. The intended order is:
+When the user asks for slides, your plan **must** start with "copy the deck framework verbatim" before any content step. The intended order is:
 
 ```
 1.  Bind the active direction's palette + fonts to :root in the framework
@@ -19,7 +15,7 @@ When the user asks for slides, your TodoWrite plan **must** start with "copy the
 4.  Add per-deck classes inside the second <style> block
 5.  Replace each <section class="slide"> SLOT with real content
 6.  Self-check (no rewriting framework chrome / @media print / nav script)
-7.  Emit single <artifact> if a new canonical deck HTML was written this turn; otherwise summarize the edits (see "Artifact emission is conditional" in the discovery layer)
+7.  Write the deck file and summarize the slides
 ```
 
 If you find yourself writing `<style>` rules for `.deck-shell`, `.deck-stage`, `.slide`, `.canvas`, `fit()`, `@media print`, or a keyboard handler — STOP. The framework already has them. Re-read this directive, then keep going from "fill SLOT content".
@@ -40,7 +36,7 @@ You may edit only inside slots marked `SLOT:`:
 
 These are the failure patterns we just spent days debugging. Each one looks "equivalent" but breaks something specific:
 
-- ❌ Don't write your own `fit()` function or `transform: scale()` script. The framework already does it, and ad-hoc versions drift inside the OD viewer's nested transform wrapper.
+- ❌ Don't write your own `fit()` function or `transform: scale()` script. The framework already does it, and ad-hoc versions drift inside the preview viewer's nested transform wrapper.
 - ❌ Don't use `transform-origin: center center` on the stage. The framework uses `top left` plus an explicit translate so scaled content lands at the same place every render.
 - ❌ Don't use `document.addEventListener('keydown', …)` alone. Inside an iframe, focus is sometimes on window. The framework adds capture-phase listeners on **both** targets — replacing this with a single listener silently swallows arrow keys.
 - ❌ Don't replace the localStorage key, the slide-visibility toggle (`.slide.active`), or the counter element IDs (`#deck-cur`, `#deck-total`, `#deck-prev`, `#deck-next`). The framework reads them by ID.
@@ -50,7 +46,7 @@ These are the failure patterns we just spent days debugging. Each one looks "equ
 
 ## Why this matters (so you can judge edge cases)
 
-The framework is a contract with the host viewer. The OD iframe sits inside a transformed wrapper (the zoom control); the keyboard handler needs capture phase + dual targets; "Share → PDF" reads the print stylesheet; the position survives reloads via localStorage. If a turn rewrites any of these — even with "equivalent" code — the next turn diverges, and three turns in the deck has subtly broken nav and a one-page PDF. Treat the framework as load-bearing infrastructure.
+The framework is a contract with the preview viewer. The embedded iframe sits inside a transformed wrapper (the zoom control); the keyboard handler needs capture phase + dual targets; "Share → PDF" reads the print stylesheet; the position survives reloads via localStorage. If a turn rewrites any of these — even with "equivalent" code — the next turn diverges, and three turns in the deck has subtly broken nav and a one-page PDF. Treat the framework as load-bearing infrastructure.
 
 If the user asks for something the framework genuinely doesn't support (vertical decks, custom slide transitions, multi-column simultaneous slides), say so and ask before forking. **Default answer: keep the framework, change the slide content.**
 
@@ -75,7 +71,7 @@ Rules — non-negotiable:
 3. **Body slides: ≤ 3 paragraphs, ≤ 56ch lead text width, ≤ 12 words per line.**
 4. **One idea per slide.** Two ideas = two slides.
 
-## Pre-emit self-check — run this BEFORE writing the `<artifact>` tag
+## Self-check — run this BEFORE writing the deck file
 
 For every `<section class="slide">`, mentally render at 1920×1080 and answer:
 
@@ -84,11 +80,11 @@ For every `<section class="slide">`, mentally render at 1920×1080 and answer:
 - [ ] Is the display headline ≤ 140px and ≤ 8 words?
 - [ ] Does the slide carry ≤ one big idea? (No mashed-together masthead + display headline + subtitle + absolute footer + sidebar.)
 
-If any answer is "no", redesign the slide BEFORE emitting. Decks that overflow are the most common single failure mode reported by users; the user has rejected one before and will reject one again.
+If any answer is "no", redesign the slide BEFORE writing the file. Decks that overflow are the most common single failure mode; the user has rejected one before and will reject one again.
 
-## Prefer the simple-deck skill's layout vocabulary when reachable
+## Prefer a deck template's layout vocabulary when one fits
 
-If `plugins/_official/examples/simple-deck/assets/template.html` and its `references/layouts.md` are readable from the project workspace, **prefer those layouts over inventing your own**. The simple-deck skill ships eight paste-ready slide skeletons (cover, body, big-stat, three-point row, pipeline, dark quote, before/after, closing) with tested type scales, density rules, and a P0/P1/P2 checklist. Re-inventing those layouts is the source of most density / overflow bugs the framework can't catch.
+When a deck template matches the brief (`./scripts/catalog.sh templates`), prefer its paste-ready slide skeletons — cover, body, big-stat, three-point row, pipeline, dark quote, before/after, closing — over inventing your own. Those ship with tested type scales, density rules, and a checklist. Re-inventing layouts is the source of most density / overflow bugs the framework can't catch.
 
 ## Canonical skeleton (this is exactly what the file you write looks like)
 
@@ -315,8 +311,8 @@ If `plugins/_official/examples/simple-deck/assets/template.html` and its `refere
       // The stage is 1920×1080 and positioned by .deck-shell's
       // `display:grid;place-items:center`. We scale via transform with
       // transform-origin:top-left, then re-center by translating to the
-      // remainder. This survives nested transforms (e.g. when the OD viewer
-      // wraps the iframe in its own scale wrapper at zoom != 100%).
+      // remainder. This survives nested transforms (e.g. when the preview
+      // viewer wraps the iframe in its own scale wrapper at zoom != 100%).
       function fit() {
         var sw = window.innerWidth;
         var sh = window.innerHeight;
@@ -370,7 +366,7 @@ If `plugins/_official/examples/simple-deck/assets/template.html` and its `refere
           go(slides.length - 1);
         }
       }
-      // Capture phase + listen on both targets — inside the OD iframe,
+      // Capture phase + listen on both targets — inside an embedded iframe,
       // focus may be on window OR document; a single non-capture listener
       // silently misses presses.
       window.addEventListener("keydown", onKey, true);
