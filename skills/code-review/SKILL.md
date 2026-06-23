@@ -5,6 +5,8 @@ description: >
   Spawns parallel reviewer agents (bug hunter, security auditor, architecture critic, correctness prover)
   that independently analyze the current branch diff, then consolidates and debates findings
   to produce a machine-readable review bundle plus human-readable HTML report with near-zero false positives.
+  The report opens with a reviewer-facing overview of the PR — its purpose, what changed and why,
+  whether the changes are necessary, and the regression and security risk — before the debated findings.
   Use when the user says "review", "code review", "review my changes", "check this PR",
   "find bugs", "audit this branch", or wants a thorough quality check before merging.
 ---
@@ -26,6 +28,7 @@ Review the current branch's changes using parallel subagents with distinct exper
    ```
 3. If the diff is empty, stop and tell the user there are no changes to review.
 4. Identify the languages, frameworks, and key files touched.
+5. Capture the PR's intent for the overview: read the commit messages, the PR description (`gh pr view <number>` when a PR number is given), and any goal the user stated. Note the claimed purpose and whether the diff actually matches it.
 
 ### Phase 2: Parallel Independent Review
 
@@ -83,6 +86,13 @@ After all four agents return:
    - **Low** — style, naming, minor improvements
 4. **Eliminate weak findings** — drop anything with low confidence that no other agent corroborated. The goal is near-zero false positives; it's better to miss a minor issue than to cry wolf.
 5. **Note pre-existing issues** — if reviewers found bugs in unchanged code adjacent to the diff, list them separately as "Side Quests" (borrowing from the Nolan Lawson approach). These are valuable but shouldn't block the PR.
+6. **Compose the PR overview** — a short reviewer-facing orientation written into `review.json.overview`. You now hold both the Phase 1 intent signals and the debated findings, so ground every claim in the diff and those findings; do not speculate. Cover:
+   - **purpose** — what problem this PR solves and why it exists (from commit messages, PR description, stated goal).
+   - **changes** — what actually changed, grouped by area. Concrete, not a line-by-line restatement of the diff.
+   - **rationale** — why it was done this way; the approach and key tradeoffs.
+   - **necessity** — your judgment as reviewer: is every change needed? Call out scope creep, speculative additions, or unrelated churn (YAGNI). If it's all warranted, say so plainly.
+   - **regression_risk** — `{ level: low | medium | high, notes }`. Blast radius: what existing behavior could break, which paths to retest, gaps in test coverage. Tie medium/high risk to concrete findings where possible.
+   - **security** — `{ level: none | low | medium | high, notes }`. New attack surface, trust-boundary/auth changes, secret handling. `none` with a one-line reason is a valid answer.
 
 ### Phase 4: Generate Review Bundle
 
@@ -105,7 +115,7 @@ Never use a direct write over an existing `review.json` without preserving prior
 
 Write these files:
 
-- `review.json` — canonical machine-readable current-state snapshot for agents and scripts.
+- `review.json` — canonical machine-readable current-state snapshot for agents and scripts, including the Phase 3 `overview`.
 - `events.jsonl` — append-only audit log for review creation, finding additions, status changes, and report renders.
 - `report.html` — human-readable report rendered from `review.json`.
 - `summary.md` — compact Markdown summary rendered from `review.json` for chat, PR comments, and handoff.
@@ -181,7 +191,7 @@ Merge findings by `fingerprint`:
 
 ## Localization
 
-Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — assessment, verdict explanation, finding descriptions, suggestions, and impact statements — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
+Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — the overview (purpose, changes, rationale, necessity, and risk notes), assessment, verdict explanation, finding descriptions, suggestions, and impact statements — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
 
 ## Edge Cases
 

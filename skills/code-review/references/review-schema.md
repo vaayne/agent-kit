@@ -38,6 +38,14 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
     "lines_added": 120,
     "lines_removed": 34
   },
+  "overview": {
+    "purpose": "What problem this PR solves and why it exists.",
+    "changes": "What actually changed, grouped by area.",
+    "rationale": "Why it was done this way; approach and key tradeoffs.",
+    "necessity": "Reviewer judgment: are the changes necessary? Scope-creep callouts, or all-warranted.",
+    "regression_risk": { "level": "low", "notes": "Blast radius, paths to retest, coverage gaps." },
+    "security": { "level": "none", "notes": "New attack surface, auth/secret changes, or none." }
+  },
   "findings": [
     {
       "id": "CR-001",
@@ -65,6 +73,19 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
   "side_quests": []
 }
 ```
+
+## `overview`
+
+A reviewer-facing orientation written by the main agent during consolidation, rendered above the findings. Expected for new reviews; preserved across reruns. All prose is localized to the user's language.
+
+- `purpose` — what problem this PR solves and why it exists
+- `changes` — what actually changed, grouped by area (not a line-by-line diff restatement)
+- `rationale` — why it was done this way; approach and key tradeoffs
+- `necessity` — reviewer judgment on whether the changes are needed; scope-creep / YAGNI callouts
+- `regression_risk` — `{ level: low | medium | high, notes }`
+- `security` — `{ level: none | low | medium | high, notes }`
+
+Ground every claim in the diff and findings. Tie medium/high risk to concrete findings where possible.
 
 ## Finding requirements
 

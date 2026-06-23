@@ -162,6 +162,81 @@
       line-height: 1.55;
     }
 
+    /* ── Overview ── */
+    .overview { margin-bottom: 8px; }
+    .overview-card {
+      padding: 4px 20px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .overview-item { padding-top: 14px; }
+    .overview-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .overview-text {
+      color: var(--fg-secondary);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+    .risk-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .risk-badge {
+      padding: 12px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+    }
+    .risk-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .risk-name {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .risk-level {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 7px;
+      border: 1px solid;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .risk-notes {
+      color: var(--fg-secondary);
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+    .risk-badge.level-high { border-color: var(--critical-border); }
+    .risk-badge.level-high .risk-level { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+    .risk-badge.level-medium .risk-level { background: var(--medium-bg); color: var(--medium); border-color: var(--medium-border); }
+    .risk-badge.level-low .risk-level { background: var(--low-bg); color: var(--low); border-color: var(--low-border); }
+    .risk-badge.level-none .risk-level { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+
     /* ── Filter bar ── */
     .filter-bar {
       position: sticky;
@@ -378,6 +453,8 @@
     @media (max-width: 640px) {
       .container { padding: 20px 16px 48px; }
       .header { padding: 16px; }
+      .overview-card { padding: 4px 16px 16px; }
+      .risk-row { grid-template-columns: 1fr; }
       .verdict-row { flex-direction: column; gap: 6px; }
       .finding summary .tag { display: none; }
       .file-ref { display: none; }

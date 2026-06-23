@@ -66,6 +66,12 @@ function markdownish(value) {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
+// Tolerate an agent emitting a list where prose is expected.
+function asText(value) {
+  if (Array.isArray(value)) return value.map((item) => `- ${item}`).join("\n");
+  return value;
+}
+
 function safeJsonForScript(value) {
   return JSON.stringify(value).replace(/<\/script/gi, "<\\/script");
 }
@@ -127,6 +133,63 @@ function verdictInfo() {
   return { className: "fix", icon: "⚠", title: "Fix and ship" };
 }
 
+function riskLevel(value) {
+  const level = slug(value || "");
+  return ["none", "low", "medium", "high"].includes(level) ? level : "low";
+}
+
+function renderRiskBadge(name, risk) {
+  if (!risk) return "";
+  const level = riskLevel(risk.level);
+  const notes = asText(risk.notes ?? risk.note ?? "");
+  return `
+            <div class="risk-badge level-${level}">
+              <div class="risk-head">
+                <span class="risk-name">${escapeHtml(name)}</span>
+                <span class="risk-level">${escapeHtml(level.toUpperCase())}</span>
+              </div>
+              <div class="risk-notes">${markdownish(notes)}</div>
+            </div>`;
+}
+
+function renderOverview() {
+  const overview = review.overview;
+  if (!overview || typeof overview !== "object") return "";
+
+  const item = (label, value) => {
+    const text = asText(value);
+    if (!text) return "";
+    return `
+          <div class="overview-item">
+            <div class="overview-label">${escapeHtml(label)}</div>
+            <div class="overview-text">${markdownish(text)}</div>
+          </div>`;
+  };
+
+  const items = [
+    item("Purpose", overview.purpose),
+    item("Changes", overview.changes),
+    item("Rationale", overview.rationale),
+    item("Necessity", overview.necessity),
+  ].join("");
+
+  const badges = [
+    renderRiskBadge("Regression Risk", overview.regression_risk),
+    renderRiskBadge("Security", overview.security),
+  ].filter(Boolean).join("");
+  const riskRow = badges ? `<div class="risk-row">${badges}</div>` : "";
+
+  if (!items && !riskRow) return "";
+  return `
+      <div class="overview">
+        <div class="section-title">Overview</div>
+        <div class="overview-card">
+          ${items}
+          ${riskRow}
+        </div>
+      </div>`;
+}
+
 function renderReportHtml() {
   const stats = review.stats ?? {};
   const verdict = verdictInfo();
@@ -173,6 +236,8 @@ function renderReportHtml() {
         <div class="assessment">${markdownish(assessment)}</div>
       </header>
 
+      ${renderOverview()}
+
       <div class="filter-bar">
         <button class="filter-btn active" onclick="filterFindings('all', event)">All</button>
         ${
@@ -215,6 +280,31 @@ function renderFindingSummary(finding) {
   return lines.join("\n");
 }
 
+function renderOverviewMarkdown() {
+  const overview = review.overview;
+  if (!overview || typeof overview !== "object") return [];
+
+  const lines = ["## Overview", ""];
+  const para = (label, value) => {
+    const text = asText(value);
+    if (text) lines.push(`**${label}:** ${text}`, "");
+  };
+  para("Purpose", overview.purpose);
+  para("Changes", overview.changes);
+  para("Rationale", overview.rationale);
+  para("Necessity", overview.necessity);
+
+  const risk = (label, value) => {
+    if (!value) return;
+    const level = value.level ? `${value.level} — ` : "";
+    para(label, `${level}${asText(value.notes ?? value.note ?? "")}`);
+  };
+  risk("Regression risk", overview.regression_risk);
+  risk("Security", overview.security);
+
+  return lines.length > 2 ? lines : [];
+}
+
 function renderSummaryMarkdown() {
   const lines = [
     "# Code Review Summary",
@@ -228,9 +318,10 @@ function renderSummaryMarkdown() {
     "",
     review.assessment ?? "",
     "",
-    "## Open Findings",
-    "",
   ];
+
+  lines.push(...renderOverviewMarkdown());
+  lines.push("## Open Findings", "");
 
   if (openFindings.length === 0) {
     lines.push("No open findings.");
