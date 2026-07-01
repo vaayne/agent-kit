@@ -2,9 +2,11 @@
 name: code-review
 description: >
   Multi-perspective code review using adversarial subagent debate.
-  Spawns parallel reviewer agents (bug hunter, security auditor, architecture critic, correctness prover)
-  that independently analyze the current branch diff, then consolidates and debates findings
-  to produce a machine-readable review bundle plus human-readable HTML report with near-zero false positives.
+  First gives the user a simple but detailed What/Why/How/Refs brief: what changed,
+  why it exists, how it works, and which files, commits, or PR references support the explanation.
+  Then spawns parallel reviewer agents (bug hunter, security auditor, architecture critic, correctness prover)
+  that independently analyze the current branch diff, consolidates and debates findings,
+  and produces a machine-readable review bundle plus human-readable HTML report with near-zero false positives.
   The report opens with a reviewer-facing overview of the PR — its purpose, what changed and why,
   whether the changes are necessary, and the regression and security risk — before the debated findings.
   Use when the user says "review", "code review", "review my changes", "check this PR",
@@ -30,7 +32,20 @@ Review the current branch's changes using parallel subagents with distinct exper
 4. Identify the languages, frameworks, and key files touched.
 5. Capture the PR's intent for the overview: read the commit messages, the PR description (`gh pr view <number>` when a PR number is given), and any goal the user stated. Note the claimed purpose and whether the diff actually matches it.
 
-### Phase 2: Parallel Independent Review
+### Phase 2: Explain the Change Before Reviewing
+
+Before spawning subagents, explain the PR or branch changes to the user in plain language. This gives the user a shared mental model before the adversarial review starts; do not skip it unless the user explicitly asks for review-only output.
+
+Use this **What/Why/How/Refs brief**:
+
+1. **What**: summarize user-visible behavior, API, CLI, data, config, documentation, and key implementation changes.
+2. **Why**: explain the problem, motivation, requirement, or cleanup goal the diff appears to address.
+3. **How**: explain the implementation mechanics, entry points, touched modules, control/data flow, important algorithms, state changes, migrations, dependencies, and compatibility choices.
+4. **Refs**: cite the concrete files, commits, PR description sections, linked issues, tests, or docs that support the explanation, and call out risky files or areas the reviewers should scrutinize hardest.
+
+Keep it simple enough for a non-author teammate to understand, but do not omit important technical details. Prefer concrete filenames and examples over vague summaries. If intent is unclear from the diff, say what you inferred and what evidence supports it.
+
+### Phase 3: Parallel Independent Review
 
 Spawn **four subagents in parallel** using the Agent tool. Each gets the same diff context but a different review lens. Include the full diff in each prompt (or instruct each agent to run the git commands themselves if the diff is large).
 
@@ -70,7 +85,7 @@ Additionally, apply _A Philosophy of Software Design_:
 
 Focus: contract violations, type safety gaps, invariant breaks, concurrency issues, edge cases in algorithms, incorrect assumptions about data shape or ordering, missing validation at system boundaries. Think like a formal verifier — what inputs or sequences would violate the assumptions this code makes?
 
-### Phase 3: Consolidation & Debate
+### Phase 4: Consolidation & Debate
 
 After all four agents return:
 
@@ -94,7 +109,7 @@ After all four agents return:
    - **regression_risk** — `{ level: low | medium | high, notes }`. Blast radius: what existing behavior could break, which paths to retest, gaps in test coverage. Tie medium/high risk to concrete findings where possible.
    - **security** — `{ level: none | low | medium | high, notes }`. New attack surface, trust-boundary/auth changes, secret handling. `none` with a one-line reason is a valid answer.
 
-### Phase 4: Generate Review Bundle
+### Phase 5: Generate Review Bundle
 
 Create a review bundle directory at `~/.agents/sessions/{project}/reviews/{date}-{branch-slug}/`, where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{branch-slug}` is the branch name made filesystem-safe by replacing `/` and other non-portable characters with `-`. Keep the original branch name in `review.json.branch`.
 
@@ -115,7 +130,7 @@ Never use a direct write over an existing `review.json` without preserving prior
 
 Write these files:
 
-- `review.json` — canonical machine-readable current-state snapshot for agents and scripts, including the Phase 3 `overview`.
+- `review.json` — canonical machine-readable current-state snapshot for agents and scripts, including the Phase 4 `overview`.
 - `events.jsonl` — append-only audit log for review creation, finding additions, status changes, and report renders.
 - `report.html` — human-readable report rendered from `review.json`.
 - `summary.md` — compact Markdown summary rendered from `review.json` for chat, PR comments, and handoff.
