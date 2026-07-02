@@ -68,6 +68,7 @@ Fall back to `grep`/`rg` for literal strings, comments, or non-code text.
 ### Commits
 
 - Commit small, complete, reviewable units.
+- Never amend commits unless explicitly asked; create a new commit instead.
 - Use Scoped Commits — Linux, FreeBSD, and nixpkgs all do this:
 
   ```text
