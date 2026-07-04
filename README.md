@@ -11,9 +11,10 @@ git clone --recursive https://github.com/vaayne/agent-kit.git
 cd agent-kit
 mise run setup        # submodules, dependencies
 
-mise run sync         # everything: skills + instructions
-mise run sync:skills  # local + remote skills → ~/.agents/skills, symlinked into each runtime
-mise run sync:agents  # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
+mise run sync             # everything: skills + instructions + extensions
+mise run sync:skills      # local + remote skills → ~/.agents/skills, symlinked into each runtime
+mise run sync:agents      # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
+mise run sync:extensions  # Pi extensions → ~/.pi/agent/extensions symlinks
 ```
 
 ## Development workflow skills
