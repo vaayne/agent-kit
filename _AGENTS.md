@@ -28,5 +28,5 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 ## Delivery
 
 - Commit small, complete, reviewable units as `<scope>: <description>` (scope = touched area: `skills`, `docs`, `treewide`); imperative description, no `feat`/`fix`, emoji fine; body for non-obvious why/tradeoffs. Never amend unless explicitly asked. NEVER commit secrets or add `Signed-off-by`.
-- **Harvest before reporting** — every task, no exceptions: did this surface reusable knowledge (a tool, a trick, a repo, a bug pattern, a gotcha)? Save it to `nmem` now. Skipping feels free but forfeits compounding.
+- **Harvest before reporting** — every task, no exceptions: did this surface reusable knowledge (a tool, a trick, a repo, a bug pattern, a gotcha)? Save it to `nmem` now; time-sensitive findings carry an expiry date. Skipping feels free but forfeits compounding.
 - Final report, concise: files changed, what and why, verification run or skipped, risks or follow-ups.

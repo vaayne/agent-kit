@@ -43,6 +43,7 @@ scout → grill → blueprint → mason → code-review → teach
 
 | Skill               | Description                                                          |
 | ------------------- | -------------------------------------------------------------------- |
+| **curator**         | Maintain the nmem knowledge base — lint + synthesis passes           |
 | **tap-web**         | Web access, search, extraction, and browser automation via `tap`     |
 | **designer**        | Distinctive UI/UX design and prototypes for filesystem-backed agents |
 | **humanizer**       | Strip AI writing patterns from prose                                 |
