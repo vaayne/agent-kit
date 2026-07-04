@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
-import { type BackendName, route } from "./router.ts";
 import { lookupSession, saveSession } from "./registry.ts";
+import { type BackendName, route } from "./router.ts";
 import type { Backend, DelegateEvent, Effort, RunOptions } from "./types.ts";
 
 type Args = RunOptions & {

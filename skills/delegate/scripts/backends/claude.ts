@@ -52,10 +52,12 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
   const toolNames = new Map<string, string>();
 
   try {
-    for await (const message of query({
-      prompt: `Task: ${opts.task.trim()}`,
-      options: buildOptions(opts, abortController),
-    })) {
+    for await (
+      const message of query({
+        prompt: `Task: ${opts.task.trim()}`,
+        options: buildOptions(opts, abortController),
+      })
+    ) {
       if (message.type === "system" && message.subtype === "init") {
         yield { kind: "session", id: message.session_id, ephemeral: opts.noSession };
         continue;
