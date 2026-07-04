@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { Effort, RunOptions } from "../types.ts";
+import type { DelegateEvent, Effort, RunOptions } from "../types.ts";
 
 type Thinking = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -42,15 +42,14 @@ async function findSessionPath(SessionManager: any, cwd: string, session: string
   return found.path;
 }
 
+function toolDetail(event: any): string | undefined {
+  return event.errorMessage ?? event.error?.message ?? event.result ?? event.output;
+}
+
 // Run a delegated task on a streaming Pi SDK session. Mirrors the Claude backend's
-// stdout/stderr contract so the router can treat the two interchangeably.
-export async function run(opts: RunOptions): Promise<number> {
+// event contract so the router can treat the two interchangeably.
+export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable<DelegateEvent> {
   process.env.PI_DELEGATE ??= "1";
-  if (opts.passthrough.length) {
-    console.error(
-      `[warn] ignoring passthrough args (Pi backend is SDK-based, not a CLI): ${opts.passthrough.join(" ")}`,
-    );
-  }
 
   const {
     AuthStorage,
@@ -105,28 +104,58 @@ export async function run(opts: RunOptions): Promise<number> {
     resourceLoader: loader,
   });
 
-  let wroteText = false;
-  try {
-    if (modelFallbackMessage) console.error(`[model fallback] ${modelFallbackMessage}`);
-    console.error(`[${opts.noSession ? "session:ephemeral" : "session"}] ${session.sessionId}`);
+  const pending: DelegateEvent[] = [];
+  let notify: (() => void) | undefined;
+  let promptDone = false;
+  let promptError: Error | undefined;
 
-    session.subscribe((event: any) => {
-      if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-        wroteText = true;
-        process.stdout.write(event.assistantMessageEvent.delta);
-      }
-      // Stay quiet on success; only surface tool failures, with the tool name.
-      if (event.type === "tool_execution_end" && event.isError) console.error(`[tool:error] ${event.toolName}`);
-      if (event.type === "auto_retry_start") {
-        console.error(`[retry] ${event.attempt}/${event.maxAttempts}: ${event.errorMessage}`);
-      }
+  const push = (event: DelegateEvent) => {
+    pending.push(event);
+    notify?.();
+    notify = undefined;
+  };
+
+  const abort = () => {
+    void session.abort?.();
+  };
+  if (signal.aborted) abort();
+  signal.addEventListener("abort", abort, { once: true });
+
+  if (modelFallbackMessage) push({ kind: "retry", attempt: 1, max: 1, message: modelFallbackMessage });
+  push({ kind: "session", id: session.sessionId, ephemeral: opts.noSession });
+
+  session.subscribe((event: any) => {
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+      push({ kind: "text", delta: event.assistantMessageEvent.delta });
+    }
+    if (event.type === "tool_execution_end" && event.isError) {
+      push({ kind: "tool_error", name: event.toolName, detail: toolDetail(event) });
+    }
+    if (event.type === "auto_retry_start") {
+      push({ kind: "retry", attempt: event.attempt, max: event.maxAttempts, message: event.errorMessage });
+    }
+  });
+
+  session.prompt(`Task: ${opts.task.trim()}`)
+    .catch((err: Error) => {
+      promptError = err;
+    })
+    .finally(() => {
+      promptDone = true;
+      notify?.();
+      notify = undefined;
     });
 
-    await session.prompt(`Task: ${opts.task.trim()}`);
-    if (wroteText) process.stdout.write("\n");
+  try {
+    while (!promptDone || pending.length > 0) {
+      if (pending.length === 0) await new Promise<void>((resolve) => (notify = resolve));
+      while (pending.length > 0) yield pending.shift()!;
+    }
+    if (signal.aborted) yield { kind: "done", ok: false };
+    else if (promptError) yield { kind: "done", ok: false, error: promptError.message };
+    else yield { kind: "done", ok: true };
   } finally {
     session.dispose();
     await settingsManager.flush?.();
   }
-  return 0;
 }

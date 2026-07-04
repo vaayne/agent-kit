@@ -1,12 +1,11 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import type { RunOptions } from "../types.ts";
+import type { DelegateEvent, RunOptions } from "../types.ts";
 
 function buildArgs(opts: RunOptions): string[] {
   // Prompt goes first, before any variadic flag. claude's --tools <tools...>
-  // and --add-dir <dirs...> greedily consume trailing args, so a prompt
-  // positional placed after them gets swallowed (claude then errors with
-  // "Input must be provided"). Anchoring it right after -p keeps it safe.
+  // greedily consume trailing args, so a prompt positional placed after them gets
+  // swallowed (claude then errors with "Input must be provided").
   const out = [
     "-p",
     `Task: ${opts.task.trim()}`,
@@ -23,87 +22,120 @@ function buildArgs(opts: RunOptions): string[] {
   if (opts.session) out.push("--resume", opts.session);
   if (opts.fork) out.push("--fork-session");
   if (opts.noSession) out.push("--no-session-persistence");
+  if (opts.maxTurns) out.push("--max-turns", String(opts.maxTurns));
   for (const sys of opts.system) out.push("--append-system-prompt", sys);
-  out.push(...opts.passthrough); // user escape hatch, verbatim
   return out;
 }
 
-// Drive `claude -p` in stream-json mode: assistant text to stdout, session/tool
-// status to stderr. Resolves with the child exit code.
-export function run(opts: RunOptions): Promise<number> {
-  return new Promise((resolve) => {
-    const child = spawn("claude", buildArgs(opts), { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] });
+function toolResultText(block: any): string | undefined {
+  const content = block.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return undefined;
+  return content
+    .map((item) => typeof item?.text === "string" ? item.text : "")
+    .filter(Boolean)
+    .join("\n") || undefined;
+}
 
-    let sessionReported = false;
-    let wroteText = false;
-    let resultError: string | undefined;
-    let stderrTail = "";
-    const toolNames = new Map<string, string>(); // tool_use_id -> name, to label failures
+// Drive `claude -p` in stream-json mode for Phase 1, but expose normalized
+// events so delegate.ts owns all stdout/stderr rendering.
+export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable<DelegateEvent> {
+  const child = spawn("claude", buildArgs(opts), { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] });
 
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderrTail = (stderrTail + chunk.toString()).slice(-4000);
-    });
+  let resultError: string | undefined;
+  let stderrTail = "";
+  const toolNames = new Map<string, string>();
+  const pending: DelegateEvent[] = [];
+  let notify: (() => void) | undefined;
+  let done = false;
+  let spawnError: Error | undefined;
 
-    const rl = createInterface({ input: child.stdout });
-    rl.on("line", (line) => {
-      if (!line.trim()) return;
-      let event: any;
-      try {
-        event = JSON.parse(line);
-      } catch {
-        return;
-      }
+  const push = (event: DelegateEvent) => {
+    pending.push(event);
+    notify?.();
+    notify = undefined;
+  };
 
-      if (event.type === "system" && event.subtype === "init") {
-        if (!sessionReported) {
-          sessionReported = true;
-          console.error(`[${opts.noSession ? "session:ephemeral" : "session"}] ${event.session_id}`);
-        }
-        return;
-      }
-      if (event.type === "stream_event") {
-        const inner = event.event;
-        if (inner?.type === "content_block_delta" && inner.delta?.type === "text_delta") {
-          wroteText = true;
-          process.stdout.write(inner.delta.text);
-        }
-        return;
-      }
-      if (event.type === "assistant") {
-        for (const block of event.message?.content ?? []) {
-          if (block.type === "tool_use") toolNames.set(block.id, block.name);
-        }
-        return;
-      }
-      if (event.type === "user") {
-        // Stay quiet on success; only surface tool failures, with the tool name.
-        for (const block of event.message?.content ?? []) {
-          if (block.type === "tool_result" && block.is_error) {
-            console.error(`[tool:error] ${toolNames.get(block.tool_use_id) ?? "?"}`);
-          }
-        }
-        return;
-      }
-      if (event.type === "result") {
-        if (event.is_error) resultError = event.result || event.subtype || "unknown error";
-        if (typeof event.total_cost_usd === "number") {
-          console.error(`[cost] $${event.total_cost_usd.toFixed(4)} | turns: ${event.num_turns ?? "?"}`);
-        }
-      }
-    });
+  const abort = () => {
+    child.kill("SIGTERM");
+    setTimeout(() => {
+      if (!child.killed) child.kill("SIGKILL");
+    }, 1000).unref();
+  };
+  if (signal.aborted) abort();
+  signal.addEventListener("abort", abort, { once: true });
 
-    child.on("error", (err) => {
-      console.error(`[error] failed to spawn claude: ${err.message}`);
-      resolve(1);
-    });
-    child.on("close", (code) => {
-      if (wroteText) process.stdout.write("\n");
-      if (resultError) console.error(`[error] ${resultError}`);
-      if (code !== 0 && !resultError) {
-        if (stderrTail.trim()) console.error(stderrTail.trim());
-        console.error(`[error] claude exited with code ${code}`);
-      }
-      resolve(code ?? 0);
-    });
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderrTail = (stderrTail + chunk.toString()).slice(-4000);
   });
+
+  const rl = createInterface({ input: child.stdout });
+  rl.on("line", (line) => {
+    if (!line.trim()) return;
+    let event: any;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      return;
+    }
+
+    if (event.type === "system" && event.subtype === "init") {
+      push({ kind: "session", id: event.session_id, ephemeral: opts.noSession });
+      return;
+    }
+    if (event.type === "stream_event") {
+      const inner = event.event;
+      if (inner?.type === "content_block_delta" && inner.delta?.type === "text_delta") {
+        push({ kind: "text", delta: inner.delta.text });
+      }
+      return;
+    }
+    if (event.type === "assistant") {
+      for (const block of event.message?.content ?? []) {
+        if (block.type === "tool_use") toolNames.set(block.id, block.name);
+      }
+      return;
+    }
+    if (event.type === "user") {
+      for (const block of event.message?.content ?? []) {
+        if (block.type === "tool_result" && block.is_error) {
+          push({
+            kind: "tool_error",
+            name: toolNames.get(block.tool_use_id) ?? "?",
+            detail: toolResultText(block),
+          });
+        }
+      }
+      return;
+    }
+    if (event.type === "result") {
+      if (event.is_error) resultError = event.result || event.subtype || "unknown error";
+      if (typeof event.total_cost_usd === "number") {
+        push({ kind: "cost", usd: event.total_cost_usd, turns: event.num_turns });
+      }
+    }
+  });
+
+  child.on("error", (err) => {
+    spawnError = err;
+  });
+  child.on("close", (code) => {
+    if (spawnError) push({ kind: "done", ok: false, error: `failed to spawn claude: ${spawnError.message}` });
+    else if (signal.aborted) push({ kind: "done", ok: false });
+    else if (resultError) push({ kind: "done", ok: false, error: resultError });
+    else if (code !== 0) {
+      const detail = stderrTail.trim() ? `${stderrTail.trim()}\n` : "";
+      push({ kind: "done", ok: false, error: `${detail}claude exited with code ${code}` });
+    } else {
+      push({ kind: "done", ok: true });
+    }
+    done = true;
+    notify?.();
+    notify = undefined;
+  });
+
+  while (!done || pending.length > 0) {
+    if (pending.length === 0) await new Promise<void>((resolve) => (notify = resolve));
+    while (pending.length > 0) yield pending.shift()!;
+  }
 }
