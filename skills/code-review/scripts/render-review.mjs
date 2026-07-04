@@ -86,7 +86,11 @@ function renderFindingCard(finding, { sideQuest = false } = {}) {
   const severity = slug(finding.severity || "low");
   const status = finding.status ?? "open";
   const open = ["critical", "high"].includes(severity) && isOpenStatus(status) ? " open" : "";
-  const description = [finding.description, finding.impact ? `Impact: ${finding.impact}` : null]
+  const description = [
+    finding.description,
+    finding.evidence ? `Evidence: ${finding.evidence}` : null,
+    finding.impact ? `Impact: ${finding.impact}` : null,
+  ]
     .filter(Boolean)
     .join("\n\n");
   const suggestion = finding.suggestion ?? finding.fix_hint?.summary ?? "No concrete fix provided.";
@@ -122,6 +126,7 @@ function renderFindingCard(finding, { sideQuest = false } = {}) {
 
 const findings = Array.isArray(review.findings) ? review.findings : [];
 const sideQuests = Array.isArray(review.side_quests) ? review.side_quests : [];
+const dismissed = Array.isArray(review.dismissed) ? review.dismissed : [];
 const openFindings = findings.filter((finding) => isOpenStatus(finding.status));
 const closedFindings = findings.filter((finding) => !isOpenStatus(finding.status));
 const counts = openSeverityCounts(review);
@@ -274,6 +279,7 @@ function renderFindingSummary(finding) {
     `- Issue: ${finding.description ?? ""}`,
   ];
 
+  if (finding.evidence) lines.push(`- Evidence: ${finding.evidence}`);
   if (finding.impact) lines.push(`- Impact: ${finding.impact}`);
   if (finding.suggestion) lines.push(`- Fix: ${finding.suggestion}`);
   if (finding.resolution?.note) lines.push(`- Resolution: ${finding.resolution.note}`);
@@ -315,6 +321,7 @@ function renderSummaryMarkdown() {
     `- Base: ${review.base ?? "unknown"}`,
     `- Verdict: ${titleCase(review.verdict ?? inferVerdict(review))}`,
     `- Open findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
+    ...(dismissed.length ? [`- Dismissed in verification: ${dismissed.length}`] : []),
     "",
     review.assessment ?? "",
     "",

@@ -49,6 +49,20 @@ Keep it simple enough for a non-author teammate to understand, but do not omit i
 
 Spawn **four subagents in parallel** using the Agent tool. Each gets the same diff context but a different review lens. Include the full diff in each prompt (or instruct each agent to run the git commands themselves if the diff is large).
 
+#### Evidence protocol (all agents)
+
+The diff is a claim, not evidence — a hunk hides the five lines above it. Before reporting a finding, every agent must:
+
+1. Read the **full current content** of the changed file, not just the hunks.
+2. Trace the callers and callees of any changed symbol it wants to flag (`ast-grep` / `rg`) and confirm the problematic path is actually reachable.
+3. Check related tests for the behavior it believes is unverified.
+
+Confidence is operational, not vibes:
+
+- `high` — verified against the actual code; can state a concrete triggering input or sequence.
+- `medium` — the logic holds but one link is unconfirmed (e.g. a caller path could not be verified).
+- `low` — plausible pattern match, unverified.
+
 Each agent MUST return findings in this exact format — one per finding:
 
 ```
@@ -56,13 +70,18 @@ Each agent MUST return findings in this exact format — one per finding:
 - **File**: path/to/file.ext:L42-L50
 - **Category**: bug | security | architecture | correctness | performance
 - **Description**: What's wrong and why it matters.
+- **Evidence**: Concrete trigger — the input, state, or call sequence that provokes the problem, and the code path it takes.
 - **Suggestion**: Concrete fix or approach.
 - **Confidence**: high | medium | low
 ```
 
+A finding with no trigger scenario in **Evidence** must be reported at `low` confidence or not at all.
+
 #### Agent 1 — Bug Hunter
 
 Focus: logic errors, off-by-ones, race conditions, null/undefined hazards, error handling gaps, resource leaks, incorrect state transitions. Look for bugs that tests wouldn't catch — the kind that surface in production under edge conditions.
+
+Also owns the `performance` category: accidental O(n²) on hot paths, N+1 queries, unbounded growth of caches or queues, needless sync I/O.
 
 #### Agent 2 — Security Auditor
 
@@ -70,36 +89,50 @@ Focus: injection vectors (SQL, XSS, command), auth/authz gaps, secrets in code, 
 
 #### Agent 3 — Architecture Critic
 
+Before critiquing, map the change's place in the architecture: read the changed files in full, find the callers of every changed interface, and search the repo for existing helpers or conventions the diff duplicates or ignores. Architecture problems live at boundaries the diff doesn't show.
+
 Focus: API design, abstraction depth, coupling, cohesion, separation of concerns, naming, interface complexity, backward compatibility breaks, missing or misplaced error boundaries. Apply the deletion test: if removing this abstraction makes callers simpler, it's a pass-through.
+
+Also check:
+
+- **Codebase consistency** — new helpers or patterns that duplicate something the repo already has, or deviate from its established error-handling, naming, or module-layout conventions. Search first; never flag from the diff alone.
+- **Dependency direction** — new imports that cross layers, point the wrong way, or introduce cycles.
+- **Change amplification, measured** — if the PR touched many files for one logical change, name the abstraction that leaked.
 
 Additionally, apply _A Philosophy of Software Design_:
 
 - **Deep over shallow** — modules should have simple interfaces with rich internals. Flag pass-throughs and thin wrappers that add indirection without value.
 - **Information leakage** — two modules sharing knowledge of each other's internals (shared formats, leaked data structures, temporal coupling). Could one absorb more so the other doesn't need to know?
-- **Complexity symptoms** — change amplification (one change touches many places), cognitive load (reader holds too much context), unknown unknowns (non-obvious something important exists).
+- **Complexity symptoms** — cognitive load (reader holds too much context), unknown unknowns (non-obvious something important exists).
 - **Define errors out of existence** — are errors pushed to callers that the module could handle internally?
 - **General-purpose interfaces, specific implementations** — interfaces should be broad enough for future use without over-engineering the implementation.
 - **Comments** — flag missing comments that explain _why_ or _how to use_. Don't flag missing comments that restate _what the code does_.
 
+Every architecture finding must include a concrete harm scenario in **Evidence** — "next time someone does X they must also change Y and Z", or "caller A already works around this at file:line". No harm scenario, no finding: that is the line between a design problem and an aesthetic preference.
+
 #### Agent 4 — Correctness Prover
 
 Focus: contract violations, type safety gaps, invariant breaks, concurrency issues, edge cases in algorithms, incorrect assumptions about data shape or ordering, missing validation at system boundaries. Think like a formal verifier — what inputs or sequences would violate the assumptions this code makes?
+
+Also hunt for **missing changes**: callers not updated for a changed contract; config, migrations, or docs that should have changed with the code but didn't. Absence is the bug a diff shows least.
 
 ### Phase 4: Consolidation & Debate
 
 After all four agents return:
 
 1. **Deduplicate** — merge findings that describe the same issue from different angles.
-2. **Cross-examine** — for each finding, consider the perspectives of the other agents:
-   - Would the bug hunter's finding survive the correctness prover's scrutiny?
-   - Does the security auditor's concern apply given the architecture critic's understanding of the boundaries?
-   - Is the architecture critic's suggestion actually motivated by a real problem, or is it aesthetic?
-3. **Classify severity**:
+2. **Adversarially verify** — do not judge the findings yourself: you consolidated them, which biases you toward them, and you haven't read the code as deeply as the reviewers have. Spawn **fresh verifier subagents in parallel** (batch findings by file or area; verifiers are never the reviewers who reported them). Each verifier gets its findings' claims and evidence and one job: **refute them against the actual code** — is the path reachable, is the triggering input possible, does a caller or an existing check already handle it? Each verifier returns `confirmed | refuted | uncertain` per finding, with code-level evidence for the verdict.
+3. **Apply verdicts** — the goal is near-zero false positives; it's better to miss a minor issue than to cry wolf:
+   - `confirmed` → keep.
+   - `refuted` → record under `dismissed` with the refutation as the reason. Never silently drop.
+   - `uncertain` → dismiss, unless severity is critical or high — then keep it, downgrade confidence to `low`, and state the unresolved doubt in the description.
+
+   Cross-agent corroboration is **not** independent evidence — all four reviewers share the same blind spots. Only verifier evidence counts.
+4. **Classify severity**:
    - **Critical** — data loss, security vulnerability, crash in production path
    - **High** — incorrect behavior users will hit, silent data corruption
    - **Medium** — edge case bugs, maintainability issues that will cause future bugs
    - **Low** — style, naming, minor improvements
-4. **Eliminate weak findings** — drop anything with low confidence that no other agent corroborated. The goal is near-zero false positives; it's better to miss a minor issue than to cry wolf.
 5. **Note pre-existing issues** — if reviewers found bugs in unchanged code adjacent to the diff, list them separately as "Side Quests" (borrowing from the Nolan Lawson approach). These are valuable but shouldn't block the PR.
 6. **Compose the PR overview** — a short reviewer-facing orientation written into `review.json.overview`. You now hold both the Phase 1 intent signals and the debated findings, so ground every claim in the diff and those findings; do not speculate. Cover:
    - **purpose** — what problem this PR solves and why it exists (from commit messages, PR description, stated goal).
@@ -126,18 +159,18 @@ If `review.json` already exists, do **not** overwrite it blindly. Read it first 
 - only rerender `report.html` / `summary.md` if the review data did not change;
 - or create a new bundle with a unique suffix such as `{date}-{branch-slug}-{short-sha}` when the user explicitly wants a fresh independent run.
 
-Never use a direct write over an existing `review.json` without preserving prior finding IDs, statuses, resolutions, and `events.jsonl` history.
+Never use a direct write over an existing `review.json` without preserving prior finding IDs, statuses, resolutions, `dismissed` entries, and `events.jsonl` history.
 
 Write these files:
 
-- `review.json` — canonical machine-readable current-state snapshot for agents and scripts, including the Phase 4 `overview`.
+- `review.json` — canonical machine-readable current-state snapshot for agents and scripts, including the Phase 4 `overview` and `dismissed` entries.
 - `events.jsonl` — append-only audit log for review creation, finding additions, status changes, and report renders.
 - `report.html` — human-readable report rendered from `review.json`.
 - `summary.md` — compact Markdown summary rendered from `review.json` for chat, PR comments, and handoff.
 
 Follow [references/review-schema.md](references/review-schema.md) for the exact JSON shape. Do not read or hand-edit `report-template.html` during normal reviews; it is a static asset used by the renderer.
 
-After writing `review.json`, initialize `events.jsonl` with `review.created` and one `finding.added` event per finding, then render the human-facing files:
+After writing `review.json`, initialize `events.jsonl` with `review.created`, one `finding.added` event per finding, and one `finding.dismissed` event per dismissed entry, then render the human-facing files:
 
 ```bash
 node scripts/render-review.mjs \
@@ -191,6 +224,7 @@ When rerunning review for the same branch, update the existing review bundle ins
 
 Merge findings by `fingerprint`:
 
+0. Check each new finding against `dismissed` first — match by fingerprint, but also semantically, since rerun reviewers rephrase the same non-issue. On a match, drop it again without re-verification, unless it carries new evidence that contradicts the recorded dismissal reason — then re-verify before admitting it.
 1. If a new finding matches an existing fingerprint:
    - Keep the existing `id`.
    - Update location, description, severity, confidence, and reviewers.
@@ -206,7 +240,7 @@ Merge findings by `fingerprint`:
 
 ## Localization
 
-Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — the overview (purpose, changes, rationale, necessity, and risk notes), assessment, verdict explanation, finding descriptions, suggestions, and impact statements — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
+Write the review report in the same language the user is using. If the user writes in Chinese, all human-facing text — the overview (purpose, changes, rationale, necessity, and risk notes), assessment, verdict explanation, finding descriptions, evidence, suggestions, impact statements, and dismissal reasons — must be in Chinese. Finding IDs (`CR-001`), field names, file paths, code snippets, and severity labels (`critical`, `high`, `medium`, `low`) stay in English since they are machine-readable keys.
 
 ## Edge Cases
 

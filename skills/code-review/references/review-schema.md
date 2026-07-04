@@ -61,6 +61,7 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
       "confidence": "high",
       "reviewers": ["bug-hunter", "correctness-prover"],
       "description": "The parser accepts an empty provider name.",
+      "evidence": "parseConfig (src/config.ts:42) returns without checking name.length; callers in src/cli.ts:118 pass user input through unvalidated.",
       "impact": "Users can save config that fails at runtime.",
       "suggestion": "Reject empty provider names during parseConfig.",
       "fix_hint": {
@@ -70,7 +71,17 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
       }
     }
   ],
-  "side_quests": []
+  "side_quests": [],
+  "dismissed": [
+    {
+      "fingerprint": "bug|src/cache.ts|stale-read|ttl-check",
+      "category": "bug",
+      "file": "src/cache.ts",
+      "title": "Stale read after TTL expiry",
+      "reason": "Refuted: get() revalidates TTL at src/cache.ts:88 before returning.",
+      "dismissed_at": "2026-06-01T12:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -100,9 +111,10 @@ Every finding must include:
 - `line_start`
 - `line_end`
 - `status`: `open | fixed | reopened | accepted-risk | false-positive | stale`
-- `confidence`: `high | medium | low`
+- `confidence`: `high | medium | low` — operational, not vibes: `high` = verified against the actual code with a concrete trigger; `medium` = logic holds but one link unconfirmed; `low` = plausible pattern match, unverified
 - `reviewers`
 - `description`
+- `evidence`: concrete trigger — the input, state, or call sequence that provokes the problem, and the code path it takes
 - `suggestion`
 
 Optional but useful:
@@ -111,6 +123,7 @@ Optional but useful:
 - `fix_hint`
 - `resolution`
 - `code_anchor`
+- `introduced_by_diff`
 
 ## Fingerprints
 
@@ -125,6 +138,14 @@ Example:
 ```text
 correctness|src/config.ts|empty-provider-name|parse-config-validation
 ```
+
+## `dismissed`
+
+Findings refuted during adversarial verification. Recorded so reruns don't re-litigate them: reviewers rediscover the same non-issues every run, and without this list each rerun re-verifies them from scratch.
+
+Each entry: `fingerprint`, `category`, `file`, `title`, `reason` (the refutation, with code evidence), `dismissed_at`.
+
+On rerun, match new findings against `dismissed` by fingerprint and semantically. Matches are dropped again without re-verification unless they carry new evidence contradicting the recorded reason. Append a `finding.dismissed` event when adding entries; never delete entries during normal updates.
 
 ## Status transitions
 
@@ -144,5 +165,6 @@ Append one JSON object per line:
 ```jsonl
 {"ts":"2026-06-01T12:00:00.000Z","type":"review.created","review_id":"2026-06-01-feature-auth","head_sha":"abc1234"}
 {"ts":"2026-06-01T12:00:01.000Z","type":"finding.added","finding_id":"CR-001","fingerprint":"correctness|src/config.ts|empty-provider-name|parse-config-validation"}
+{"ts":"2026-06-01T12:00:02.000Z","type":"finding.dismissed","fingerprint":"bug|src/cache.ts|stale-read|ttl-check","reason":"get() revalidates TTL at src/cache.ts:88 before returning."}
 {"ts":"2026-06-01T12:30:00.000Z","type":"finding.fixed","finding_id":"CR-001","commit":"def5678","note":"Added validation and regression test."}
 ```
