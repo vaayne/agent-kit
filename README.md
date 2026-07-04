@@ -1,110 +1,81 @@
 # Agent Kit
 
-A curated collection of skills, extensions, and tools for AI coding agents. Works with [Pi](https://github.com/mariozechner/pi), Claude Code, and other AI assistants.
+A curated collection of skills, extensions, and instructions for AI coding agents. Skills sync to a shared `~/.agents/skills` directory and are symlinked into Claude Code, Pi, Codex, and other runtimes; `_AGENTS.md` is the single instruction file linked to all of them.
 
-## Installation
+## Setup
 
-### As a Pi Package
-
-```bash
-# Install from git
-pi install git:github.com/vaayne/agent-kit
-Or via npm
-pi install npm:@vaayne/agent-kit
-
-# Or add to your settings.json
-{
-  "packages": ["git:github.com/vaayne/agent-kit", "npm:@vaayne/agent-kit"]
-}
-```
-
-### Manual Sync
+Requires [mise](https://mise.jdx.dev/).
 
 ```bash
-# Clone with submodules
 git clone --recursive https://github.com/vaayne/agent-kit.git
 cd agent-kit
+mise run setup        # submodules, dependencies
 
-# Or if already cloned without --recursive:
-mise run setup
-
-mise run sync:pi            # Sync to ~/.pi/agent
-mise run sync:claude:skills # Sync to ~/.claude/skills
-mise run sync:codex:skills  # Sync to ~/.codex/skills
+mise run sync         # everything: skills + instructions
+mise run sync:skills  # local + remote skills → ~/.agents/skills, symlinked into each runtime
+mise run sync:agents  # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
 ```
 
-## What's Included
+## Development workflow skills
 
-### Skills (13)
+The core of the kit is a development lifecycle where every step is an independently invocable skill, and `spec-dev` is the thin orchestrator over them:
 
-Task-specific instructions that guide AI agents on how to approach different problems.
+```
+scout → grill → blueprint → mason → code-review → teach
+探地形    拷问     画图纸      施工      审计         内化
+```
 
-| Skill                    | Description                                            |
-| ------------------------ | ------------------------------------------------------ |
-| **changelog-automation** | Automate changelog generation from commits and PRs     |
-| **document-writer**      | Craft clear technical documentation and README files   |
-| **frontend-design**      | Create production-grade UI with high design quality    |
-| **mcp-context7-docs**    | Query up-to-date library documentation                 |
-| **mcp-exa-search**       | Web search and company research via Exa AI             |
-| **mcp-grep-code**        | Search real-world code examples from GitHub            |
-| **mcp-jetbrains-ide**    | Control JetBrains IDEs via MCP                         |
-| **mcp-skill-gen**        | Generate skills from MCP servers                       |
-| **python-script**        | Create robust Python automation scripts                |
-| **react-best-practices** | React/Next.js performance optimization guidelines      |
-| **specs-dev**            | Plan-first development with review gates               |
-| **ui-skills**            | Opinionated constraints for building better interfaces |
-| **web-fetch**            | Fetch and extract content from URLs                    |
+| Skill           | Role                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| **scout**       | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic |
+| **grill**       | Stress-test an idea through structured interrogation, one question at a time                               |
+| **blueprint**   | Write a decision-first `plan.md` — decisions with tradeoffs, phased tasks with acceptance blocks           |
+| **mason**       | Execute a `plan.md` phase by phase: catch up → implement → verify → commit → handoff                       |
+| **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                 |
+| **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                |
+| **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                             |
+| **conductor**   | Mode for expensive models: architect and verify here, delegate all execution to codex                      |
+| **delegate**    | Run a self-contained task in a separate agent session (Claude Code or Pi, auto-routed by model name)       |
+| **refine-code** | Improve existing code without changing behavior — simplify, deepen abstractions, reduce complexity         |
+| **handoff**     | Transfer context to a fresh focused session                                                                |
 
-### Extensions (6)
+## Tool & service skills
 
-Pi extensions that add new capabilities to the agent.
+| Skill               | Description                                                          |
+| ------------------- | -------------------------------------------------------------------- |
+| **tap-web**         | Web access, search, extraction, and browser automation via `tap`     |
+| **designer**        | Distinctive UI/UX design and prototypes for filesystem-backed agents |
+| **humanizer**       | Strip AI writing patterns from prose                                 |
+| **kreuzberg**       | Extract text/tables/metadata from 91+ document formats               |
+| **python-script**   | Robust Python automation with logging and safety checks              |
+| **vertex-ai-image** | Image generation, editing, and understanding via Google Gemini       |
+| **cf-email**        | Send email through the Cloudflare Email Sending API                  |
+| **gws**             | Google Workspace operations via the `gws` CLI                        |
+| **lark**            | Lark/Feishu workspace operations via `lark-cli`                      |
+| **openlist**        | Manage files on OpenList/AList cloud storage                         |
 
-| Extension                     | Description                                                          |
-| ----------------------------- | -------------------------------------------------------------------- |
-| **anthropic-tool-cache-shim** | Strip unsupported Fireworks Anthropic tool fields                    |
-| **firework-provider**         | Override Fireworks to one router model and sanitize tool fields      |
-| **mcp**                       | MCP client integration with tool orchestration                       |
-| **rules**                     | Load project rule files into the agent's effective instructions      |
-| **delegate**                  | Delegate tasks to specialized presets                                |
-| **web-tools**                 | Web fetching and search tools for external content and documentation |
+Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **mcp-skill-gen**, **native-feel-skill**.
 
-### Delegate Presets (6)
+## Extensions (Pi)
 
-Specialized presets for delegation via the delegate extension.
+| Extension              | Description                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| **delegate**           | Delegate tasks to specialized presets                          |
+| **cliproxy-provider**  | Register a `cliproxy` provider from a `/v1/models` endpoint    |
+| **firework-provider**  | Fireworks provider with router model and tool-field sanitizing |
+| **codex-usage-status** | Show Codex usage windows in the status line                    |
+| **notify**             | Play a sound when the agent finishes a task                    |
 
-| Preset          | Description                                         |
-| --------------- | --------------------------------------------------- |
-| **librarian**   | Code research across repositories and documentation |
-| **oracle**      | Architecture decisions and deep technical analysis  |
-| **reviewer**    | Code review focused on correctness and risk         |
-| **search**      | Fast codebase retrieval                             |
-| **ui-engineer** | Visual/UI/UX implementation specialist              |
-| **worker**      | General-purpose task execution                      |
+Delegate presets: **librarian** (code research), **oracle** (architecture analysis), **reviewer** (correctness/risk review), **search** (fast retrieval), **ui-engineer** (visual/UI), **worker** (general execution).
 
-## Project Structure
+## Project structure
 
 ```
 agent-kit/
-├── skills/           # Task-specific instructions (Pi, Claude Code)
-├── extensions/       # Pi extensions
-├── claude-plugins/   # Claude Code slash commands
-├── mcps/             # MCP servers
-└── package.json      # Pi package manifest
-```
-
-## Development
-
-Requires [mise](https://mise.jdx.dev/) for task running.
-
-```bash
-mise install      # Setup tools
-mise run format   # Format all code
-```
-
-## Claude Code Plugin Marketplace
-
-```bash
-/plugin marketplace add vaayne/agent-kit
+├── _AGENTS.md    # Shared agent instructions, symlinked to every framework
+├── skills/       # Local skills + remote-skills.txt registry
+├── extensions/   # Pi extensions
+└── mcphub        # MCP hub (submodule)
 ```
 
 ## License
