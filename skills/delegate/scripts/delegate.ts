@@ -97,7 +97,9 @@ function parseArgs(argv: string[]): Args {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--") throw new Error("Passthrough -- is no longer supported; use --max-turns or first-class flags");
+    if (arg === "--") {
+      throw new Error("Raw -- backend flags are no longer supported; use --max-turns or first-class flags");
+    }
     if (arg === "-h" || arg === "--help") usage(0);
     else if (arg === "--task") args.task = readArg(argv, i++, arg);
     else if (arg === "--task-file") args.task = readFileSync(readArg(argv, i++, arg), "utf-8");

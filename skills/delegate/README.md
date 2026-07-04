@@ -1,12 +1,21 @@
 # delegate CLI
 
-One streaming delegation interface over two runtimes — **Claude Code** (`claude -p`) and **Pi** (Pi SDK). You name a model; the CLI routes to the right backend, streams the assistant answer to stdout, and prints session/tool/cost events to stderr. The backend choice is hidden: callers think in models, not runtimes.
+A streaming delegation CLI over two SDK-backed runtimes: **Claude Code** via `@anthropic-ai/claude-agent-sdk` and **Pi** via the Pi SDK. You name a model; the CLI routes to the right backend, streams only the assistant answer to stdout, and prints bracketed events to stderr.
 
 ## Requirements
 
-- `bun` to run the TypeScript
-- For Claude-routed models: `claude` (Claude Code) installed and authenticated
+- `bun` to run plain TypeScript directly
+- For Claude-routed models: Claude Code authenticated on this machine; first run may let Bun resolve `@anthropic-ai/claude-agent-sdk`
 - For Pi-routed models: `pi` installed and authenticated, with the Pi SDK available globally (override with `PI_SDK_ENTRY=/path/to/dist/index.js`)
+
+## Basic usage
+
+Run from the project directory you want the worker to inspect. Use an absolute script path so the process cwd remains the project:
+
+```bash
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model opus "Task: inspect this repo and summarize the architecture"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model codex "Task: audit this crate for undefined behavior"
+```
 
 ## Routing
 
@@ -23,98 +32,100 @@ gpt-5.5 | GLM-5 | kimi-k2.6 | <provider/model>      -> Pi
 - Any other non-Claude token is resolved against `pi --list-models`; if it matches exactly one model it routes to Pi, otherwise it errors and asks for a full id.
 - `--backend pi|claude` forces a backend regardless of the model.
 
-To add a new model alias or backend mapping, edit `scripts/routes.ts` — no router code changes needed.
+To add a new model alias or backend mapping, edit `scripts/routes.ts`.
 
-## Basic usage
+## I/O and exit contract
 
-Run from this skill directory (`skills/delegate/`).
-
-```bash
-bun scripts/delegate.ts --model opus "Task: inspect this repo and summarize the architecture"
-bun scripts/delegate.ts --model codex "Task: audit this crate for undefined behavior"
-```
-
-Output:
-
-- stdout: streamed assistant answer
-- stderr: backend, session id, tool events, cost, errors
+| Stream / exit | Contract                                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| stdout        | Raw assistant answer text only.                                                                                                  |
+| stderr        | Bracketed events: `[backend]`, `[session]` / `[session:ephemeral]`, `[tool:error]`, `[retry]`, `[cost]`, `[timeout]`, `[error]`. |
+| exit `0`      | Success.                                                                                                                         |
+| exit `124`    | Timeout.                                                                                                                         |
+| exit `2`      | Usage, argument, or routing error.                                                                                               |
+| exit `1`      | Backend execution failure.                                                                                                       |
 
 Example stderr:
 
 ```text
-[backend] claude (opus)
+[backend] claude (haiku)
 [session] 019ed89d-...
 [cost] $0.0249 | turns: 2
 ```
 
-Tool calls run silently; only failures are reported, as `[tool:error] <name>`. The
-`[cost]` line is Claude-only. `[session] <id>` is resumable; `[session:ephemeral]` is not.
+Tool calls run silently; only failures are reported as `[tool:error] <name>: <detail>`. Both backends emit `[cost] $... | turns: ...`.
 
-## Resume
+## Timeout
 
-```bash
-bun scripts/delegate.ts --session 019ed89d-... "Continue and focus on tests"
+`--timeout <sec>` applies to both backends. Default: `600`. Use `--timeout 0` to disable it.
+
+On timeout, stderr includes the resumable id when one exists:
+
+```text
+[timeout] after 3s — resume with --session 019ed89d-...
 ```
 
-Add `--fork-session` (Claude only) to branch into a new session id.
+If the parent Bash tool has a shorter timeout than the delegate, raise the parent timeout or run the delegate in the background and tail stdout/stderr.
+
+## Resume and registry
+
+Persisted sessions print `[session] <id>` and are recorded in `~/.agents/delegate-sessions.json` with backend, model, cwd, and creation time. Resume with just the id; the registry restores the original backend/model/cwd unless you explicitly override flags:
+
+```bash
+bun ~/.agents/skills/delegate/scripts/delegate.ts --session 019ed89d-... "Continue and focus on tests"
+```
+
+`[session:ephemeral]` comes from `--no-session` and is not resumable. `--fork-session` branches a Claude session into a new id.
+
+## Worker isolation
+
+Delegated workers get a system prompt telling them to return raw findings/results directly: no persona and no process meta-commentary. Claude loads project/local settings but skips user-level settings; Pi receives the same worker prompt through the SDK resource loader.
 
 ## Effort
 
 ```bash
-bun scripts/delegate.ts --model sonnet --effort high "Find correctness bugs"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model sonnet --effort high "Find correctness bugs"
 ```
 
-`--effort` is `low|medium|high|xhigh|max`. Pi caps `max` at its `xhigh`.
+`--effort` is `low|medium|high|xhigh|max`. Pi caps `max` at `xhigh`.
 
 ## Tools and read-only
 
-`--read-only` applies the backend's safe tool set (and drops Claude to `default` permission):
+`--read-only` applies the backend's safe tool set and drops Claude to `default` permission:
 
 ```bash
-bun scripts/delegate.ts --model sonnet --read-only "Review for risky config files"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model sonnet --read-only "Review for risky config files"
 ```
 
-Or set an explicit allowlist with backend-native tool names:
+Or set an explicit tool list with backend-native tool names:
 
 ```bash
-bun scripts/delegate.ts --model opus --tools Read,Grep,Glob --permission-mode default "..."
-bun scripts/delegate.ts --model codex --tools read,grep,find,ls "..."
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model opus --tools Read,Grep,Glob --permission-mode default "..."
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model codex --tools read,grep,find,ls "..."
 ```
-
-## Passthrough flags
-
-For anything the wrapper doesn't expose, put `--` and then raw flags forwarded
-verbatim to the backend CLI:
-
-```bash
-bun scripts/delegate.ts --model opus "Plan it" -- --add-dir ../other-repo --max-turns 3
-```
-
-Passthrough works with the **Claude** backend only (it spawns `claude`). The Pi
-backend is SDK-based, so passthrough args there are ignored with a warning.
 
 ## Permissions (Claude backend)
 
-Defaults to `bypassPermissions` so a non-interactive `claude -p` can actually run tools. Tighten with `--permission-mode default|acceptEdits|plan` or `--read-only`. (Pi runs its tools directly; this flag is a no-op there.)
+Claude defaults to `bypassPermissions` so a non-interactive worker can run tools. Tighten with `--permission-mode default|acceptEdits|plan` or `--read-only`. Pi runs its tools directly; the Claude permission flag does not affect Pi.
 
 ## System prompt
 
 ```bash
-bun scripts/delegate.ts --model opus \
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model opus \
   --system "You are a strict code reviewer. Return only actionable findings." \
   "Audit the current diff"
 
-bun scripts/delegate.ts --model opus --system-file /tmp/reviewer.md "Audit the current diff"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model opus --system-file /tmp/reviewer.md "Audit the current diff"
 ```
 
-Both `--system` and `--system-file` are repeatable.
+Both `--system` and `--system-file` are repeatable and are appended after the worker isolation prompt.
 
 ## Working directory / task file / ephemeral
 
 ```bash
-bun scripts/delegate.ts --model opus --cwd /path/to/repo "Map the login code paths"
-bun scripts/delegate.ts --model codex --task-file /tmp/delegate-task.md
-bun scripts/delegate.ts --model haiku --no-session "Answer in one sentence"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model opus --cwd /path/to/repo "Map the login code paths"
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model codex --task-file /tmp/delegate-task.md
+bun ~/.agents/skills/delegate/scripts/delegate.ts --model haiku --no-session "Answer in one sentence"
 ```
 
 ## Full options
@@ -126,11 +137,13 @@ bun scripts/delegate.ts --model haiku --no-session "Answer in one sentence"
 --backend <pi|claude>    Force a backend instead of inferring from --model
 --cwd <path>             Working directory (default: current directory)
 --effort <level>         low|medium|high|xhigh|max
---tools <list>           Comma/space-separated tool allowlist (backend-native names)
+--tools <list>           Comma/space-separated tool list (backend-native names)
 --read-only              Restrict to read-only tools for the chosen backend
 --session <id>           Resume a saved session by id
 --fork-session           Resume into a new session id (Claude only)
 --no-session             Do not persist the session
+--timeout <sec>          Abort after N seconds (default: 600; 0 disables)
+--max-turns <n>          Limit agent turns
 --permission-mode <m>    Claude only: default|acceptEdits|bypassPermissions|plan
 --system <text>          Append a system prompt (repeatable)
 --system-file <path>     Append a system prompt from file (repeatable)
@@ -141,11 +154,13 @@ bun scripts/delegate.ts --model haiku --no-session "Answer in one sentence"
 
 ```text
 scripts/
-  delegate.ts        # entry: parse args, route by model, dispatch
+  delegate.ts        # entry: parse args, registry, timeout, render events
+  registry.ts        # ~/.agents/delegate-sessions.json load/save/prune
   router.ts          # routing logic (slash = full id, search fallback)
-  routes.ts          # routing DATA — edit this to add models/aliases
-  types.ts           # shared RunOptions / Backend types
+  routes.ts          # routing data — edit this to add models/aliases
+  types.ts           # shared RunOptions / DelegateEvent / Backend types
+  package.json       # Claude Agent SDK dependency for Bun auto-resolution
   backends/
-    claude.ts        # claude -p backend
+    claude.ts        # Claude Agent SDK backend
     pi.ts            # Pi SDK backend
 ```
