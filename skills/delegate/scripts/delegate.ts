@@ -156,6 +156,7 @@ async function render(
   backend: Backend,
   opts: RunOptions,
   backendName: BackendName,
+  backendLabel: string,
 ): Promise<number> {
   const controller = new AbortController();
   let timedOut = false;
@@ -164,6 +165,7 @@ async function render(
   let exitCode = 0;
   let wroteText = false;
   let textEndsWithNewline = true;
+  let printedBackend = false;
   const timer = opts.timeoutSec > 0
     ? setTimeout(() => {
       timedOut = true;
@@ -182,6 +184,10 @@ async function render(
 
   try {
     for await (const event of backend(opts, controller.signal)) {
+      if (!printedBackend) {
+        console.error(backendLabel);
+        printedBackend = true;
+      }
       if (event.kind !== "text") newlineBeforeEvent();
       if (event.kind === "session") {
         sessionId = event.id;
@@ -227,13 +233,13 @@ async function main(): Promise<number> {
   }
 
   const opts: RunOptions = { ...args, model: resolved.model };
-  console.error(`[backend] ${resolved.backend}${resolved.model ? ` (${resolved.model})` : " (default)"}`);
+  const backendLabel = `[backend] ${resolved.backend}${resolved.model ? ` (${resolved.model})` : " (default)"}`;
 
   const backend = resolved.backend === "pi"
     ? (await import("./backends/pi.ts")).run
     : (await import("./backends/claude.ts")).run;
 
-  return await render(backend, opts, resolved.backend);
+  return await render(backend, opts, resolved.backend, backendLabel);
 }
 
 try {

@@ -6,6 +6,9 @@ import type { DelegateEvent, Effort, RunOptions } from "../types.ts";
 
 type Thinking = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
+const WORKER_SYSTEM_PROMPT =
+  "You are a delegated worker. Return raw findings/results directly; no persona, no meta-commentary about process.";
+
 // Claude's effort scale tops out at `max`; Pi's at `xhigh`. The rest line up.
 function toThinking(effort?: Effort): Thinking | undefined {
   if (!effort) return undefined;
@@ -42,8 +45,27 @@ async function findSessionPath(SessionManager: any, cwd: string, session: string
   return found.path;
 }
 
+function textContent(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return undefined;
+  const text = value
+    .map((item) => typeof item?.text === "string" ? item.text : "")
+    .filter(Boolean)
+    .join("\n");
+  return text || undefined;
+}
+
 function toolDetail(event: any): string | undefined {
-  return event.errorMessage ?? event.error?.message ?? event.result ?? event.output;
+  return event.errorMessage
+    ?? event.error?.message
+    ?? textContent(event.result?.content)
+    ?? (typeof event.result === "string" ? event.result : undefined)
+    ?? event.output;
+}
+
+function assistantFailure(stopReason: string | undefined, errorMessage: string | undefined): string | undefined {
+  if (stopReason !== "error" && stopReason !== "aborted") return undefined;
+  return errorMessage || stopReason;
 }
 
 // Run a delegated task on a streaming Pi SDK session. Mirrors the Claude backend's
@@ -70,7 +92,7 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
     cwd: opts.cwd,
     agentDir,
     settingsManager,
-    appendSystemPromptOverride: (current: string[]) => [...current, ...opts.system],
+    appendSystemPromptOverride: (current: string[]) => [...current, WORKER_SYSTEM_PROMPT, ...opts.system],
   });
   await loader.reload();
 
@@ -105,9 +127,14 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
   });
 
   const pending: DelegateEvent[] = [];
+  const seenAssistantMessages = new Set<any>();
   let notify: (() => void) | undefined;
   let promptDone = false;
   let promptError: Error | undefined;
+  let costUsd = 0;
+  let turns = 0;
+  let stopReason: string | undefined;
+  let errorMessage: string | undefined;
 
   const push = (event: DelegateEvent) => {
     pending.push(event);
@@ -124,9 +151,22 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
   if (modelFallbackMessage) push({ kind: "retry", attempt: 1, max: 1, message: modelFallbackMessage });
   push({ kind: "session", id: session.sessionId, ephemeral: opts.noSession });
 
+  const applyAssistantMessage = (message: any) => {
+    if (message?.role !== "assistant" || seenAssistantMessages.has(message)) return;
+    seenAssistantMessages.add(message);
+    turns++;
+    costUsd += message.usage?.cost?.total || 0;
+    stopReason = message.stopReason;
+    errorMessage = message.errorMessage;
+  };
+
   session.subscribe((event: any) => {
     if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
       push({ kind: "text", delta: event.assistantMessageEvent.delta });
+    }
+    if (event.type === "message_end") applyAssistantMessage(event.message);
+    if (event.type === "agent_end") {
+      for (const message of event.messages ?? []) applyAssistantMessage(message);
     }
     if (event.type === "tool_execution_end" && event.isError) {
       push({ kind: "tool_error", name: event.toolName, detail: toolDetail(event) });
@@ -151,8 +191,11 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
       if (pending.length === 0) await new Promise<void>((resolve) => (notify = resolve));
       while (pending.length > 0) yield pending.shift()!;
     }
-    if (signal.aborted) yield { kind: "done", ok: false };
+    yield { kind: "cost", usd: costUsd, turns };
+    const failure = assistantFailure(stopReason, errorMessage);
+    if (signal.aborted) yield { kind: "done", ok: false, error: failure };
     else if (promptError) yield { kind: "done", ok: false, error: promptError.message };
+    else if (failure) yield { kind: "done", ok: false, error: failure };
     else yield { kind: "done", ok: true };
   } finally {
     session.dispose();
