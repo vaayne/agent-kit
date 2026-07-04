@@ -1,49 +1,41 @@
 ---
 name: spec-dev
 description: >
-  Plan-first development workflow. Grill the idea, write one plan.md, then
-  implement it phase by phase. Use this skill whenever the user wants to:
-  stress-test a design, write or review an implementation plan, add or resolve
-  review comments, track phased implementation progress, or audit open review
-  threads. Also use when the user says things like "let's think this through",
-  "poke holes in this", "what am I missing", "plan this out", or wants
-  disciplined, reviewed code changes. Flow: Grill → Plan → Impl (phase by phase).
+  Plan-first development workflow — the orchestrator over the lifecycle skills:
+  grill the idea, write one plan.md, implement it phase by phase. Use when the
+  user wants the full disciplined loop for a feature or change: "spec-dev",
+  "plan this out and build it", "let's think this through then implement", or
+  disciplined, reviewed code changes end to end. For a single step alone, use
+  that step's skill directly (grill, blueprint, mason).
 ---
 
-The flow is **Grill → Plan → Impl (phase by phase)**. The only artifact is `plan.md`, which lives at `~/.agents/sessions/{project}/{date}-{feature}/plan.md` where `{project}` is the git repo name (if in a git repo) or the basename of the current working directory, `{date}` is `YYYY-MM-DD`, and `{feature}` is a short kebab-case label. That one file holds the plan, inline reviews, impl questions, and per-phase handoff notes.
+# Spec-dev
 
-## Grill
+An orchestrator, not an implementation: each step is its own independently invocable skill; this skill owns only the sequence, the gates, and the skip rules. The one artifact threading through is `plan.md` (location and format owned by `blueprint`).
 
-Stress-test the design before writing anything down. Read [grilling-guide.md](./references/grilling-guide.md) — interrogate one question at a time, sharpen fuzzy terms, cross-reference with code, probe reversibility.
+## The line
 
-Skip grilling when the approach is already clear — small bug fixes, straightforward changes, or work where the plan is obvious don't need interrogation.
+| Step     | Skill       | Skip when                                         |
+| -------- | ----------- | ------------------------------------------------- |
+| 1. Grill | `grill`     | Approach already clear: small fixes, obvious work |
+| 2. Plan  | `blueprint` | Never — the plan is the contract                  |
+| 3. Build | `mason`     | Never — phase-by-phase, one commit per phase      |
 
-## Plan
+Read each step's `SKILL.md` when entering it; the details live there, not here.
 
-Write `plan.md` following [plan-template.md](./references/plan-template.md). The key principle: explain **why**, not just what. For each significant decision, cover what you decided, what alternatives you ruled out, and what tradeoffs you accepted. Break the work into phases, and give every phase an **Acceptance** block defining "done".
+Optional bookends, one command away: unfamiliar territory → run `scout` before grilling; after landing → `code-review` for a real audit, `teach` to internalize what changed.
 
-Inline reviews use the `> quote` + `**Review (name):**` pattern; resolve with `**Resolved:**` and update the plan text above. See [review-patterns.md](./references/review-patterns.md).
+## Gates
 
-## Impl (phase by phase)
+Pause for user approval at exactly two points:
 
-Each phase is its own catch-up → execute → verify → review-if-needed → commit → handoff cycle. Full workflow in [implementation-guide.md](./references/implementation-guide.md).
+1. **After grilling, before the plan.** "Here's what I understand — should I write the plan?"
+2. **After the plan, before building.** "Here's the plan — should I start?"
 
-Two things to know up front:
+Within implementation, don't gate every phase; mason escalates on surprises and major rework on its own.
 
-- **Review gates** — pause for user approval after grilling (before writing the plan) and after the plan (before implementation). Within impl, don't gate every phase, but escalate on surprises or major rework.
-- **Per-phase review is a judgment call** — for each phase, decide whether the work needs another pass before moving on. Trivial phases self-review; phases touching critical paths, security, data, or non-obvious logic warrant a closer look. When in doubt, review.
+## Threading rules
 
-Impl questions raised mid-phase use the `**Question (name):**` / `**Answer:**` pattern from [review-patterns.md](./references/review-patterns.md). When an answer changes the plan, update the affected section.
-
-## Quick reference
-
-| Action             | What to do                                                                       | Reference                                                       |
-| ------------------ | -------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Grill a design     | Interrogate one question at a time, sharpen terms, cross-reference code          | [grilling-guide.md](./references/grilling-guide.md)             |
-| Write plan         | Create `~/.agents/sessions/{project}/{date}-{feature}/plan.md`                   | [plan-template.md](./references/plan-template.md)               |
-| Add review         | `> quote` then `**Review (name):**`                                              | [review-patterns.md](./references/review-patterns.md)           |
-| Resolve review     | `**Resolved:**` after the review block; update plan text above                   | [review-patterns.md](./references/review-patterns.md)           |
-| Ask impl question  | `**Question (name):**` indented under the blocked task                           | [review-patterns.md](./references/review-patterns.md)           |
-| Answer question    | `**Answer:**` directly below the question                                        | [review-patterns.md](./references/review-patterns.md)           |
-| Run a phase        | Catch up on handoff → implement → verify Acceptance → review? → commit → handoff | [implementation-guide.md](./references/implementation-guide.md) |
-| Check open threads | `grep -n "Review\|Resolved" plan.md` and `grep -n "Question\|Answer" plan.md`    |                                                                 |
+- Grilling's resolved decisions land in `plan.md` — grill produces no artifact of its own.
+- Mason's handoff notes and deviations stay in `plan.md`; when an answer changes the design, the affected plan section is updated. One file, whole story.
+- Review findings that require rework loop back to mason as a new phase, not ad-hoc patches.
