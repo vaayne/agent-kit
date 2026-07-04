@@ -43,8 +43,14 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
     "changes": "What actually changed, grouped by area.",
     "rationale": "Why it was done this way; approach and key tradeoffs.",
     "necessity": "Reviewer judgment: are the changes necessary? Scope-creep callouts, or all-warranted.",
-    "regression_risk": { "level": "low", "notes": "Blast radius, paths to retest, coverage gaps." },
-    "security": { "level": "none", "notes": "New attack surface, auth/secret changes, or none." }
+    "regression_risk": {
+      "level": "low",
+      "notes": "Blast radius, paths to retest, coverage gaps."
+    },
+    "security": {
+      "level": "none",
+      "notes": "New attack surface, auth/secret changes, or none."
+    }
   },
   "findings": [
     {
