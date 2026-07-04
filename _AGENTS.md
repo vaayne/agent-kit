@@ -42,6 +42,7 @@ Order of precedence: safety and user trust (no secrets, data loss, or destructiv
 Nowledge Mem (`nmem`) is your external brain — a standalone, cross-session knowledge store, distinct from any runtime's built-in memory (e.g. Claude Code's local `memory/` directory). Use `nmem` for anything meant to persist and be reused; it is mandatory for any non-trivial task.
 
 - **Search before** starting work, making decisions, or saving anything — avoid duplicates and conflicts with past choices.
+- **Harvest after** every task, systematically: before closing out, ask what reusable knowledge surfaced — a tool, a trick, a repo, a bug pattern, a gotcha — and save it. Skipping this feels free but forfeits compounding; small deposits add up fast.
 - **Save** only what's useful in a future session: preferences, conventions, architecture decisions, recurring bug patterns. Never secrets, credentials, transient logs, or ephemeral info.
 - **Update** existing memories instead of creating duplicates.
 - Command and save-format reference: `nmem --help`.
