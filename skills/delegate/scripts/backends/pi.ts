@@ -71,8 +71,6 @@ function assistantFailure(stopReason: string | undefined, errorMessage: string |
 // Run a delegated task on a streaming Pi SDK session. Mirrors the Claude backend's
 // event contract so the router can treat the two interchangeably.
 export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable<DelegateEvent> {
-  process.env.PI_DELEGATE ??= "1";
-
   const {
     AuthStorage,
     createAgentSession,
