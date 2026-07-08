@@ -21,6 +21,7 @@ Routine-tier work: mechanical checks, conservative fixes.
 3. **Contradictions** — where a newer memory disagrees with an older one, verify which is true now; `deprecate` the loser with the reason recorded, never silently.
 4. **Dead references** — memories naming files, flags, skills, or commands: verify each still exists (check the repo or filesystem). Update what moved; deprecate what vanished.
 5. **Expired** — entries whose stated expiry has passed: re-verify or deprecate. Time-sensitive claims with no expiry get one added now.
+6. **Harvest gaps** — list the window's threads (`nmem threads list`) and compare against memories added in the same span; a non-trivial session that saved nothing is a harvest miss. Read the thread, save what a future session would need, or confirm there was genuinely nothing to keep. Threads import is manual — a sparse window may mean unsynced, not idle; say so in the report instead of guessing.
 
 Fix verbs, in order of preference: `update` (correct in place) → `supersede` (old links to replacement) → `deprecate` (obsolete, kept for audit) → `delete` (only for entries wrong from birth). History stays legible.
 
