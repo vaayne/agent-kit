@@ -25,6 +25,11 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 - **Skills & delegation**: read `SKILL.md` first. Default to `/delegate` for research, review, and isolated/parallel work — backend auto-picked from the model name; treat output as evidence, not truth.
 - **Code search**: `ast-grep` for structural matches, `rg` for literal text.
 
+## Model Routing
+
+- **Fable models**: conductor mode by default — architect and verify in-session, delegate all execution to codex (see the `conductor` skill); if codex is unavailable, fall back to opus as the executor.
+- **Other models**: cross-check non-trivial conclusions and changes with opus and codex via `/delegate` whenever practical; disagreement between them is a signal to dig deeper, not to pick a favorite.
+
 ## Delivery
 
 - Commit small, complete, reviewable units as `<scope>: <description>` (scope = touched area: `skills`, `docs`, `treewide`); imperative description, no `feat`/`fix`, emoji fine; body for non-obvious why/tradeoffs. Never amend unless explicitly asked. NEVER commit secrets or add `Signed-off-by`.
