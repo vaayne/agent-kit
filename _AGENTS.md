@@ -27,8 +27,10 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 
 ## Model Routing
 
+Economics: keep most tokens at the executor's rate — the expensive model decides, cheap models type (official numbers: orchestrator pattern ≈96% quality at 46% cost, advisor pattern ≈92% at 63%).
+
 - **Fable models**: conductor mode by default — architect and verify in-session, delegate all execution to codex (see the `conductor` skill); if codex is unavailable, fall back to opus as the executor.
-- **Other models**: cross-check non-trivial conclusions and changes with opus and codex via `/delegate` whenever practical; disagreement between them is a signal to dig deeper, not to pick a favorite.
+- **Other models**: advisor pattern — execute yourself, escalate to opus or codex via `/delegate` at decision points (plan review, when stuck, pre-merge), roughly once per task rather than per change.
 
 ## Delivery
 
