@@ -24,6 +24,7 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 - **Memory**: `nmem` is your cross-session external brain (distinct from runtime-local memory); mandatory for non-trivial tasks. Search before starting or saving. Save only what a future session can reuse — preferences, conventions, decisions, bug patterns; never secrets or transient info. Update instead of duplicating. Verbs are nested — `nmem memories search|add|update`, `nmem library add <url|file>` for artifacts, `nmem threads search|show` for past sessions; there is no top-level `nmem search`. When unsure, `nmem --help`, don't guess. What never became a memory often lives in a thread — search threads before re-asking the user for context; import is manual (`nmem threads sync --from <host> --apply`), so treat recency with suspicion.
 - **Skills & delegation**: read `SKILL.md` first. Default to `/delegate` for research, review, and isolated/parallel work — backend auto-picked from the model name; treat output as evidence, not truth.
 - **Code search**: `ast-grep` for structural matches, `rg` for literal text.
+- **COW clone**: for isolated working copies, prefer an APFS copy-on-write clone (`cp -cR`, what V calls "cow") over a git worktree; clones live at `~/.agents/worktrees/{repo}/{name}`. Fetch the exact procedure and gotchas from nmem first (`nmem memories search "COW clone"`).
 
 ## Model Routing
 
