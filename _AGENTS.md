@@ -33,9 +33,11 @@ Economics: keep most tokens at the executor's rate — the expensive model decid
 
 Choose the cheapest tier that safely owns the decision:
 
+Cross-tier advisor rule: this is proactive quality control, not a fallback after getting stuck. Lower tiers keep execution local, ask a higher tier to advise on consequential decisions or review, evaluate the advice, then execute.
+
 - **Planning — `gpt-5.6-sol`, Fable**: use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Run in conductor mode: decide and verify in-session, but delegate implementation to `gpt-5.6-terra` or Opus; use `gpt-5.6-luna` or Haiku only for clearly mechanical subtasks (see the `conductor` skill).
-- **Daily — `gpt-5.6-terra`, Opus**: default for normal coding, debugging, review, and research. Execute directly; use the advisor pattern and escalate to a planning model via `/delegate` for plan review, when stuck, or before merging a high-risk change — roughly once per task, not once per edit.
-- **Fast — `gpt-5.6-luna`, Haiku**: use for formatting, search, boilerplate, small isolated edits, and other low-risk latency-sensitive work. Execute directly, but stop and escalate to a daily or planning model when requirements, design, or correctness are unclear.
+- **Daily — `gpt-5.6-terra`, Opus**: default for normal coding, debugging, review, and research. Keep execution local; proactively consult Planning via `/delegate` for architecture, ambiguity, high-risk decisions, and consequential review; evaluate its advice, then execute — roughly once per task, not once per edit.
+- **Fast — `gpt-5.6-luna`, Haiku**: use for formatting, search, boilerplate, small isolated edits, and other low-risk latency-sensitive work. Keep clearly mechanical tasks direct; before any non-mechanical task, proactively consult Daily, and consult Planning for architecture or high-risk decisions; evaluate the advice, then execute locally.
 - **Backend routing**: selecting a GPT model (`gpt-*`) runs the delegated session through Codex; selecting Fable, Opus, Sonnet, or Haiku runs it through Claude Code.
 
 ## Delivery
