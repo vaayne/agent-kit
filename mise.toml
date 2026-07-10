@@ -22,7 +22,7 @@ run = """
 EXT_DIR="$HOME/.pi/agent/extensions"
 mkdir -p "$EXT_DIR"
 # delegate is intentionally not linked: cross-runtime delegation is the delegate *skill*'s job
-for ext in cliproxy-provider codex-usage-status.ts notify.ts; do
+for ext in cliproxy-provider codex-usage-status.ts model-context.ts notify.ts; do
   ln -sfn "$PWD/extensions/$ext" "$EXT_DIR/$ext"
 done
 echo "Linked Pi extensions to $EXT_DIR"

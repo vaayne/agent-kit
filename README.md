@@ -66,6 +66,7 @@ Remote skills installed during sync (see [skills/remote-skills.txt](skills/remot
 | **cliproxy-provider**  | Register a `cliproxy` provider from a `/v1/models` endpoint    |
 | **firework-provider**  | Fireworks provider with router model and tool-field sanitizing |
 | **codex-usage-status** | Show Codex usage windows in the status line                    |
+| **model-context**      | Tell the agent its active Pi model without changing the prompt |
 | **notify**             | Play a sound when the agent finishes a task                    |
 
 Delegate presets: **librarian** (code research), **oracle** (architecture analysis), **reviewer** (correctness/risk review), **search** (fast retrieval), **ui-engineer** (visual/UI), **worker** (general execution).
