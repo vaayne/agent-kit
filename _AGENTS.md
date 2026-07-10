@@ -31,8 +31,12 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 
 Economics: keep most tokens at the executor's rate — the expensive model decides, cheap models type (official numbers: orchestrator pattern ≈96% quality at 46% cost, advisor pattern ≈92% at 63%).
 
-- **Fable models**: conductor mode by default — architect and verify in-session, delegate all execution to codex (see the `conductor` skill); if codex is unavailable, fall back to opus as the executor.
-- **Other models**: advisor pattern — execute yourself, escalate to opus or codex via `/delegate` at decision points (plan review, when stuck, pre-merge), roughly once per task rather than per change.
+Choose the cheapest tier that safely owns the decision:
+
+- **Planning — `gpt-5.6-sol`, Fable**: use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Run in conductor mode: decide and verify in-session, but delegate implementation to `gpt-5.6-terra` or Opus; use `gpt-5.6-luna` or Haiku only for clearly mechanical subtasks (see the `conductor` skill).
+- **Daily — `gpt-5.6-terra`, Opus**: default for normal coding, debugging, review, and research. Execute directly; use the advisor pattern and escalate to a planning model via `/delegate` for plan review, when stuck, or before merging a high-risk change — roughly once per task, not once per edit.
+- **Fast — `gpt-5.6-luna`, Haiku**: use for formatting, search, boilerplate, small isolated edits, and other low-risk latency-sensitive work. Execute directly, but stop and escalate to a daily or planning model when requirements, design, or correctness are unclear.
+- **Backend routing**: selecting a GPT model (`gpt-*`) runs the delegated session through Codex; selecting Fable, Opus, Sonnet, or Haiku runs it through Claude Code.
 
 ## Delivery
 
