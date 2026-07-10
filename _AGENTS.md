@@ -29,18 +29,17 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 
 ## Model Routing
 
-Economics: keep most tokens at the executor's rate — the expensive model decides, cheap models type (official numbers: orchestrator pattern ≈96% quality at 46% cost, advisor pattern ≈92% at 63%).
+Use the cheapest tier that can safely own the work. Keep execution on cheaper models; use stronger models for decisions and review.
 
-Choose the cheapest tier that safely owns the decision:
+- **Planning: `gpt-5.6-sol`, Fable.** Use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Follow Conductor mode.
+- **Daily: `gpt-5.6-terra`, Opus.** Default for coding, debugging, review, and research. Use Advisor mode when work reaches Planning's scope.
+- **Fast: `gpt-5.6-luna`, Haiku.** Use for formatting, search, boilerplate, small isolated edits, and other low-risk mechanical work. Use Advisor mode before non-mechanical work.
 
-**Advisor protocol for Daily and Fast models:** the current model keeps ownership and execution local, but proactively asks a higher tier via `/delegate` for consequential decisions or review—not only after getting stuck. Give the advisor a focused question and enough context, treat its answer as evidence, then decide and execute locally. Consult roughly once per task, not once per edit; do not hand off the whole task unless isolation itself is useful.
+**Advisor mode, for Daily and Fast:** keep ownership and implementation in the current session. Ask a higher tier one focused question via `/delegate`, with enough context to answer it. Daily consults Planning for architecture, ambiguous requirements, high-risk decisions, a pre-merge review of consequential changes, or when stuck. Fast consults Daily before non-mechanical work and Planning for architecture or high-risk decisions. Treat the answer as evidence, then decide and act. One consultation per task is usually enough. Hand off the whole task only when isolation is useful.
 
-- **Planning — `gpt-5.6-sol`, Fable**: use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Follow the conductor protocol below.
-- **Daily — `gpt-5.6-terra`, Opus**: default for normal coding, debugging, review, and research. Use the advisor protocol to consult Planning for architecture, ambiguity, high-risk decisions, and consequential review.
-- **Fast — `gpt-5.6-luna`, Haiku**: use for formatting, search, boilerplate, small isolated edits, and other low-risk latency-sensitive work. Keep clearly mechanical tasks direct; use the advisor protocol to consult Daily before any non-mechanical task, and Planning for architecture or high-risk decisions.
-- **Backend routing**: selecting a GPT model (`gpt-*`) runs the delegated session through Codex; selecting Fable, Opus, Sonnet, or Haiku runs it through Claude Code.
+**Conductor mode, for Planning:** own framing, architecture, tradeoffs, and verification. Do trivial, obvious, low-risk work directly when delegation would cost more. Delegate substantive implementation to Daily and bulk mechanical work to Fast via `/delegate`. Each brief includes the goal, constraints, relevant files, and acceptance checks. Verify delegated work yourself. Re-delegate failures unless the correction is trivial.
 
-**Conductor protocol for Planning models:** own framing, architecture, tradeoffs, and verification. Execute trivial, obvious, low-risk work directly when delegation would cost more than doing it. Delegate substantive implementation to Daily and bulk mechanical work to Fast. Every delegation brief states the goal, constraints, relevant files, and acceptance checks. Treat delegated output as evidence: verify it yourself, and re-delegate failures unless the correction is trivial.
+**Backend routing:** GPT models (`gpt-*`) run through Codex. Fable, Opus, Sonnet, and Haiku run through Claude Code.
 
 ## Delivery
 
