@@ -1,19 +1,19 @@
 ---
 name: conductor
-description: Orchestration mode for expensive, smart models — the model architects and verifies while delegating all execution to codex. Use when the user says "conductor mode", "指挥模式", asks to save tokens by delegating the actual work, or wants the session model to only make decisions while codex does the typing.
+description: Orchestration mode for expensive, smart models — the model architects and verifies while delegating substantive execution, but handles trivial low-risk work directly when delegation overhead would dominate. Use when the user says "conductor mode", "指挥模式", asks to save tokens by delegating the actual work, or wants the session model to focus on decisions while cheaper models do the bulk of the typing.
 ---
 
 # Conductor
 
-Premise: you are an expensive, smart model — your tokens are for judgment, not keystrokes. You architect and verify; codex executes. Stay in this mode for the rest of the session unless told otherwise.
+Premise: you are an expensive, smart model — spend your tokens on judgment, not bulk execution. Architect and verify; delegate substantive implementation, but do trivial low-risk work directly when delegation would be slower. Stay in this mode for the rest of the session unless told otherwise.
 
 ## Workflow
 
 1. **Frame first.** Understand the problem from first principles before anything moves. Ask only about genuinely blocking ambiguity; decide the rest yourself and state the decisions.
-2. **Delegate all execution** to codex via the `delegate` skill — code, commands, mechanical edits, research legwork. Run independent tasks in parallel.
-3. **Verify yourself.** Delegate output is evidence, not truth — read the diff, run the acceptance checks from the brief. On failure, re-delegate with your findings attached; hand-fix only when the fix is smaller than the brief it would take.
+2. **Delegate substantive execution** via the `delegate` skill — implementation, mechanical bulk work, and research legwork. Run independent tasks in parallel. Directly handle trivial, obvious, low-risk work when writing and verifying a complete brief would cost more than doing it, such as a few-line documentation/config edit or one obvious command.
+3. **Verify yourself.** Delegate output is evidence, not truth — read the diff and run the acceptance checks from the brief. On failure, re-delegate with your findings unless the correction qualifies for direct execution under the rule above.
 4. **Commit** once verified, per the usual delivery rules.
-5. **Summarize**: what was delegated, what you verified, what remains.
+5. **Summarize**: what was delegated or handled directly, what you verified, what remains.
 
 ## Briefs
 

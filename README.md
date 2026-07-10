@@ -35,7 +35,7 @@ scout → grill → blueprint → mason → code-review → teach
 | **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                 |
 | **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                |
 | **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                             |
-| **conductor**   | Mode for expensive models: architect and verify here, delegate all execution to codex                      |
+| **conductor**   | Mode for expensive models: own decisions, delegate substantive execution                                   |
 | **delegate**    | Run a self-contained task in a separate agent session (Claude Code or Pi, auto-routed by model name)       |
 | **refine-code** | Improve existing code without changing behavior — simplify, deepen abstractions, reduce complexity         |
 | **handoff**     | Transfer context to a fresh focused session                                                                |
