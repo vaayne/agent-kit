@@ -72,33 +72,25 @@ function assistantFailure(stopReason: string | undefined, errorMessage: string |
 // event contract so the router can treat the two interchangeably.
 export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable<DelegateEvent> {
   const {
-    AuthStorage,
-    createAgentSession,
-    DefaultResourceLoader,
+    createAgentSessionFromServices,
+    createAgentSessionServices,
     getAgentDir,
-    ModelRegistry,
     SessionManager,
-    SettingsManager,
   } = await importPiSdk();
 
-  const agentDir = getAgentDir();
-  const authStorage = AuthStorage.create();
-  const modelRegistry = ModelRegistry.create(authStorage);
-  const settingsManager = SettingsManager.create(opts.cwd, agentDir);
-
-  const loader = new DefaultResourceLoader({
+  const services = await createAgentSessionServices({
     cwd: opts.cwd,
-    agentDir,
-    settingsManager,
-    appendSystemPromptOverride: (current: string[]) => [...current, WORKER_SYSTEM_PROMPT, ...opts.system],
+    agentDir: getAgentDir(),
+    resourceLoaderOptions: {
+      appendSystemPromptOverride: (current: string[]) => [...current, WORKER_SYSTEM_PROMPT, ...opts.system],
+    },
   });
-  await loader.reload();
 
   let model: any | undefined;
   let thinkingLevel = toThinking(opts.effort);
   if (opts.model) {
     const parsed = splitModel(opts.model);
-    model = modelRegistry.find(parsed.provider, parsed.id);
+    model = services.modelRuntime.getModel(parsed.provider, parsed.id);
     if (!model) {
       throw new Error(`Pi model not found: ${parsed.provider}/${parsed.id}. Try: pi --list-models ${parsed.provider}`);
     }
@@ -111,17 +103,12 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
     ? SessionManager.open(await findSessionPath(SessionManager, opts.cwd, opts.session))
     : SessionManager.create(opts.cwd);
 
-  const { session, modelFallbackMessage } = await createAgentSession({
-    cwd: opts.cwd,
-    agentDir,
-    authStorage,
-    modelRegistry,
+  const { session, modelFallbackMessage } = await createAgentSessionFromServices({
+    services,
     model,
     thinkingLevel,
     tools: opts.tools,
     sessionManager,
-    settingsManager,
-    resourceLoader: loader,
   });
 
   const pending: DelegateEvent[] = [];
@@ -197,6 +184,6 @@ export async function* run(opts: RunOptions, signal: AbortSignal): AsyncIterable
     else yield { kind: "done", ok: true };
   } finally {
     session.dispose();
-    await settingsManager.flush?.();
+    await services.settingsManager.flush?.();
   }
 }
