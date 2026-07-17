@@ -29,19 +29,38 @@ echo "Linked Pi extensions to $EXT_DIR"
 """
 
 [tasks."sync:skills"]
-description = "Sync all skills (local + remote) to ~/.agents/skills"
+description = "Link local skills and install remote skills to ~/.agents/skills"
 # depends = ["sync:impeccable"]
 run = """
-mkdir -p ~/.agents/skills
+SKILL_SOURCE_DIR="$PWD/skills"
+SHARED_SKILL_DIR="$HOME/.agents/skills"
+mkdir -p "$SHARED_SKILL_DIR"
 
-# Sync Designer
-(cd ./skills/designer && bash scripts/sync.sh)
+# Refresh generated local skill content before linking it.
+(cd "$SKILL_SOURCE_DIR/designer" && bash scripts/sync.sh)
+tap skill install --path "$SKILL_SOURCE_DIR/tap-web"
 
-# Sync Tap-web
-tap skill install --path ./skills/tap-web
+# Remove links for local skills that no longer exist in this repo.
+for target in "$SHARED_SKILL_DIR"/*; do
+  [ -L "$target" ] || continue
+  case "$(readlink "$target")" in
+    "$SKILL_SOURCE_DIR"/*)
+      [ -e "$(readlink "$target")" ] || rm -f "$target"
+      ;;
+  esac
+done
 
-# Copy all skills to shared location (after all sources are populated)
-rsync -avL --delete ./skills/ ~/.agents/skills/ --exclude remote-skills.txt
+# Link each local skill individually so remote skills can coexist in the shared directory.
+for source in "$SKILL_SOURCE_DIR"/*; do
+  [ -d "$source" ] || continue
+  target="$SHARED_SKILL_DIR/$(basename "$source")"
+  if [ -d "$target" ] && [ ! -L "$target" ]; then
+    rm -rf "$target"
+  else
+    rm -f "$target"
+  fi
+  ln -s "$source" "$target"
+done
 
 # Install remote skills from registry
 if [ -f ./skills/remote-skills.txt ]; then
@@ -68,7 +87,7 @@ ln -sfn ~/.agents/skills ~/.claude/skills
 ln -sfn ~/.agents/skills ~/.gemini/config/skills
 
 mise run format
-echo "Synced all skills to ~/.agents/skills"
+echo "Linked local skills and installed remote skills in ~/.agents/skills"
 """
 
 [tasks."sync:impeccable"]

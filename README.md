@@ -12,7 +12,7 @@ cd agent-kit
 mise run setup        # submodules, dependencies
 
 mise run sync             # everything: skills + instructions + extensions
-mise run sync:skills      # local + remote skills → ~/.agents/skills, symlinked into each runtime
+mise run sync:skills      # link local skills + install remote skills in ~/.agents/skills
 mise run sync:agents      # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
 mise run sync:extensions  # Pi extensions → ~/.pi/agent/extensions symlinks
 ```
