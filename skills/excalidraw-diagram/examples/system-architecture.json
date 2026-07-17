@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "title": "Checkout service architecture",
+  "elements": [
+    {
+      "id": "client",
+      "type": "rectangle",
+      "x": 80,
+      "y": 140,
+      "width": 180,
+      "height": 100,
+      "label": { "text": "Web client" },
+      "backgroundColor": "#a5d8ff"
+    },
+    {
+      "id": "gateway",
+      "type": "rectangle",
+      "x": 400,
+      "y": 140,
+      "width": 200,
+      "height": 100,
+      "label": { "text": "API gateway" },
+      "backgroundColor": "#d0bfff"
+    },
+    {
+      "id": "checkout",
+      "type": "rectangle",
+      "x": 760,
+      "y": 60,
+      "width": 210,
+      "height": 100,
+      "label": { "text": "Checkout service" },
+      "backgroundColor": "#b2f2bb"
+    },
+    {
+      "id": "payments",
+      "type": "rectangle",
+      "x": 760,
+      "y": 250,
+      "width": 210,
+      "height": 100,
+      "label": { "text": "Payment provider" },
+      "backgroundColor": "#ffe8cc"
+    },
+    {
+      "id": "client-to-gateway",
+      "type": "arrow",
+      "x": 260,
+      "y": 190,
+      "width": 140,
+      "height": 0,
+      "start": { "id": "client" },
+      "end": { "id": "gateway" },
+      "endArrowhead": "arrow",
+      "label": { "text": "HTTPS" }
+    },
+    {
+      "id": "gateway-to-checkout",
+      "type": "arrow",
+      "x": 600,
+      "y": 180,
+      "width": 160,
+      "height": -70,
+      "start": { "id": "gateway" },
+      "end": { "id": "checkout" },
+      "endArrowhead": "arrow",
+      "label": { "text": "create order" }
+    },
+    {
+      "id": "checkout-to-payments",
+      "type": "arrow",
+      "x": 865,
+      "y": 160,
+      "width": 0,
+      "height": 90,
+      "start": { "id": "checkout" },
+      "end": { "id": "payments" },
+      "endArrowhead": "arrow",
+      "label": { "text": "charge" }
+    }
+  ]
+}
