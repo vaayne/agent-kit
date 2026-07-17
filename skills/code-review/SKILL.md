@@ -2,7 +2,8 @@
 name: code-review
 description: >
   Multi-perspective code review using adversarial subagent debate.
-  First gives the user a simple but detailed What/Why/How/Refs brief: what changed,
+  After gathering context, offers the user an optional scout pass to map the PR's
+  territory, then gives a simple but detailed What/Why/How/Refs brief: what changed,
   why it exists, how it works, and which files, commits, or PR references support the explanation.
   Then spawns parallel reviewer agents (bug hunter, security auditor, architecture critic, correctness prover)
   that independently analyze the current branch diff, consolidates and debates findings,
@@ -31,6 +32,7 @@ Review the current branch's changes using parallel subagents with distinct exper
 3. If the diff is empty, stop and tell the user there are no changes to review.
 4. Identify the languages, frameworks, and key files touched.
 5. Capture the PR's intent for the overview: read the commit messages, the PR description (`gh pr view <number>` when a PR number is given), and any goal the user stated. Note the claimed purpose and whether the diff actually matches it.
+6. **Offer a scout pass.** Before going further, ask the user once whether they want a scout pass (the `scout` skill) to map the PR's territory first — where the changed area sits in the codebase, prior art and conventions around it, domain vocabulary, and common potholes. Recommend it when the diff touches an area the user seems unfamiliar with; note it overlaps little with Phase 2, which explains the change itself rather than the territory around it. Skip the question when the user explicitly asked for review-only output, or when rerunning the same branch and they already answered. If they say yes, run the scout skill (typically its blindspot pass, scoped to the diff's territory), deliver its output, then continue with Phase 2.
 
 ### Phase 2: Explain the Change Before Reviewing
 
