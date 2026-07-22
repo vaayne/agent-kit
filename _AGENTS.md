@@ -27,7 +27,7 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 ## Tools & Memory
 
 - **Memory**: `nmem` is your cross-session external brain (distinct from runtime-local memory); mandatory for non-trivial tasks. Search before starting or saving. Save only what a future session can reuse — preferences, conventions, decisions, bug patterns; never secrets or transient info. Update instead of duplicating. Verbs are nested — `nmem memories search|add|update`, `nmem library add <url|file>` for artifacts, `nmem threads search|show` for past sessions; there is no top-level `nmem search`. When unsure, `nmem --help`, don't guess. What never became a memory often lives in a thread — search threads before re-asking the user for context; import is manual (`nmem threads sync --from <host> --apply`), so treat recency with suspicion.
-- **Skills & delegation**: read `SKILL.md` first. Default to `/delegate` for research, review, and isolated/parallel work — backend auto-picked from the model name; treat output as evidence, not truth.
+- **Skills & delegation**: read `SKILL.md` first. For research, review, and isolated/parallel work, prefer the runtime's native subagent when it can run the target model; reach for `/delegate` when it can't (cross-backend models, resumable sessions) — backend auto-picked from the model name. Treat output as evidence, not truth.
 - **Code search**: `ast-grep` for structural matches, `rg` for literal text.
 - **COW clone**: for isolated working copies, prefer an APFS copy-on-write clone (`cp -cR`, what V calls "cow") over a git worktree; clones live at `~/.agents/worktrees/{repo}/{name}`. Fetch the exact procedure and gotchas from nmem first (`nmem memories search "COW clone"`).
 
@@ -35,13 +35,13 @@ Precedence on conflict: safety and user trust → system/developer instructions 
 
 Use the cheapest tier that can safely own the work. Keep execution on cheaper models; use stronger models for decisions and review.
 
-- **Planning: `gpt-5.6-sol`, Fable.** Use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Follow Conductor mode.
+- **Planning: `gpt-5.6-sol`, Fable.** Use for architecture, ambiguous requirements, high-risk changes, and implementation planning. Fable follows Conductor mode.
 - **Daily: `gpt-5.6-terra`, Opus.** Default for coding, debugging, review, and research. Use Advisor mode when work reaches Planning's scope.
 - **Fast: `gpt-5.6-luna`, Haiku.** Use for formatting, search, boilerplate, small isolated edits, and other low-risk mechanical work. Use Advisor mode before non-mechanical work.
 
-**Advisor mode, for Daily and Fast:** keep ownership and implementation in the current session. Ask a higher tier one focused question via `/delegate`, with enough context to answer it. Daily consults Planning for architecture, ambiguous requirements, high-risk decisions, a pre-merge review of consequential changes, or when stuck. Fast consults Daily before non-mechanical work and Planning for architecture or high-risk decisions. Treat the answer as evidence, then decide and act. One consultation per task is usually enough. Hand off the whole task only when isolation is useful.
+**Advisor mode, for Daily and Fast:** keep ownership and implementation in the current session. Ask a higher tier one focused question (native subagent or `/delegate`, per the delegation rule above), with enough context to answer it. Daily consults Planning for architecture, ambiguous requirements, high-risk decisions, a pre-merge review of consequential changes, or when stuck. Fast consults Daily before non-mechanical work and Planning for architecture or high-risk decisions. Treat the answer as evidence, then decide and act. One consultation per task is usually enough. Hand off the whole task only when isolation is useful.
 
-**Conductor mode, for Planning:** own framing, architecture, tradeoffs, and verification. Do trivial, obvious, low-risk work directly when delegation would cost more. Delegate substantive implementation to Daily and bulk mechanical work to Fast via `/delegate`. Each brief includes the goal, constraints, relevant files, and acceptance checks. Verify delegated work yourself. Re-delegate failures unless the correction is trivial.
+**Conductor mode, for Fable:** own framing, architecture, tradeoffs, and verification. Do trivial, obvious, low-risk work directly when delegation would cost more. Delegate substantive implementation to Daily and bulk mechanical work to Fast (native subagent or `/delegate`, per the delegation rule above). Each brief includes the goal, constraints, relevant files, and acceptance checks. Verify delegated work yourself. Re-delegate failures unless the correction is trivial.
 
 **Backend routing:** GPT models (`gpt-*`) run through Codex. Fable, Opus, Sonnet, and Haiku run through Claude Code.
 
