@@ -107,17 +107,35 @@ the Step 5 report. V can override at any time ("跑 deep" / "跳过 deep"),
 including after seeing the report — then run it late, merge the new findings,
 and re-present only the additions.
 
-The pass itself: invoke the `code-review` skill (plain, NOT `ultra`) as a
-generic adversarial bug hunt over the same diff, run against `$REVIEW_DIR`
-(the PR branch is checked out there; base is `{baseRefName}`). Division of
-labor: Step 3 owns the Cherry-specific lens (docs compliance, boundaries,
-contracts); the deep pass owns generic correctness, security, and edge cases —
-do not re-run the layer checks through it.
+The pass is self-contained — no other skill, no subagents. Step 3 already
+owns the Cherry-specific lens (docs compliance, boundaries, contracts); this
+pass owns generic correctness. Make three separate passes over the diff, one
+lens at a time — re-read the diff for each lens, do not blend them into one
+skim:
 
-Take only its debated, confirmed findings; drop anything duplicating a Step 3
-finding or an existing PR comment; tag survivors `[deep]`. They go through the
-same Step 4 consolidation and Step 5 gate — the deep pass never posts anything
-itself.
+1. **Bug hunt** — logic errors, off-by-ones, null/undefined hazards, race
+   conditions in async flows, error-handling gaps, resource leaks, incorrect
+   state transitions; the bugs tests won't catch that surface under edge
+   conditions. Include performance: accidental O(n²) on hot paths, N+1
+   queries, unbounded caches/queues, needless sync I/O.
+2. **Security** — injection (SQL/XSS/command), path traversal, secrets in
+   code, unsafe deserialization; Electron-specific: Node APIs reaching the
+   renderer, unvalidated IPC input, `shell.openExternal` / navigation on
+   untrusted URLs.
+3. **Correctness & absence** — invariant breaks, wrong assumptions about data
+   shape or ordering, missing validation at boundaries; and **missing
+   changes**: callers not updated for a changed contract, migrations, i18n
+   keys, docs, or tests that should have changed with the code but didn't.
+   Absence is the bug a diff shows least.
+
+Then adversarially verify your own candidates: for each one, actively try to
+refute it against the code in `$REVIEW_DIR` — is the path reachable, is the
+triggering input possible, does a caller or an existing guard already handle
+it, is the behavior intentional design? Keep only findings that survive with
+code-level evidence; better to miss a minor issue than to cry wolf. Drop
+anything duplicating a Step 3 finding or an existing PR comment; tag
+survivors `[deep]`. They go through the same Step 4 consolidation and Step 5
+gate — the deep pass never posts anything itself.
 
 ## Step 4: Consolidate findings
 
