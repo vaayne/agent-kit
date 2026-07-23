@@ -17,9 +17,11 @@ automatically — no flags.
 Extract the PR number from `$ARGUMENTS`.
 
 ```bash
-gh pr view {n} --json title,body,state,baseRefName,headRefOid,files,additions,deletions
+gh pr view {n} --json title,body,state,baseRefName,headRefOid,files,additions,deletions,reviews,comments
 gh pr checks {n}                                  # record CI signal; never run pnpm lint/test locally
-gh api repos/{owner}/{repo}/pulls/{n}/comments    # existing review comments, for dedup
+gh api repos/{owner}/{repo}/pulls/{n}/comments    # inline review comments, for dedup
+gh api graphql -f query='query($owner:String!,$repo:String!,$n:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved comments(first:100){nodes{path line body url}}}}}}}' -F owner={owner} -F repo={repo} -F n={n}
+                                                    # resolved/unresolved thread inventory
 ```
 
 Abort if the PR is not OPEN. Create an isolated APFS copy-on-write clone —
@@ -35,10 +37,36 @@ gh pr checkout {n}           # handles fork PRs; then verify HEAD == headRefOid
 ```
 
 Record `REVIEW_DIR=~/.agents/worktrees/cherry-studio/pr-review-{n}`; use
-`git -C` / absolute paths for all later reads. Gotchas: ignore the
-`fsmonitor--daemon.ipc is a socket` cp warning; run `mise trust` in the clone
-if a tool refuses to run there. Cleanup at the end is just
-`rm -rf {REVIEW_DIR}` (a clone is a plain directory, nothing registered) —
+`git -C` / absolute paths for all later reads. After checkout, freeze the exact
+review input before reading any hunk:
+
+```bash
+MERGE_BASE=$(git -C "$REVIEW_DIR" merge-base "origin/{baseRefName}" HEAD)
+DIFF_FILE="$REVIEW_DIR/.git/pr-review-{n}.diff"
+LEDGER_FILE="$REVIEW_DIR/.git/pr-review-{n}-coverage.md"
+git -C "$REVIEW_DIR" diff --no-ext-diff --no-color --find-renames "$MERGE_BASE"...HEAD > "$DIFF_FILE"
+git -C "$REVIEW_DIR" diff --name-status --find-renames "$MERGE_BASE"...HEAD
+shasum -a 256 "$DIFF_FILE"
+```
+
+`$DIFF_FILE` is the canonical snapshot for Steps 3–3b. Read it from the first
+line through EOF. If any tool truncates output, resume from its offset or saved
+output until EOF; `--stat`, file lists, grep, and truncated terminal output are
+never proof of complete coverage. If EOF cannot be established, stop and report
+coverage as incomplete rather than claiming the review or deep pass completed.
+
+Keep a private ledger at `$LEDGER_FILE`, with one row per changed file:
+`path | layer | Step 3 diff/context | routed docs EOF | deep bug | deep security |
+deep correctness | status`. Account for every file, including renames. Generated
+files may skip source-level review only with `generated: <evidence>` in their row;
+they do not silently disappear from the denominator. Record every routed doc and
+whether it reached EOF. Mark non-applicable cells explicitly `N/A` (including all
+three deep columns when Step 3b is skipped); blank always means incomplete. The
+ledger is review evidence, not a GitHub artifact.
+
+Gotchas: ignore the `fsmonitor--daemon.ipc is a socket` cp warning; run
+`mise trust` in the clone if a tool refuses to run there. Cleanup at the end is
+just `rm -rf {REVIEW_DIR}` (a clone is a plain directory, nothing registered) —
 skip cleanup if V may want a follow-up fix session in it.
 
 ## Step 2: Intent — is this PR worth making?
@@ -61,25 +89,33 @@ change that shouldn't exist.
 
 ## Step 3: Layer review, bottom-up
 
-Map changed files to layers, then review only the touched layers in this
-order. For each: read the layer's diff, open the routed doc(s), read the
-relevant sections, and check the change against them plus basic correctness.
-Read surrounding code in `$REVIEW_DIR` whenever a hunk depends on context.
+Map changed files to layers in `$LEDGER_FILE`, then review only the touched
+layers in this order. For each file: read all of its hunks from `$DIFF_FILE`,
+open the routed doc(s) and read them through EOF, then inspect enough surrounding
+source and tests in `$REVIEW_DIR` to establish the affected behavior. Mark its
+Step 3 cells only after that coverage is complete; a search result is a lead,
+not evidence that the file or document was reviewed.
 
-| # | Layer | Paths | Docs to load (only if touched) |
-|---|-------|-------|-------------------------------|
-| 1 | DB schema & migrations | `src/main/data/db/` | `docs/references/data/database-patterns.md`; construction/seeding/ordering/pagination guides only if those change |
-| 2 | Shared contracts | `src/shared/` | `docs/references/shared-layer-architecture.md`; `docs/references/data/api-design-guidelines.md` for DataApi schemas |
-| 3 | Main data (handlers, services, migration) | `src/main/data/` | `docs/references/data/README.md`, `data-api-in-main.md`; `v2-migration-guide.md` for migrators |
-| 4 | Main core (lifecycle, windows, paths) | `src/main/core/` | `docs/references/lifecycle/README.md` + `lifecycle-usage.md`; `docs/references/window-manager/README.md`; `src/main/core/paths/README.md` |
-| 5 | Main services & features | `src/main/services/`, `src/main/features/`, `src/main/ai/` | `docs/references/main-process-architecture.md`; `docs/references/lifecycle/lifecycle-decision-guide.md` for new services |
-| 6 | IPC bridge | `src/shared/ipc/`, `src/main/ipc/`, `src/preload/`, `src/renderer/ipc/` | `docs/references/ipc/README.md`; `ipc-schema-guide.md` for contracts; `ipc-migration-guide.md` when legacy IPC is touched |
-| 7 | Renderer data | `src/renderer/data/` | `docs/references/data/data-api-in-renderer.md`; cache/preference usage guides if those hooks change |
-| 8 | Renderer UI | `src/renderer/`, `packages/ui/` | `docs/references/renderer-architecture.md`; `DESIGN.md` for style work |
-| 9 | Docs & skills | `docs/`, `.agents/skills/` | check accuracy against the code the doc describes |
+| # | Layer                                     | Paths                                                                   | Docs to load (only if touched)                                                                                                            |
+| - | ----------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | DB schema & migrations                    | `src/main/data/db/`                                                     | `docs/references/data/database-patterns.md`; construction/seeding/ordering/pagination guides only if those change                         |
+| 2 | Shared contracts                          | `src/shared/`                                                           | `docs/references/shared-layer-architecture.md`; `docs/references/data/api-design-guidelines.md` for DataApi schemas                       |
+| 3 | Main data (handlers, services, migration) | `src/main/data/`                                                        | `docs/references/data/README.md`, `data-api-in-main.md`; `v2-migration-guide.md` for migrators                                            |
+| 4 | Main core (lifecycle, windows, paths)     | `src/main/core/`                                                        | `docs/references/lifecycle/README.md` + `lifecycle-usage.md`; `docs/references/window-manager/README.md`; `src/main/core/paths/README.md` |
+| 5 | Main services & features                  | `src/main/services/`, `src/main/features/`, `src/main/ai/`              | `docs/references/main-process-architecture.md`; `docs/references/lifecycle/lifecycle-decision-guide.md` for new services                  |
+| 6 | IPC bridge                                | `src/shared/ipc/`, `src/main/ipc/`, `src/preload/`, `src/renderer/ipc/` | `docs/references/ipc/README.md`; `ipc-schema-guide.md` for contracts; `ipc-migration-guide.md` when legacy IPC is touched                 |
+| 7 | Renderer data                             | `src/renderer/data/`                                                    | `docs/references/data/data-api-in-renderer.md`; cache/preference usage guides if those hooks change                                       |
+| 8 | Renderer UI                               | `src/renderer/`, `packages/ui/`                                         | `docs/references/renderer-architecture.md`; `DESIGN.md` for style work                                                                    |
+| 9 | Docs & skills                             | `docs/`, `.agents/skills/`                                              | check accuracy against the code the doc describes                                                                                         |
 
 Naming applies everywhere: for added/renamed/moved files or new
 classes/barrels, consult `docs/references/naming-conventions.md`.
+
+Cache routing is usage-based, not path-based: whenever the diff changes a cache
+schema/key/value, calls CacheService, or uses a cache hook anywhere, also read
+`docs/references/data/cache-overview.md`, `cache-usage.md`, and
+`cache-schema-guide.md` through EOF. Do not miss a renderer hook merely because it lives outside
+`src/renderer/data/`.
 
 Hard rules (always check, no doc lookup needed):
 
@@ -96,6 +132,13 @@ schema → handler → preload → renderer hook/facade — and check types, err
 semantics, and `null`/`undefined` handling agree at every hop. This is the
 highest-value check in this repo; do not skip it.
 
+For shared-cache contracts, use the actual path rather than the generic API
+example: **Main owner → CacheService → cross-window sync → read-only renderer
+observer → teardown**. Verify one clear writer, schema/default compatibility,
+sync semantics, no renderer default write-back or pinning for Main-owned state,
+and deletion/cleanup when the owning lifecycle ends. Read existing mechanism
+source when an unchanged hop is load-bearing.
+
 ## Step 3b: Deep pass (auto-decided)
 
 **Decide automatically, no flag and no blocking question.** Run the deep pass
@@ -109,9 +152,14 @@ and re-present only the additions.
 
 The pass is self-contained — no other skill, no subagents. Step 3 already
 owns the Cherry-specific lens (docs compliance, boundaries, contracts); this
-pass owns generic correctness. Make three separate passes over the diff, one
-lens at a time — re-read the diff for each lens, do not blend them into one
-skim:
+pass owns generic correctness.
+
+Make three separate complete reads of `$DIFF_FILE`, one lens at a time. Each
+pass starts at line 1, reaches EOF, and marks its own ledger column for every
+non-generated file. Record the snapshot hash and EOF for each pass. Grep,
+structural search, and targeted context reads may support a pass, but never
+replace its complete diff read. Do not blend the lenses or infer three passes
+from one annotated skim:
 
 1. **Bug hunt** — logic errors, off-by-ones, null/undefined hazards, race
    conditions in async flows, error-handling gaps, resource leaks, incorrect
@@ -133,9 +181,11 @@ refute it against the code in `$REVIEW_DIR` — is the path reachable, is the
 triggering input possible, does a caller or an existing guard already handle
 it, is the behavior intentional design? Keep only findings that survive with
 code-level evidence; better to miss a minor issue than to cry wolf. Drop
-anything duplicating a Step 3 finding or an existing PR comment; tag
-survivors `[deep]`. They go through the same Step 4 consolidation and Step 5
-gate — the deep pass never posts anything itself.
+anything duplicating a Step 3 finding or a currently unresolved PR thread; tag
+survivors `[deep]`. Keep unresolved pre-existing comments in a separate
+inventory, never as fresh selectable findings. Resolved/outdated threads are
+historical context: verify current code before using them to deduplicate. The
+deep pass never posts anything itself.
 
 ## Step 4: Consolidate findings
 
@@ -148,8 +198,15 @@ it. Keep only findings with:
   **Warning** (clear boundary or maintainability issue), **Nit** (minor)
 - the smallest reasonable fix, or the question to ask the author
 
-Drop pure style preferences, speculative future-proofing, and anything an
-existing PR comment already covers. Do not report analysis or ruled-out items.
+Drop pure style preferences, speculative future-proofing, and anything a
+currently unresolved PR thread already covers. Do not report analysis or
+ruled-out items. Keep the existing-unresolved inventory separate from fresh
+findings: it informs V but is not selectable or reposted.
+
+**Completion gate:** never call Step 3, a deep lens, or the review complete
+while a required ledger cell is blank or a routed document/diff has not reached
+EOF. Stop and report the exact incomplete coverage instead; finding count is
+not a completion signal.
 
 ## Step 5: Report to V — the gate
 
@@ -158,9 +215,12 @@ Present in Chinese:
 1. Intent summary + motivation verdict (from Step 2)
 2. CI status
 3. Deep pass: ran or skipped, and why (one line)
-4. Findings grouped by severity, numbered
+4. Coverage proof: `changed non-generated files X/X; routed docs EOF Y/Y;
+   Step 3 X/X; deep bug/security/correctness X/X each` (or exact incomplete cells)
+5. Existing unresolved comments: count and overlap only, clearly non-selectable
+6. Fresh findings grouped by severity, numbered
 
-Then ask V which findings to post (multi-select), or whether to approve.
+Then ask V which fresh findings to post (multi-select), or whether to approve.
 **Nothing is posted without an explicit selection here.** If V picks nothing,
 clean up and stop.
 
