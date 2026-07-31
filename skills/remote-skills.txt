@@ -14,7 +14,7 @@ anthropics/skills --skill skill-creator
 #anthropics/skills --skill frontend-design
 
 #vaayne/mcphub --skill find-skills
-vaayne/mcphub --skill mcp-skill-gen
+#vaayne/mcphub --skill mcp-skill-gen
 # vaayne/tap --skill tap-web
 
 #blader/humanizer --skill humanizer
@@ -43,4 +43,5 @@ vaayne/mcphub --skill mcp-skill-gen
 # cloudflare/skills --skill wrangler
 # cloudflare/skills --skill workers-best-practices
 
-yetone/native-feel-skill
+#yetone/native-feel-skill
+github/gh-stack --skill gh-stack
