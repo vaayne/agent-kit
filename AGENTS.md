@@ -8,7 +8,6 @@
 
 - `plugins/` — Claude Code plugins
 - `extensions/` — pi extensions
-- `mcps/` — MCP servers
 - `skills/` — Agent skills
 
 ## Marketplace
