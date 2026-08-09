@@ -1,5 +1,6 @@
 [tools]
 dprint = "latest"
+gh = "latest"
 
 [tasks.setup]
 description = "Initialize repo (submodules, dependencies)"
@@ -62,13 +63,34 @@ for source in "$SKILL_SOURCE_DIR"/*; do
   ln -s "$source" "$target"
 done
 
-# Install remote skills from registry
+# Install remote skills from GitHub
 if [ -f ./skills/remote-skills.txt ]; then
-  while IFS= read -r line; do
-    line=$(echo "$line" | sed 's/#.*//' | xargs)
-    [ -z "$line" ] && continue
-    echo "Installing: mh skills add $line"
-    (cd ~ && mh skills add $line)
+  while read -r repo skill extra; do
+    case "$repo" in
+      ""|"#"*) continue ;;
+    esac
+
+    if [ -z "$skill" ] || [ -n "$extra" ]; then
+      echo "Invalid remote skill entry: $repo $skill $extra" >&2
+      exit 1
+    fi
+
+    case "$skill" in
+      *@*)
+        version=${skill##*@}
+        skill=${skill%@*}
+        if [ -z "$skill" ] || [ -z "$version" ]; then
+          echo "Invalid pinned skill entry: $repo $skill@$version" >&2
+          exit 1
+        fi
+        echo "Installing pinned skill: $repo $skill@$version"
+        gh skill install "$repo" "$skill" --pin "$version" --dir "$SHARED_SKILL_DIR" --force
+        ;;
+      *)
+        echo "Installing skill: $repo $skill"
+        gh skill install "$repo" "$skill" --dir "$SHARED_SKILL_DIR" --force
+        ;;
+    esac
   done < ./skills/remote-skills.txt
   echo "Remote skills synced"
 fi

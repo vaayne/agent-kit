@@ -1,23 +1,24 @@
-# Remote skills installed via `mh skills add`
-# One source per line. Blank lines and lines starting with # are ignored.
+# Remote skills installed via `gh skill install`
+# One `repository skill[@version]` pair per line. Blank lines and lines
+# starting with # are ignored.
 #
 # Formats:
-#   owner/repo@skill              GitHub shorthand
-#   https://github.com/owner/repo --skill name
-#   ./local/path                  Local directory
+#   owner/repo skill              Latest release, or default branch if none
+#   owner/repo skill@tag          Pinned release
+#   owner/repo skill@commit-sha   Pinned commit
 #
 # Examples:
-#   vercel-labs/agent-skills@react-best-practices
-#   https://github.com/anthropics/skills --skill skill-creator
+#   vercel-labs/agent-skills react-best-practices
+#   anthropics/skills skill-creator
 
-anthropics/skills --skill skill-creator
-#anthropics/skills --skill frontend-design
+anthropics/skills skill-creator
+# anthropics/skills frontend-design
 
-#vaayne/mcphub --skill find-skills
-#vaayne/mcphub --skill mcp-skill-gen
-# vaayne/tap --skill tap-web
+# vaayne/mcphub find-skills
+# vaayne/mcphub mcp-skill-gen
+# vaayne/tap tap-web
 
-#blader/humanizer --skill humanizer
+# blader/humanizer humanizer
 #hardikpandya/stop-slop
 
 # write slides
@@ -25,25 +26,24 @@ anthropics/skills --skill skill-creator
 #zarazhangrui/frontend-slides
 
 # build ios/mac apps
-#openai/plugins --skill ios-debugger-agent
-#openai/plugins --skill swiftui-liquid-glass
-#openai/plugins --skill swiftui-performance-audit
-#openai/plugins --skill swiftui-ui-patterns
-#openai/plugins --skill swiftui-view-refactor
+# openai/plugins ios-debugger-agent
+# openai/plugins swiftui-liquid-glass
+# openai/plugins swiftui-performance-audit
+# openai/plugins swiftui-ui-patterns
+# openai/plugins swiftui-view-refactor
 
 # generate image
-# JimLiu/baoyu-skills --skill baoyu-xhs-images
-# JimLiu/baoyu-skills --skill baoyu-cover-image
-# JimLiu/baoyu-skills --skill baoyu-infographic
+# JimLiu/baoyu-skills baoyu-xhs-images
+# JimLiu/baoyu-skills baoyu-cover-image
+# JimLiu/baoyu-skills baoyu-infographic
 
 # markting
 #kostja94/marketing-skills
 
-# cloudflare/skills --skill cloudflare
-# cloudflare/skills --skill wrangler
-# cloudflare/skills --skill workers-best-practices
+# cloudflare/skills cloudflare
+# cloudflare/skills wrangler
+# cloudflare/skills workers-best-practices
 
 #yetone/native-feel-skill
-github/gh-stack --skill gh-stack
-herdrdev/herdr --skill herdr
-
+github/gh-stack gh-stack@v0.1.0
+herdrdev/herdr herdr@v0.8.0
