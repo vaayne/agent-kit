@@ -2,13 +2,6 @@
 dprint = "latest"
 gh = "latest"
 
-[tasks.setup]
-description = "Initialize repo (submodules, dependencies)"
-run = """
-git submodule update --init --recursive
-echo "Setup complete"
-"""
-
 [tasks.format]
 description = "Format code using dprint"
 run = "dprint fmt"

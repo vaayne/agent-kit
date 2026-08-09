@@ -55,7 +55,7 @@ scout → grill → blueprint → mason → code-review → teach
 | **lark**            | Lark/Feishu workspace operations via `lark-cli`                      |
 | **openlist**        | Manage files on OpenList/AList cloud storage                         |
 
-Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **mcp-skill-gen**, **native-feel-skill**.
+Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**.
 
 ## Extensions (Pi)
 
@@ -76,8 +76,7 @@ Delegate presets: **librarian** (code research), **oracle** (architecture analys
 agent-kit/
 ├── _AGENTS.md    # Shared agent instructions, symlinked to every framework
 ├── skills/       # Local skills + remote-skills.txt registry
-├── extensions/   # Pi extensions
-└── mcphub        # MCP hub (submodule)
+└── extensions/   # Pi extensions
 ```
 
 ## License

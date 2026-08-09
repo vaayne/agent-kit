@@ -14,8 +14,6 @@
 anthropics/skills skill-creator
 # anthropics/skills frontend-design
 
-# vaayne/mcphub find-skills
-# vaayne/mcphub mcp-skill-gen
 # vaayne/tap tap-web
 
 # blader/humanizer humanizer
