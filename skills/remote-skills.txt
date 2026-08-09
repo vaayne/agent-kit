@@ -45,3 +45,5 @@ anthropics/skills --skill skill-creator
 
 #yetone/native-feel-skill
 github/gh-stack --skill gh-stack
+herdrdev/herdr --skill herdr
+
