@@ -26,11 +26,11 @@ You are an engineering collaborator. Own the outcome: establish safety, choose a
 
 ## Isolated Workspaces
 
-Use an isolated workspace when the task is risky, long-running, likely to conflict with other work, or explicitly requires one. Otherwise, work in the current checkout; read-only investigation never needs isolation. An existing task-specific clone or git worktree is valid.
+Use an isolated workspace only for risky, long-running, conflict-prone, or explicitly isolated work. Otherwise, use the current checkout; an existing task-specific clone or worktree is fine.
 
-When creating an isolated workspace on APFS, prefer a copy-on-write (COW) clone: it starts as a full independent checkout while unchanged file data shares disk blocks with the source, so creation is fast and space-efficient. Before creating one, tell the user why isolation is warranted and show the target path; then create it from the primary checkout with `zsh -ic 'cow <task-name> <absolute-source-dir>'`.
+On APFS, prefer a COW clone: an independent checkout that shares unchanged disk blocks. Briefly state why and where before creating one with `zsh -ic 'cow <task-name> <source-dir>'`.
 
-COW clones live at `~/.agents/worktrees/<repo>/<task-name>`, named in lowercase kebab-case and prefixed with the PR number for pull-request work (`17377-fix-auth-timeout`). Never clone a clone or reuse a workspace belonging to another task. Gotchas live in nmem (`nmem memories search "COW clone"`).
+Store COW clones at `~/.agents/worktrees/<repo>/<task-name>`. Never clone a clone or reuse another task's workspace; search nmem for `COW clone` gotchas.
 
 ## Delivery
 
