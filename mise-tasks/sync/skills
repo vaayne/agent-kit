@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+#MISE description="Link local skills and install remote skills to ~/.agents/skills"
+
+set -euo pipefail
+
+ROOT_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+SKILL_SOURCE_DIR="$ROOT_DIR/skills"
+SHARED_SKILL_DIR="${SHARED_SKILL_DIR:-$HOME/.agents/skills}"
+REMOTE_SKILL_REGISTRY="$SKILL_SOURCE_DIR/remote-skills.txt"
+
+sync_remote_skills() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit"
+  local stamp="$cache_dir/remote-skills.sha256"
+  local registry_hash mode repo skill_spec extra skill version
+  local index target log failed
+  local -a repos=() skills=() versions=() pids=()
+
+  mkdir -p "$cache_dir"
+  registry_hash=$(shasum -a 256 "$REMOTE_SKILL_REGISTRY" | awk '{print $1}')
+  mode=update
+  if [[ ! -f "$stamp" ]] || [[ $(cat "$stamp") != "$registry_hash" ]]; then
+    mode=install
+  fi
+
+  while read -r repo skill_spec extra; do
+    case "$repo" in
+      "" | \#*) continue ;;
+    esac
+
+    if [[ -z "${skill_spec:-}" ]] || [[ -n "${extra:-}" ]]; then
+      echo "Invalid remote skill entry: $repo ${skill_spec:-} ${extra:-}" >&2
+      return 1
+    fi
+
+    skill="$skill_spec"
+    version=""
+    if [[ "$skill_spec" == *@* ]]; then
+      version=${skill_spec##*@}
+      skill=${skill_spec%@*}
+      if [[ -z "$skill" ]] || [[ -z "$version" ]]; then
+        echo "Invalid pinned skill entry: $repo $skill_spec" >&2
+        return 1
+      fi
+    fi
+
+    repos+=("$repo")
+    skills+=("$skill")
+    versions+=("$version")
+  done < "$REMOTE_SKILL_REGISTRY"
+
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  # The registry is deliberately small. Use a bounded worker queue if it grows
+  # past 10 entries; until then, one process per entry is simpler and faster.
+  for index in "${!repos[@]}"; do
+    repo=${repos[$index]}
+    skill=${skills[$index]}
+    version=${versions[$index]}
+    target="$SHARED_SKILL_DIR/${skill##*/}"
+    log="$tmp_dir/$index.log"
+
+    (
+      if [[ "$mode" == update ]] && [[ -e "$target" ]]; then
+        if [[ -n "$version" ]]; then
+          echo "Pinned skill already installed: $repo $skill@$version"
+        else
+          echo "Checking skill: $repo $skill"
+          gh skill update "$skill" --all --dir "$SHARED_SKILL_DIR"
+        fi
+      elif [[ -n "$version" ]]; then
+        echo "Installing pinned skill: $repo $skill@$version"
+        gh skill install "$repo" "$skill" \
+          --pin "$version" --dir "$SHARED_SKILL_DIR" --force
+      else
+        echo "Installing skill: $repo $skill"
+        gh skill install "$repo" "$skill" --dir "$SHARED_SKILL_DIR" --force
+      fi
+    ) >"$log" 2>&1 &
+    pids+=("$!")
+  done
+
+  failed=0
+  for index in "${!pids[@]}"; do
+    if wait "${pids[$index]}"; then
+      cat "$tmp_dir/$index.log"
+    else
+      cat "$tmp_dir/$index.log" >&2
+      failed=1
+    fi
+  done
+
+  if (( failed )); then
+    echo "Remote skill sync failed" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$registry_hash" > "$stamp.tmp"
+  mv "$stamp.tmp" "$stamp"
+  echo "Remote skills synced"
+}
+
+mkdir -p "$SHARED_SKILL_DIR"
+
+# Refresh generated local skill content before linking it.
+(cd "$SKILL_SOURCE_DIR/designer" && bash scripts/sync.sh)
+tap skill install --path "$SKILL_SOURCE_DIR/tap-web"
+
+# Remove links for local skills that no longer exist in this repo.
+for target in "$SHARED_SKILL_DIR"/*; do
+  [[ -L "$target" ]] || continue
+  case $(readlink "$target") in
+    "$SKILL_SOURCE_DIR"/*)
+      [[ -e $(readlink "$target") ]] || rm -f "$target"
+      ;;
+  esac
+done
+
+# Link each local skill individually so remote skills can coexist.
+for source in "$SKILL_SOURCE_DIR"/*; do
+  [[ -d "$source" ]] || continue
+  target="$SHARED_SKILL_DIR/$(basename "$source")"
+  if [[ -d "$target" ]] && [[ ! -L "$target" ]]; then
+    rm -rf "$target"
+  else
+    rm -f "$target"
+  fi
+  ln -s "$source" "$target"
+done
+
+if [[ -f "$REMOTE_SKILL_REGISTRY" ]]; then
+  sync_remote_skills
+fi
+
+# Link agent frameworks that use the shared skill directory.
+for dir in ~/.claude/skills ~/.factory/skills ~/.pi/skills ~/.codex/skills \
+  ~/.config/amp/skills; do
+  if [[ -d "$dir" ]] && [[ ! -L "$dir" ]]; then
+    rm -rf "$dir"
+  fi
+done
+ln -sfn ~/.agents/skills ~/.claude/skills
+ln -sfn ~/.agents/skills ~/.gemini/config/skills
+
+cd "$ROOT_DIR"
+mise run format
+echo "Linked local skills and installed remote skills in $SHARED_SKILL_DIR"
