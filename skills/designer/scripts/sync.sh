@@ -19,19 +19,30 @@ REFS_DIR="$SKILL_DIR/references"
 REPO_URL="https://github.com/nexu-io/open-design.git"
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/open-design"
+SYNC_STAMP="$CACHE_DIR/.agent-kit-synced-head"
 
 # ── clone or update ──────────────────────────────────────────────────
 
 if [[ -d "$CACHE_DIR/.git" ]]; then
   echo "Updating cached open-design…"
   git -C "$CACHE_DIR" fetch --depth 1 origin main 2>&1 | tail -1
-  git -C "$CACHE_DIR" reset --hard origin/main >/dev/null
 else
   echo "Cloning open-design (shallow + sparse)…"
   rm -rf "$CACHE_DIR"
   git clone --depth 1 --sparse "$REPO_URL" "$CACHE_DIR" 2>&1 | tail -1
   git -C "$CACHE_DIR" sparse-checkout set design-systems design-templates 2>/dev/null
 fi
+
+remote_head=$(git -C "$CACHE_DIR" rev-parse origin/main)
+if [[ -f "$SYNC_STAMP" ]] \
+  && [[ $(cat "$SYNC_STAMP") == "$remote_head" ]] \
+  && [[ -d "$REFS_DIR/design-systems" ]] \
+  && [[ -d "$REFS_DIR/design-templates" ]]; then
+  echo "Generated design references already up to date."
+  exit 0
+fi
+
+git -C "$CACHE_DIR" reset --hard origin/main >/dev/null
 
 OD_ROOT="$CACHE_DIR"
 DS_SRC="$OD_ROOT/design-systems"
@@ -51,6 +62,7 @@ rm -rf "$REFS_DIR/design-templates"
 cp -r "$DT_SRC" "$REFS_DIR/design-templates"
 rm -f "$REFS_DIR/design-templates/AGENTS.md"
 rm -f "$REFS_DIR/design-templates/.DS_Store"
+printf '%s\n' "$remote_head" > "$SYNC_STAMP"
 
 # ── summary ───────────────────────────────────────────────────────────
 
