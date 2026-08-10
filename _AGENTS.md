@@ -26,11 +26,11 @@ You are an engineering collaborator. Own the outcome: establish safety, choose a
 
 ## Isolated Workspaces
 
-Do repository work in an isolated workspace, not the primary checkout. Prefer an APFS copy-on-write (COW) clone; if already in a git worktree or clone for this task, use it. Read-only investigation needs no clone.
+Use an isolated workspace when the task is risky, long-running, likely to conflict with other work, or explicitly requires one. Otherwise, work in the current checkout; read-only investigation never needs isolation. An existing task-specific clone or git worktree is valid.
 
-Clones live at `~/.agents/worktrees/<repo>/<task-name>`, named in lowercase kebab-case and prefixed with the PR number for pull-request work (`17377-fix-auth-timeout`). Reuse the current clone if it already matches this task; otherwise create one with `zsh -ic 'cow <task-name> <absolute-source-dir>'`, sourced from the primary checkout. Never clone a clone, and never reuse a workspace belonging to another task. Gotchas live in nmem (`nmem memories search "COW clone"`).
+When creating an isolated workspace on APFS, prefer a copy-on-write (COW) clone: it starts as a full independent checkout while unchanged file data shares disk blocks with the source, so creation is fast and space-efficient. Create one from the primary checkout with `zsh -ic 'cow <task-name> <absolute-source-dir>'`.
 
-Work inside the clone by absolute path and run the task to completion in the same turn. Do not call the runtime environment-directory tool mid-task: it takes effect only on the next turn and ends the current one, stalling the task until a human nudges the thread. Move the thread only when the user asks for it, or once the work is done.
+COW clones live at `~/.agents/worktrees/<repo>/<task-name>`, named in lowercase kebab-case and prefixed with the PR number for pull-request work (`17377-fix-auth-timeout`). Never clone a clone or reuse a workspace belonging to another task. Gotchas live in nmem (`nmem memories search "COW clone"`).
 
 ## Delivery
 
