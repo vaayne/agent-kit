@@ -1,11 +1,12 @@
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { PresetScope } from "./presets.js";
 import type { DelegateDetails, ThinkingLevel } from "./types.js";
 
 export type ToolUpdateCallback = (partial: AgentToolResult<DelegateDetails>) => void;
 
 export type ThemeLike = {
-  fg: (color: string, text: string) => string;
+  fg: (color: ThemeColor, text: string) => string;
   bold: (text: string) => string;
 };
 

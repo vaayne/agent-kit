@@ -1,4 +1,5 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
+import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 import * as os from "node:os";
 import type { DisplayItem, SingleResult, UsageStats } from "./types.js";
 
@@ -61,7 +62,7 @@ export function formatUsageStats(
 export function formatToolCall(
   toolName: string,
   args: Record<string, unknown>,
-  themeFg: (color: string, text: string) => string,
+  themeFg: (color: ThemeColor, text: string) => string,
 ): string {
   function shortenPath(filePath: string): string {
     const home = os.homedir();

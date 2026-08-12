@@ -1,3 +1,4 @@
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { discoverPresets, type PresetConfig, type PresetScope } from "./presets.js";
 import { type OnUpdateCallback, resumeDelegateSession, runSingleDelegate } from "./runner.js";
 import { MAX_CONCURRENCY, MAX_PARALLEL_TASKS } from "./schemas.js";
@@ -42,6 +43,8 @@ type DelegateToolContext = {
   hasUI: boolean;
   ui: { confirm: (title: string, message: string) => Promise<boolean> };
 };
+
+type DelegateToolResult = AgentToolResult<DelegateDetails>;
 
 function getCurrentMode(
   hasSequence: boolean,
@@ -160,7 +163,7 @@ function mergeRunOverrides(run: RunOverrides, defaults?: RunOverrides): RunOverr
 function buildSingleResultResponse(
   result: SingleResult,
   makeDetails: (results: SingleResult[]) => DelegateDetails,
-) {
+): DelegateToolResult {
   if (isResultError(result)) {
     return {
       content: [
@@ -170,7 +173,6 @@ function buildSingleResultResponse(
         },
       ],
       details: makeDetails([result]),
-      isError: true,
     };
   }
 
@@ -193,7 +195,7 @@ async function executeSequenceMode(
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => DelegateDetails,
   defaultOverrides?: RunOverrides,
-) {
+): Promise<DelegateToolResult> {
   const results: SingleResult[] = [];
   let previousOutput = "";
 
@@ -235,7 +237,6 @@ async function executeSequenceMode(
           },
         ],
         details: makeDetails(results),
-        isError: true,
       };
     }
     previousOutput = getFinalOutput(result.messages);
@@ -261,7 +262,7 @@ async function executeParallelMode(
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => DelegateDetails,
   defaultOverrides?: RunOverrides,
-) {
+): Promise<DelegateToolResult> {
   if (params.parallel.length > MAX_PARALLEL_TASKS) {
     return {
       content: [
@@ -347,7 +348,7 @@ async function executeSingleMode(
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
   makeDetails: (results: SingleResult[]) => DelegateDetails,
-) {
+): Promise<DelegateToolResult> {
   const result = await runSingleDelegate(
     ctx.cwd,
     presets,
@@ -373,8 +374,7 @@ async function executeResumeMode(
   makeDetails: (results: SingleResult[]) => DelegateDetails,
   ctx: DelegateToolContext,
   confirmProjectPresets: boolean,
-  projectPresetsDir: string | null,
-) {
+): Promise<DelegateToolResult> {
   const metadata = loadDelegateSession(params.sessionId);
   if (!metadata) {
     return {
@@ -386,7 +386,6 @@ async function executeResumeMode(
         },
       ],
       details: makeDetails([]),
-      isError: true,
     };
   }
 
@@ -425,7 +424,7 @@ export async function executeDelegateTool(
   signal: AbortSignal | undefined,
   onUpdate: ToolUpdateCallback | undefined,
   ctx: DelegateToolContext,
-) {
+): Promise<DelegateToolResult> {
   const presetScope: PresetScope = params.options?.scope ?? "user";
   const discovery = discoverPresets(ctx.cwd, presetScope);
   const presets = discovery.presets;
@@ -523,7 +522,6 @@ export async function executeDelegateTool(
       detailsForMode("resume"),
       ctx,
       confirmProjectPresets,
-      discovery.projectPresetsDir,
     );
   }
 

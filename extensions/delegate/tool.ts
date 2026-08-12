@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { DelegateToolParams } from "./schemas.js";
 import { executeDelegateTool } from "./tool-execute.js";
 import { renderToolCall, renderToolResult } from "./tool-render.js";
