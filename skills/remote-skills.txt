@@ -47,3 +47,4 @@ github/gh-stack gh-stack@v0.1.0
 herdrdev/herdr herdr@v0.8.0
 nyblnet/bento bento-slides
 tailscale/tailscale-skill tailscale
+cathrynlavery/diagram-design diagram-design
