@@ -1,6 +1,6 @@
 {
   "name": "@vaayne/pi-cliproxy-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi extension that registers a Cliproxy provider from its /v1/models endpoint",
   "keywords": [
     "agent",
@@ -34,11 +34,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
-    "@mariozechner/pi-coding-agent": "^0.70.2",
+    "@earendil-works/pi-coding-agent": "^0.84.1",
     "@types/bun": "^1.3.9"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
+    "@earendil-works/pi-coding-agent": "*",
     "typescript": "^5.9.3"
   },
   "pi": {

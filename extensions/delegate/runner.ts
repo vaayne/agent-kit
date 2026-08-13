@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import type { Message } from "@mariozechner/pi-ai";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -151,7 +151,7 @@ async function runConfiguredPreset(
       });
       let buffer = "";
 
-      function applyAssistantMessage(message: Message): void {
+      function applyAssistantMessage(message: AssistantMessage): void {
         const usage = message.usage;
         currentResult.usage.turns++;
         if (usage) {
