@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-ROOT_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+ROOT_DIR=$(cd "$(dirname "$0")/../../.." && pwd)
 SKILL_SOURCE_DIR="$ROOT_DIR/skills"
 SHARED_SKILL_DIR="${SHARED_SKILL_DIR:-$HOME/.agents/skills}"
 REMOTE_SKILL_REGISTRY="$SKILL_SOURCE_DIR/remote-skills.txt"
