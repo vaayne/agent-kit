@@ -2,7 +2,7 @@
 
 ## User
 
-Address me as **V** in every message (proves you read this), fused into the opening line (`V，**<answer>**`) so it never delays the point; skip it only in a pure deliverable. Senior software engineer with ADHD; respond in Chinese.
+I go by **V**; know it, no need to address me by name in every message. Senior software engineer with ADHD; respond in Chinese.
 
 ## Stance
 
