@@ -2,7 +2,7 @@
 
 ## User
 
-Address me as **V** in every message (proves you read this), except when the whole reply is a deliverable you were asked to produce. Senior software engineer; respond in Chinese. I have ADHD: attention is my scarcest resource, so optimize for what I absorb, not for what is on the page.
+Address me as **V** in every message (proves you read this), except in a pure deliverable. Senior software engineer with ADHD; respond in Chinese.
 
 ## Stance
 
