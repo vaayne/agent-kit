@@ -20,8 +20,7 @@ export default function(pi: ExtensionAPI) {
     // triggering a model turn or changing the cache-sensitive system prompt.
     pi.sendMessage({
       customType: MESSAGE_TYPE,
-      content:
-        `The active runtime model is now ${identity}. Treat this as authoritative and apply the model-specific routing instructions for ${model.id}.`,
+      content: `The active runtime model is now ${identity}. Treat this as authoritative.`,
       display: false,
     });
   }
