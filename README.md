@@ -41,19 +41,16 @@ scout → grill → blueprint → mason → code-review → teach
 
 ## Tool & service skills
 
-| Skill               | Description                                                          |
-| ------------------- | -------------------------------------------------------------------- |
-| **curator**         | Maintain the nmem knowledge base — lint + synthesis passes           |
-| **tap-web**         | Web access, search, extraction, and browser automation via `tap`     |
-| **designer**        | Distinctive UI/UX design and prototypes for filesystem-backed agents |
-| **humanizer**       | Strip AI writing patterns from prose                                 |
-| **kreuzberg**       | Extract text/tables/metadata from 91+ document formats               |
-| **python-script**   | Robust Python automation with logging and safety checks              |
-| **vertex-ai-image** | Image generation, editing, and understanding via Google Gemini       |
-| **cf-email**        | Send email through the Cloudflare Email Sending API                  |
-| **gws**             | Google Workspace operations via the `gws` CLI                        |
-| **lark**            | Lark/Feishu workspace operations via `lark-cli`                      |
-| **openlist**        | Manage files on OpenList/AList cloud storage                         |
+| Skill             | Description                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| **curator**       | Maintain the nmem knowledge base — lint + synthesis passes       |
+| **tap-web**       | Web access, search, extraction, and browser automation via `tap` |
+| **humanizer**     | Strip AI writing patterns from prose                             |
+| **python-script** | Robust Python automation with logging and safety checks          |
+| **cf-email**      | Send email through the Cloudflare Email Sending API              |
+| **gws**           | Google Workspace operations via the `gws` CLI                    |
+| **lark**          | Lark/Feishu workspace operations via `lark-cli`                  |
+| **openlist**      | Manage files on OpenList/AList cloud storage                     |
 
 Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **diagram-design**.
 

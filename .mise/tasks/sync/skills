@@ -104,7 +104,6 @@ sync_remote_skills() {
 mkdir -p "$SHARED_SKILL_DIR"
 
 # Refresh generated local skill content before linking it.
-(cd "$SKILL_SOURCE_DIR/designer" && bash scripts/sync.sh)
 tap skill install --path "$SKILL_SOURCE_DIR/tap-web"
 
 # Remove links for local skills that no longer exist in this repo.
