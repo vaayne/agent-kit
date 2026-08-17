@@ -103,9 +103,6 @@ sync_remote_skills() {
 
 mkdir -p "$SHARED_SKILL_DIR"
 
-# Refresh generated local skill content before linking it.
-tap skill install --path "$SKILL_SOURCE_DIR/tap-web"
-
 # Remove links for local skills that no longer exist in this repo.
 for target in "$SHARED_SKILL_DIR"/*; do
   [[ -L "$target" ]] || continue
@@ -133,14 +130,12 @@ if [[ -f "$REMOTE_SKILL_REGISTRY" ]]; then
 fi
 
 # Link agent frameworks that use the shared skill directory.
-for dir in ~/.claude/skills ~/.factory/skills ~/.pi/skills ~/.codex/skills \
-  ~/.config/amp/skills; do
+for dir in ~/.claude/skills ~/.pi/skills ~/.codex/skills; do
   if [[ -d "$dir" ]] && [[ ! -L "$dir" ]]; then
     rm -rf "$dir"
   fi
 done
 ln -sfn ~/.agents/skills ~/.claude/skills
-ln -sfn ~/.agents/skills ~/.gemini/config/skills
 
 cd "$ROOT_DIR"
 mise run format
