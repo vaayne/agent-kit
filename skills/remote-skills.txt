@@ -6,43 +6,8 @@
 #   owner/repo skill              Latest release, or default branch if none
 #   owner/repo skill@tag          Pinned release
 #   owner/repo skill@commit-sha   Pinned commit
-#
-# Examples:
-#   vercel-labs/agent-skills react-best-practices
-#   anthropics/skills skill-creator
 
 anthropics/skills skill-creator
-# anthropics/skills frontend-design
-
-# vaayne/tap tap-web
-
-# blader/humanizer humanizer
-#hardikpandya/stop-slop
-
-# write slides
-#slidevjs/slidev
-#zarazhangrui/frontend-slides
-
-# build ios/mac apps
-# openai/plugins ios-debugger-agent
-# openai/plugins swiftui-liquid-glass
-# openai/plugins swiftui-performance-audit
-# openai/plugins swiftui-ui-patterns
-# openai/plugins swiftui-view-refactor
-
-# generate image
-# JimLiu/baoyu-skills baoyu-xhs-images
-# JimLiu/baoyu-skills baoyu-cover-image
-# JimLiu/baoyu-skills baoyu-infographic
-
-# markting
-#kostja94/marketing-skills
-
-# cloudflare/skills cloudflare
-# cloudflare/skills wrangler
-# cloudflare/skills workers-best-practices
-
-#yetone/native-feel-skill
 github/gh-stack gh-stack@v0.1.0
 herdrdev/herdr herdr@v0.8.0
 nyblnet/bento bento-slides
