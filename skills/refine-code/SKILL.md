@@ -1,18 +1,19 @@
 ---
 name: refine-code
-description: "Improve existing code at any scale — from cleaning up a single function to restructuring an entire module hierarchy. Use this skill whenever the user wants to simplify code, refactor for readability, find architectural improvements, consolidate tightly-coupled modules, deepen shallow abstractions, reduce complexity, clean up after a feature implementation, or make a codebase more testable and navigable. Triggers on phrases like 'simplify this', 'clean up', 'refactor', 'improve architecture', 'make this cleaner', 'find refactoring opportunities', 'reduce complexity', or any request to improve code quality without changing behavior."
+description: "Improve existing code at any scale — from cleaning up a single function to restructuring an entire module hierarchy to proving what can safely be deleted. Use this skill whenever the user wants to simplify code, refactor for readability, find architectural improvements, consolidate tightly-coupled modules, deepen shallow abstractions, reduce complexity, clean up after a feature implementation, make a codebase more testable and navigable, or remove dead surface, duplicate state, speculative generality, and over-engineering with real consumer evidence. Triggers on phrases like 'simplify this', 'clean up', 'refactor', 'improve architecture', 'make this cleaner', 'find refactoring opportunities', 'reduce complexity', 'find deletion candidates', 'reclaim code entropy', or 代码化简、熵回收、删代码、清理冗余、去除过度设计."
 ---
 
 # Refine Code
 
-Improve existing code without changing what it does — only how it's organized, how readable it is, and how deep its abstractions run.
+Improve existing code without changing what it does — only how it's organized, how readable it is, how deep its abstractions run, and how much of it needs to exist at all.
 
-This skill operates in two modes, chosen automatically based on what the user asks for:
+This skill operates in three modes, chosen automatically based on what the user asks for:
 
 - **Code mode** — sharpen specific files or recent changes for clarity, consistency, and maintainability
 - **Architecture mode** — find structural friction across modules and propose deepening opportunities
+- **Entropy mode** — prove which surfaces have no load-bearing reason to exist, then delete them
 
-If the user's request is scoped to specific files or recent changes, use Code mode. If they're asking about module boundaries, coupling, testability, or codebase-wide structure, use Architecture mode. If both apply (e.g., "clean up this area and think about whether the abstraction is right"), do both — Code mode first for immediate improvements, then Architecture mode for structural suggestions.
+If the user's request is scoped to specific files or recent changes, use Code mode. If they're asking about module boundaries, coupling, testability, or codebase-wide structure, use Architecture mode. If they're asking what can be removed — dead surface, duplicate state, unused config, abandoned features, over-engineering — use Entropy mode. If several apply (e.g., "clean up this area and think about whether the abstraction is right"), run them in order: Code, Architecture, Entropy.
 
 If a Code mode analysis reveals that the real problem is structural (e.g., a function is messy because it's doing three unrelated things that belong in different modules), say so and offer to switch to Architecture mode for that piece.
 
@@ -127,3 +128,20 @@ As decisions crystallize:
 - If the project has a CONTEXT.md and you've introduced or sharpened a domain term, update it inline.
 
 For dependency handling and testing strategy during deepening, see [references/DEEPENING.md](references/DEEPENING.md).
+
+---
+
+## Entropy Mode
+
+Delete what has no current load-bearing reason to exist. Code and Architecture mode reshape code; this mode removes it, so the bar is evidence, not suspicion.
+
+Core rule: a scanner produces candidates; only consumer, ownership, history, and verification evidence justifies deletion. Prefer a few proved cuts over a long speculative list. **Finding nothing safe to remove is a valid result.**
+
+Two sub-modes, taken from the user's verb:
+
+- "audit", "find", "review", "report" → inspect only, return ranked candidates, do not edit
+- "apply", "remove", "clean up", "delete" → implement the safest requested cuts and verify them
+
+Removing a reachable user capability, supported public API, persisted format, or compatibility path is a product decision, not cleanup. Surface the tradeoff before changing it.
+
+Read [references/ENTROPY.md](references/ENTROPY.md) before starting: it carries the nine candidate classes, the prove-or-reject protocol, the evidence record format, and the validation gates. Do not run this mode from memory — the whole value is in the disqualifying checks.

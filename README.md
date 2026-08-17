@@ -26,18 +26,18 @@ scout → grill → blueprint → mason → code-review → teach
 探地形    拷问     画图纸      施工      审计         内化
 ```
 
-| Skill           | Role                                                                                                       |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| **scout**       | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic |
-| **grill**       | Stress-test an idea through structured interrogation, one question at a time                               |
-| **blueprint**   | Write a decision-first `plan.md` — decisions with tradeoffs, phased tasks with acceptance blocks           |
-| **mason**       | Execute a `plan.md` phase by phase: catch up → implement → verify → commit → handoff                       |
-| **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                 |
-| **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                |
-| **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                             |
-| **delegate**    | Run a self-contained task in a separate agent session (Claude Code or Pi, auto-routed by model name)       |
-| **refine-code** | Improve existing code without changing behavior — simplify, deepen abstractions, reduce complexity         |
-| **handoff**     | Transfer context to a fresh focused session                                                                |
+| Skill           | Role                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **scout**       | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic                    |
+| **grill**       | Stress-test an idea through structured interrogation — a decision tree worked frontier-first, in rounds                       |
+| **blueprint**   | Write a decision-first `plan.md` — decisions with tradeoffs, phased tasks with acceptance blocks                              |
+| **mason**       | Execute a `plan.md` phase by phase: catch up → implement → verify → commit → handoff                                          |
+| **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                                    |
+| **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                                   |
+| **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                                                |
+| **delegate**    | Run a self-contained task in a separate agent session (Claude Code or Pi, auto-routed by model name)                          |
+| **refine-code** | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
+| **handoff**     | Transfer context to a fresh focused session                                                                                   |
 
 ## Tool & service skills
 
@@ -55,7 +55,7 @@ scout → grill → blueprint → mason → code-review → teach
 | **lark**            | Lark/Feishu workspace operations via `lark-cli`                      |
 | **openlist**        | Manage files on OpenList/AList cloud storage                         |
 
-Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**.
+Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **diagram-design**.
 
 ## Extensions (Pi)
 
