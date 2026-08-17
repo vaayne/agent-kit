@@ -1,5 +1,5 @@
 ---
-name: lark
+name: lark-cli
 description: |
   Lark/Feishu workspace operations through the `lark-cli` tool — calendar and meeting
   rooms, docs, sheets, Base (多维表格), wiki, drive, mail, IM messages, tasks, OKR,
@@ -15,7 +15,7 @@ tags:
   - workspace
 ---
 
-# Lark
+# Lark CLI
 
 `lark-cli` carries its own agent documentation, compiled into the binary and versioned
 with it. Read it from the CLI; do not work from memory and do not look for docs in this

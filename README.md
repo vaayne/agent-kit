@@ -46,7 +46,7 @@ scout → grill → blueprint → mason → code-review → teach
 | **python-script** | Robust Python automation with logging and safety checks    |
 | **cf-email**      | Send email through the Cloudflare Email Sending API        |
 | **gws**           | Google Workspace operations via the `gws` CLI              |
-| **lark**          | Lark/Feishu workspace operations via `lark-cli`            |
+| **lark-cli**      | Lark/Feishu workspace operations via `lark-cli`            |
 | **openlist**      | Manage files on OpenList/AList cloud storage               |
 
 Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **diagram-design**.
