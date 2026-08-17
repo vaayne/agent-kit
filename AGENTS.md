@@ -1,23 +1,23 @@
 # Agent Instructions
 
-## Build/Lint/Test Commands
+`_AGENTS.md` is the shared instruction file this repo ships to every framework. It is
+not this file's job to restate it; read it directly when working on its content.
 
-- `mise run format` — Format all code (ruff for Python, dprint for TS/JSON/YAML/MD)
+## Layout
 
-## Architecture
+- `skills/` — local skills, one directory per skill, plus `remote-skills.txt`
+- `extensions/` — Pi extensions, linked into `~/.pi/agent/extensions` by `mise run sync`
+- `.mise/tasks/sync/skills` — the skill sync script; everything else lives in `mise.toml`
 
-- `plugins/` — Claude Code plugins
-- `extensions/` — pi extensions
-- `skills/` — Agent skills
+## Commands
 
-## Marketplace
+- `mise run format` — dprint across TS/JSON/YAML/TOML/Markdown/HTML and ruff for Python
+- `mise run sync` — link skills, instructions, and extensions into the local frameworks
 
-- When adding new plugins or skills, update `.claude-plugin/marketplace.json` to register them
+`mise run sync` runs `format` at the end, so a sync can leave formatting changes in the
+working tree. Commit them separately.
 
-## Code Style
+## Code style
 
-- **Python:** Python 3.12+, ruff (88-char lines, double quotes), snake_case, type hints required
-- **TypeScript:** Strict mode, camelCase functions, PascalCase types, Zod for validation, biome for linting
-- **Go:** Standard gofmt, internal/ for private packages
-- **Commits:** Scoped Commits (`<scope>: <description>`); emoji after `:` is fine; no `feat`/`fix`
-- Never commit secrets; use env vars for credentials
+- **Python:** 3.12+, ruff (88-char lines, double quotes), snake_case, type hints required
+- **TypeScript:** strict mode, camelCase functions, PascalCase types, Zod for validation

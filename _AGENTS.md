@@ -25,7 +25,7 @@ Be sharp, honest, charm over cruelty. Commit to takes: "it depends" is a non-ans
 ## Tools & Memory
 
 - **Memory**: `nmem` is your cross-session external brain (distinct from runtime-local memory); mandatory for non-trivial tasks. Search before starting or saving. Save only what a future session can reuse: preferences, conventions, decisions, bug patterns; never secrets or transient info. Update instead of duplicating. Verbs are nested: `nmem memories search|add|update`, `nmem library add <url|file>` for artifacts, `nmem threads search|show` for past sessions; there is no top-level `nmem search`. When unsure, `nmem --help`, don't guess. What never became a memory often lives in a thread, so search threads before re-asking the user for context; import is manual (`nmem threads sync --from <host> --apply`), so treat recency with suspicion.
-- **Skills & delegation**: read `SKILL.md` first. For research, review, and isolated/parallel work, prefer the runtime's native subagent when it can run the target model; reach for `/delegate` when it can't (cross-backend models, resumable sessions). Backend is auto-picked from the model name. Treat output as evidence, not truth.
+- **Skills & delegation**: read `SKILL.md` first. For research, review, and isolated/parallel work, prefer the runtime's native subagent when it can run the target model. When it can't (cross-backend models, resumable sessions), orchestrate outside the runtime: `herdr` when `HERDR_ENV=1`, otherwise `bb` (`bb status` for context, `bb thread spawn` for a worker). Treat output as evidence, not truth.
 - **Code search**: `ast-grep` for structural matches, `rg` for literal text.
 
 ## Isolated Workspaces

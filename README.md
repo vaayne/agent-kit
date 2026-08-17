@@ -7,9 +7,8 @@ A curated collection of skills, extensions, and instructions for AI coding agent
 Requires [mise](https://mise.jdx.dev/).
 
 ```bash
-git clone --recursive https://github.com/vaayne/agent-kit.git
+git clone https://github.com/vaayne/agent-kit.git
 cd agent-kit
-mise run setup        # submodules, dependencies
 
 mise run sync             # everything: skills + instructions + extensions
 mise run sync:skills      # link local skills + install remote skills in ~/.agents/skills
@@ -35,37 +34,32 @@ scout → grill → blueprint → mason → code-review → teach
 | **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                                    |
 | **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                                   |
 | **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                                                |
-| **delegate**    | Run a self-contained task in a separate agent session (Claude Code or Pi, auto-routed by model name)                          |
 | **refine-code** | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
 | **handoff**     | Transfer context to a fresh focused session                                                                                   |
 
 ## Tool & service skills
 
-| Skill             | Description                                                      |
-| ----------------- | ---------------------------------------------------------------- |
-| **curator**       | Maintain the nmem knowledge base — lint + synthesis passes       |
-| **tap-web**       | Web access, search, extraction, and browser automation via `tap` |
-| **humanizer**     | Strip AI writing patterns from prose                             |
-| **python-script** | Robust Python automation with logging and safety checks          |
-| **cf-email**      | Send email through the Cloudflare Email Sending API              |
-| **gws**           | Google Workspace operations via the `gws` CLI                    |
-| **lark**          | Lark/Feishu workspace operations via `lark-cli`                  |
-| **openlist**      | Manage files on OpenList/AList cloud storage                     |
+| Skill             | Description                                                |
+| ----------------- | ---------------------------------------------------------- |
+| **curator**       | Maintain the nmem knowledge base — lint + synthesis passes |
+| **humanizer**     | Strip AI writing patterns from prose                       |
+| **python-script** | Robust Python automation with logging and safety checks    |
+| **cf-email**      | Send email through the Cloudflare Email Sending API        |
+| **gws**           | Google Workspace operations via the `gws` CLI              |
+| **lark**          | Lark/Feishu workspace operations via `lark-cli`            |
+| **openlist**      | Manage files on OpenList/AList cloud storage               |
 
 Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **diagram-design**.
 
 ## Extensions (Pi)
 
-| Extension              | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| **delegate**           | Delegate tasks to specialized presets                          |
-| **cliproxy-provider**  | Register a `cliproxy` provider from a `/v1/models` endpoint    |
-| **firework-provider**  | Fireworks provider with router model and tool-field sanitizing |
-| **codex-usage-status** | Show Codex usage windows in the status line                    |
-| **model-context**      | Tell the agent its active Pi model without changing the prompt |
-| **notify**             | Play a sound when the agent finishes a task                    |
-
-Delegate presets: **librarian** (code research), **oracle** (architecture analysis), **reviewer** (correctness/risk review), **search** (fast retrieval), **ui-engineer** (visual/UI), **worker** (general execution).
+| Extension                       | Description                                                    |
+| ------------------------------- | -------------------------------------------------------------- |
+| **auto-continue-after-compact** | Continue the task automatically after a threshold compaction   |
+| **cliproxy-provider**           | Register a `cliproxy` provider from a `/v1/models` endpoint    |
+| **firework-provider**           | Fireworks provider with router model and tool-field sanitizing |
+| **codex-usage-status**          | Show Codex usage windows in the status line                    |
+| **model-context**               | Tell the agent its active Pi model without changing the prompt |
 
 ## Project structure
 
