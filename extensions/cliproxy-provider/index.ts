@@ -12,7 +12,9 @@ import { dirname, join } from "node:path";
 
 const CLIPROXY_PROVIDER = "cliproxy";
 const CLIPROXY_BASE_URL_ENV = "CLIPROXY_BASE_URL";
-const CLIPROXY_API_KEY_ENV = "$CLIPROXY_API_KEY";
+const CLIPROXY_API_KEY_ENV = "CLIPROXY_API_KEY";
+// Pi config-value interpolation uses "$VAR"; the env lookup uses the bare name.
+const CLIPROXY_API_KEY_CONFIG = `$${CLIPROXY_API_KEY_ENV}`;
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
 const MODEL_CACHE_PATH = join(homedir(), ".cache", "pi", "cliproxy-models.json");
 
@@ -166,7 +168,7 @@ export default async function cliproxyProvider(pi: ExtensionAPI) {
 
   pi.registerProvider(CLIPROXY_PROVIDER, {
     baseUrl,
-    apiKey: CLIPROXY_API_KEY_ENV,
+    apiKey: CLIPROXY_API_KEY_CONFIG,
     api: "anthropic-messages",
     models: await getModels(baseUrl, apiKey),
   });
