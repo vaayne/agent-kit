@@ -130,7 +130,7 @@ async function writeModelCache(baseUrl: string, models: ProviderModelConfig[]): 
 }
 
 async function fetchModels(baseUrl: string, apiKey: string, signal?: AbortSignal): Promise<ProviderModelConfig[]> {
-  const response = await fetch(`${baseUrl}/v1/models`, {
+  const response = await fetch(`${baseUrl}/models`, {
     headers: { authorization: `Bearer ${apiKey}` },
     signal,
   });
@@ -176,7 +176,7 @@ export default async function cpaProvider(pi: ExtensionAPI) {
   // No apiKey here: the stored credential outranks provider config in pi's auth composer.
   pi.registerProvider(PROVIDER, {
     baseUrl,
-    api: "anthropic-messages",
+    api: "openai-responses",
     models,
     // Returning the last known list keeps the offline phase from blanking the catalog.
     async refreshModels({ allowNetwork, force, signal }) {
