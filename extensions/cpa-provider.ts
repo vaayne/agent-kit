@@ -1,22 +1,21 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, readStoredCredential } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 /**
- * Pi extension for the Cliproxy provider.
+ * Registers the `cpa` provider from its OpenAI-compatible `/v1/models` endpoint.
  *
- * Fetches the available model list from Cliproxy's OpenAI-compatible
- * `/v1/models` endpoint before registering the provider.
+ * Credentials come from the `cpa` entry in `~/.pi/agent/auth.json`, with the
+ * gateway URL in the credential's provider-scoped `env`:
+ *
+ *   { "cpa": { "type": "api_key", "key": "sk-...", "env": { "CPA_BASE_URL": "https://..." } } }
  */
 
-const CLIPROXY_PROVIDER = "cliproxy";
-const CLIPROXY_BASE_URL_ENV = "CLIPROXY_BASE_URL";
-const CLIPROXY_API_KEY_ENV = "CLIPROXY_API_KEY";
-// Pi config-value interpolation uses "$VAR"; the env lookup uses the bare name.
-const CLIPROXY_API_KEY_CONFIG = `$${CLIPROXY_API_KEY_ENV}`;
+const PROVIDER = "cpa";
+const BASE_URL_KEY = "CPA_BASE_URL";
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
-const MODEL_CACHE_PATH = join(homedir(), ".cache", "pi", "cliproxy-models.json");
+const MODEL_CACHE_PATH = join(homedir(), ".cache", "pi", "cpa-models.json");
 
 type ProviderModelConfig = {
   id: string;
@@ -85,10 +84,6 @@ function isModelCache(value: unknown): value is ModelCache {
   );
 }
 
-function getEnv(name: string): string | undefined {
-  return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.[name];
-}
-
 function toNumber(value: unknown, fallback: number): number {
   return typeof value === "number" ? value : fallback;
 }
@@ -137,7 +132,7 @@ async function writeModelCache(baseUrl: string, models: ProviderModelConfig[]): 
 async function fetchModels(baseUrl: string, apiKey: string): Promise<ProviderModelConfig[]> {
   const response = await fetch(`${baseUrl}/v1/models`, { headers: { authorization: `Bearer ${apiKey}` } });
   if (!response.ok) {
-    throw new Error(`Failed to fetch Cliproxy models: ${response.status} ${response.statusText}`);
+    throw new Error(`Failed to fetch ${PROVIDER} models: ${response.status} ${response.statusText}`);
   }
 
   const body = (await response.json()) as ModelsResponse;
@@ -161,15 +156,17 @@ async function getModels(baseUrl: string, apiKey: string): Promise<ProviderModel
   }
 }
 
-export default async function cliproxyProvider(pi: ExtensionAPI) {
-  const baseUrl = getEnv(CLIPROXY_BASE_URL_ENV);
-  const apiKey = getEnv(CLIPROXY_API_KEY_ENV);
-  if (!baseUrl || !apiKey) return;
+export default async function cpaProvider(pi: ExtensionAPI) {
+  const credential = readStoredCredential(PROVIDER);
+  if (credential?.type !== "api_key" || !credential.key) return;
 
-  pi.registerProvider(CLIPROXY_PROVIDER, {
+  const baseUrl = credential.env?.[BASE_URL_KEY];
+  if (!baseUrl) return;
+
+  // No apiKey here: the stored credential outranks provider config in pi's auth composer.
+  pi.registerProvider(PROVIDER, {
     baseUrl,
-    apiKey: CLIPROXY_API_KEY_CONFIG,
     api: "anthropic-messages",
-    models: await getModels(baseUrl, apiKey),
+    models: await getModels(baseUrl, credential.key),
   });
 }
