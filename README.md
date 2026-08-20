@@ -53,12 +53,12 @@ Remote skills installed during sync (see [skills/remote-skills.txt](skills/remot
 
 ## Extensions (Pi)
 
-| Extension                       | Description                                                    |
-| ------------------------------- | -------------------------------------------------------------- |
-| **auto-continue-after-compact** | Continue the task automatically after a threshold compaction   |
-| **cliproxy-provider**           | Register a `cliproxy` provider from a `/v1/models` endpoint    |
-| **codex-usage-status**          | Show Codex usage windows in the status line                    |
-| **model-context**               | Tell the agent its active Pi model without changing the prompt |
+| Extension                       | Description                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| **auto-continue-after-compact** | Continue the task automatically after a threshold compaction                   |
+| **generic-provider**            | Register configurable API providers from `auth.json`, enriched with models.dev |
+| **codex-usage-status**          | Show Codex usage windows in the status line                                    |
+| **model-context**               | Tell the agent its active Pi model without changing the prompt                 |
 
 ## Project structure
 
@@ -68,6 +68,34 @@ agent-kit/
 ├── skills/       # Local skills + remote-skills.txt registry
 └── extensions/   # Pi extensions
 ```
+
+### Generic Pi providers
+
+`generic-provider.ts` registers one provider for every `api_key` entry in
+`~/.pi/agent/auth.json` that has `PI_PROVIDER_BASE_URL`. The auth key is the
+provider ID and the model list is fetched from the endpoint according to
+`PI_PROVIDER_API`.
+
+```json
+{
+  "my-gateway": {
+    "type": "api_key",
+    "key": "sk-...",
+    "env": {
+      "PI_PROVIDER_BASE_URL": "https://gateway.example.com/v1",
+      "PI_PROVIDER_API": "openai-responses"
+    }
+  }
+}
+```
+
+`PI_PROVIDER_API` supports `openai-responses`, `openai-completions`, and
+`anthropic-messages`, and defaults to `openai-responses`. OpenAI providers use
+`{PI_PROVIDER_BASE_URL}/models`; Anthropic providers use
+`{PI_PROVIDER_BASE_URL}/v1/models`. Keep the auth credential `type` as
+`api_key`, because Pi validates that field independently from the API adapter
+type. Pricing, context limits, and modalities are enriched from models.dev; the
+provider's own model-list response remains the availability source.
 
 ## License
 

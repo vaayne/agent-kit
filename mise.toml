@@ -15,7 +15,7 @@ description = "Symlink Pi extensions into ~/.pi/agent/extensions"
 run = """
 EXT_DIR="$HOME/.pi/agent/extensions"
 mkdir -p "$EXT_DIR"
-for ext in auto-continue-after-compact.ts codex-usage-status.ts cpa-provider.ts model-context.ts; do
+for ext in auto-continue-after-compact.ts codex-usage-status.ts generic-provider.ts model-context.ts; do
   ln -sfn "$PWD/extensions/$ext" "$EXT_DIR/$ext"
 done
 echo "Linked Pi extensions to $EXT_DIR"

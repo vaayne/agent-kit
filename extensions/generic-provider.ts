@@ -1,26 +1,47 @@
-import { type ExtensionAPI, readStoredCredential } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 /**
- * Registers the `cpa` provider from its OpenAI-compatible `/v1/models` endpoint.
+ * Registers configurable API providers from auth.json.
  *
- * CPA determines which model IDs are available. models.dev provides their canonical
- * metadata because CPA's model endpoint only reliably exposes IDs.
+ * The provider ID is the auth.json key. A generic provider uses:
  *
- * Credentials come from the `cpa` entry in `~/.pi/agent/auth.json`, with the
- * gateway URL in the credential's provider-scoped `env`:
+ *   {
+ *     "my-gateway": {
+ *       "type": "api_key",
+ *       "key": "sk-...",
+ *       "env": {
+ *         "PI_PROVIDER_BASE_URL": "https://example.com/v1",
+ *         "PI_PROVIDER_API": "openai-responses"
+ *       }
+ *     }
+ *   }
  *
- *   { "cpa": { "type": "api_key", "key": "sk-...", "env": { "CPA_BASE_URL": "https://..." } } }
+ * The credential `type` must stay `api_key`; Pi validates that field before
+ * loading extensions. `PI_PROVIDER_API` selects the Pi streaming adapter and
+ * model discovery format. OpenAI APIs use `{baseUrl}/models`; Anthropic Messages uses
+ * `{baseUrl}/v1/models`.
+ *
+ * Model IDs determine availability; models.dev supplies canonical pricing and limits.
  */
 
-const PROVIDER = "cpa";
-const BASE_URL_KEY = "CPA_BASE_URL";
+const GENERIC_BASE_URL_KEY = "PI_PROVIDER_BASE_URL";
+const GENERIC_API_KEY = "PI_PROVIDER_API";
+const DEFAULT_API = "openai-responses";
+const SUPPORTED_APIS = [
+  "openai-responses",
+  "openai-completions",
+  "anthropic-messages",
+] as const;
+const AUTH_FILE = join(getAgentDir(), "auth.json");
 const MODELS_DEV_API_URL = "https://models.dev/api.json";
 const MODELS_DEV_MODELS_URL = "https://models.dev/models.json";
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
-const MODEL_CACHE_PATH = join(homedir(), ".cache", "pi", "cpa-models-v3.json");
+const MODEL_CACHE_DIR = join(homedir(), ".cache", "pi", "provider-models-v1");
+
+type SupportedApi = (typeof SUPPORTED_APIS)[number];
 
 type ModelCost = {
   input: number;
@@ -47,9 +68,24 @@ type ProviderModelConfig = {
 };
 
 type ModelCache = {
+  providerId: string;
+  api: SupportedApi;
   baseUrl: string;
   fetchedAt: number;
   models: ProviderModelConfig[];
+};
+
+type StoredCredential = {
+  type?: unknown;
+  key?: unknown;
+  env?: unknown;
+};
+
+type ConfiguredProvider = {
+  id: string;
+  baseUrl: string;
+  apiKey: string;
+  api: SupportedApi;
 };
 
 type GatewayModel = {
@@ -149,11 +185,65 @@ function isModelCache(value: unknown): value is ModelCache {
   if (typeof value !== "object" || value === null) return false;
   const cache = value as ModelCache;
   return (
-    typeof cache.baseUrl === "string"
+    typeof cache.providerId === "string"
+    && SUPPORTED_APIS.includes(cache.api)
+    && typeof cache.baseUrl === "string"
     && typeof cache.fetchedAt === "number"
     && Array.isArray(cache.models)
     && cache.models.every(isProviderModelConfig)
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function configuredValue(credential: StoredCredential, key: string): string | undefined {
+  const env = isRecord(credential.env) ? credential.env : {};
+  return stringValue(env[key]);
+}
+
+function parseApi(providerId: string, value: string | undefined): SupportedApi {
+  const api = value ?? DEFAULT_API;
+  if ((SUPPORTED_APIS as readonly string[]).includes(api)) return api as SupportedApi;
+  throw new Error(
+    `Provider ${providerId}: unsupported API "${api}". `
+      + `Supported APIs: ${SUPPORTED_APIS.join(", ")}`,
+  );
+}
+
+async function readConfiguredProviders(): Promise<ConfiguredProvider[]> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(AUTH_FILE, "utf8")) as unknown;
+  } catch {
+    return [];
+  }
+  if (!isRecord(parsed)) return [];
+
+  return Object.entries(parsed).flatMap(([id, rawCredential]) => {
+    if (!isRecord(rawCredential) || rawCredential.type !== "api_key") return [];
+    const credential = rawCredential as StoredCredential;
+    const baseUrl = configuredValue(credential, GENERIC_BASE_URL_KEY);
+    const api = configuredValue(credential, GENERIC_API_KEY);
+    const apiKey = stringValue(credential.key);
+    if (!baseUrl || !apiKey) return [];
+
+    return [{
+      id,
+      baseUrl: baseUrl.replace(/\/+$/, ""),
+      apiKey,
+      api: parseApi(id, api),
+    }];
+  });
+}
+
+function modelCachePath(providerId: string): string {
+  return join(MODEL_CACHE_DIR, `${encodeURIComponent(providerId)}.json`);
 }
 
 function numberOr(value: unknown, fallback: number): number {
@@ -271,31 +361,45 @@ function enrichModel(gatewayModel: GatewayModel, catalog: ModelsDevCatalog): Pro
   };
 }
 
-async function readModelCache(): Promise<ModelCache | undefined> {
+async function readModelCache(providerId: string, api: SupportedApi): Promise<ModelCache | undefined> {
   try {
-    const cache = JSON.parse(await readFile(MODEL_CACHE_PATH, "utf8")) as unknown;
-    return isModelCache(cache) ? cache : undefined;
+    const cache = JSON.parse(await readFile(modelCachePath(providerId), "utf8")) as unknown;
+    return isModelCache(cache) && cache.providerId === providerId && cache.api === api
+      ? cache
+      : undefined;
   } catch {
     return undefined;
   }
 }
 
-async function writeModelCache(baseUrl: string, models: ProviderModelConfig[]): Promise<void> {
-  await mkdir(dirname(MODEL_CACHE_PATH), { recursive: true });
-  await writeFile(MODEL_CACHE_PATH, JSON.stringify({ baseUrl, fetchedAt: Date.now(), models }, null, 2));
+async function writeModelCache(
+  providerId: string,
+  baseUrl: string,
+  api: SupportedApi,
+  models: ProviderModelConfig[],
+): Promise<void> {
+  await mkdir(MODEL_CACHE_DIR, { recursive: true });
+  await writeFile(
+    modelCachePath(providerId),
+    JSON.stringify({ providerId, api, baseUrl, fetchedAt: Date.now(), models }, null, 2),
+  );
 }
 
 async function fetchGatewayModels(
+  providerId: string,
   baseUrl: string,
+  api: SupportedApi,
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<GatewayModel[]> {
-  const response = await fetch(`${baseUrl}/models`, {
-    headers: { authorization: `Bearer ${apiKey}` },
-    signal,
-  });
+  const isAnthropic = api === "anthropic-messages";
+  const modelsUrl = isAnthropic ? `${baseUrl}/v1/models` : `${baseUrl}/models`;
+  const headers: Record<string, string> = isAnthropic
+    ? { "x-api-key": apiKey, "anthropic-version": "2023-06-01" }
+    : { authorization: `Bearer ${apiKey}` };
+  const response = await fetch(modelsUrl, { headers, signal });
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${PROVIDER} models: ${response.status} ${response.statusText}`);
+    throw new Error(`Failed to fetch ${providerId} models: ${response.status} ${response.statusText}`);
   }
 
   const body = (await response.json()) as ModelsResponse;
@@ -318,10 +422,28 @@ async function fetchModelsDevCatalog(signal?: AbortSignal): Promise<ModelsDevCat
   };
 }
 
-async function fetchModels(baseUrl: string, apiKey: string, signal?: AbortSignal): Promise<ProviderModelConfig[]> {
+let modelsDevCatalogPromise: Promise<ModelsDevCatalog> | undefined;
+
+function getModelsDevCatalog(): Promise<ModelsDevCatalog> {
+  if (!modelsDevCatalogPromise) {
+    modelsDevCatalogPromise = fetchModelsDevCatalog().catch((error) => {
+      modelsDevCatalogPromise = undefined;
+      throw error;
+    });
+  }
+  return modelsDevCatalogPromise;
+}
+
+async function fetchModels(
+  providerId: string,
+  baseUrl: string,
+  api: SupportedApi,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<ProviderModelConfig[]> {
   const [gatewayResult, catalogResult] = await Promise.allSettled([
-    fetchGatewayModels(baseUrl, apiKey, signal),
-    fetchModelsDevCatalog(signal),
+    fetchGatewayModels(providerId, baseUrl, api, apiKey, signal),
+    getModelsDevCatalog(),
   ]);
   if (gatewayResult.status === "rejected") throw gatewayResult.reason;
 
@@ -332,24 +454,26 @@ async function fetchModels(baseUrl: string, apiKey: string, signal?: AbortSignal
       .filter((model) => model !== undefined);
   }
 
-  // models.dev is metadata only. CPA availability must remain usable during an outage.
+  // models.dev is metadata only. Provider availability must remain usable during an outage.
   return gatewayModels.map(toGatewayModelConfig).filter((model) => model !== undefined);
 }
 
 async function getModels(
+  providerId: string,
   baseUrl: string,
+  api: SupportedApi,
   apiKey: string,
   options: { force?: boolean; signal?: AbortSignal } = {},
 ): Promise<ProviderModelConfig[]> {
-  const cache = await readModelCache();
+  const cache = await readModelCache(providerId, api);
   const matchingCache = cache?.baseUrl === baseUrl ? cache : undefined;
   if (!options.force && matchingCache && Date.now() - matchingCache.fetchedAt < MODEL_CACHE_TTL_MS) {
     return matchingCache.models;
   }
 
   try {
-    const models = await fetchModels(baseUrl, apiKey, options.signal);
-    await writeModelCache(baseUrl, models);
+    const models = await fetchModels(providerId, baseUrl, api, apiKey, options.signal);
+    await writeModelCache(providerId, baseUrl, api, models);
     return models;
   } catch (error) {
     if (matchingCache) return matchingCache.models;
@@ -357,27 +481,25 @@ async function getModels(
   }
 }
 
-export default async function cpaProvider(pi: ExtensionAPI) {
-  const credential = readStoredCredential(PROVIDER);
-  if (credential?.type !== "api_key" || !credential.key) return;
+export default async function genericProvider(pi: ExtensionAPI) {
+  const providers = await readConfiguredProviders();
 
-  const apiKey = credential.key;
-  const baseUrl = credential.env?.[BASE_URL_KEY];
-  if (!baseUrl) return;
+  for (const provider of providers) {
+    let models = await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey);
 
-  let models = await getModels(baseUrl, apiKey);
-
-  // No apiKey here: the stored credential outranks provider config in pi's auth composer.
-  pi.registerProvider(PROVIDER, {
-    baseUrl,
-    api: "openai-responses",
-    models,
-    // Returning the last known list keeps the offline phase from blanking the catalog.
-    async refreshModels({ allowNetwork, force, signal }) {
-      if (allowNetwork) {
-        models = await getModels(baseUrl, apiKey, { force, signal });
-      }
-      return models;
-    },
-  });
+    // Do not pass apiKey here. Pi's auth composer resolves the stored credential
+    // for requests, preserving its normal auth precedence and refresh behavior.
+    pi.registerProvider(provider.id, {
+      baseUrl: provider.baseUrl,
+      api: provider.api,
+      models,
+      // Returning the last known list keeps the offline phase from blanking the catalog.
+      async refreshModels({ allowNetwork, force, signal }) {
+        if (allowNetwork) {
+          models = await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey, { force, signal });
+        }
+        return models;
+      },
+    });
+  }
 }
