@@ -129,8 +129,11 @@ async function writeModelCache(baseUrl: string, models: ProviderModelConfig[]): 
   await writeFile(MODEL_CACHE_PATH, JSON.stringify({ baseUrl, fetchedAt: Date.now(), models }, null, 2));
 }
 
-async function fetchModels(baseUrl: string, apiKey: string): Promise<ProviderModelConfig[]> {
-  const response = await fetch(`${baseUrl}/v1/models`, { headers: { authorization: `Bearer ${apiKey}` } });
+async function fetchModels(baseUrl: string, apiKey: string, signal?: AbortSignal): Promise<ProviderModelConfig[]> {
+  const response = await fetch(`${baseUrl}/v1/models`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+    signal,
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch ${PROVIDER} models: ${response.status} ${response.statusText}`);
   }
@@ -139,15 +142,19 @@ async function fetchModels(baseUrl: string, apiKey: string): Promise<ProviderMod
   return (body.data ?? []).map(toModelConfig).filter((model) => model !== undefined);
 }
 
-async function getModels(baseUrl: string, apiKey: string): Promise<ProviderModelConfig[]> {
+async function getModels(
+  baseUrl: string,
+  apiKey: string,
+  options: { force?: boolean; signal?: AbortSignal } = {},
+): Promise<ProviderModelConfig[]> {
   const cache = await readModelCache();
   const matchingCache = cache?.baseUrl === baseUrl ? cache : undefined;
-  if (matchingCache && Date.now() - matchingCache.fetchedAt < MODEL_CACHE_TTL_MS) {
+  if (!options.force && matchingCache && Date.now() - matchingCache.fetchedAt < MODEL_CACHE_TTL_MS) {
     return matchingCache.models;
   }
 
   try {
-    const models = await fetchModels(baseUrl, apiKey);
+    const models = await fetchModels(baseUrl, apiKey, options.signal);
     await writeModelCache(baseUrl, models);
     return models;
   } catch (error) {
@@ -160,13 +167,23 @@ export default async function cpaProvider(pi: ExtensionAPI) {
   const credential = readStoredCredential(PROVIDER);
   if (credential?.type !== "api_key" || !credential.key) return;
 
+  const apiKey = credential.key;
   const baseUrl = credential.env?.[BASE_URL_KEY];
   if (!baseUrl) return;
+
+  let models = await getModels(baseUrl, apiKey);
 
   // No apiKey here: the stored credential outranks provider config in pi's auth composer.
   pi.registerProvider(PROVIDER, {
     baseUrl,
     api: "anthropic-messages",
-    models: await getModels(baseUrl, credential.key),
+    models,
+    // Returning the last known list keeps the offline phase from blanking the catalog.
+    async refreshModels({ allowNetwork, force, signal }) {
+      if (allowNetwork) {
+        models = await getModels(baseUrl, apiKey, { force, signal });
+      }
+      return models;
+    },
   });
 }
