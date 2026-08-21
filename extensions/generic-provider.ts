@@ -39,6 +39,8 @@ const AUTH_FILE = join(getAgentDir(), "auth.json");
 const MODELS_DEV_API_URL = "https://models.dev/api.json";
 const MODELS_DEV_MODELS_URL = "https://models.dev/models.json";
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_CONTEXT_WINDOW = 256 * 1024;
+const DEFAULT_MAX_TOKENS = 32 * 1024;
 const MODEL_CACHE_DIR = join(homedir(), ".cache", "pi", "provider-models-v1");
 
 type SupportedApi = (typeof SUPPORTED_APIS)[number];
@@ -269,18 +271,18 @@ function toGatewayModelConfig(model: GatewayModel): ProviderModelConfig | undefi
   return {
     id: model.id,
     name: toGatewayModelName({ ...model, id: model.id }),
-    reasoning: typeof model.reasoning === "boolean" ? model.reasoning : true,
+    reasoning: typeof model.reasoning === "boolean" ? model.reasoning : false,
     input: Array.isArray(model.input) && model.input.every((entry) => entry === "text" || entry === "image")
       ? model.input
-      : ["text", "image"],
+      : ["text"],
     cost: {
       input: numberOr(cost?.input, 0),
       output: numberOr(cost?.output, 0),
       cacheRead: numberOr(cost?.cacheRead, 0),
       cacheWrite: numberOr(cost?.cacheWrite, 0),
     },
-    contextWindow: numberOr(model.contextWindow ?? model.context_window, 262144),
-    maxTokens: numberOr(model.maxTokens ?? model.max_tokens, 262144),
+    contextWindow: numberOr(model.contextWindow ?? model.context_window, DEFAULT_CONTEXT_WINDOW),
+    maxTokens: numberOr(model.maxTokens ?? model.max_tokens, DEFAULT_MAX_TOKENS),
   };
 }
 
@@ -356,7 +358,7 @@ function enrichModel(gatewayModel: GatewayModel, catalog: ModelsDevCatalog): Pro
     reasoning: typeof model.reasoning === "boolean" ? model.reasoning : fallback.reasoning,
     input: supportsImage ? ["text", "image"] : ["text"],
     cost: toModelsDevCost(model.cost, fallback.cost),
-    contextWindow: numberOr(model.limit?.context, fallback.contextWindow),
+    contextWindow: numberOr(model.limit?.context, DEFAULT_CONTEXT_WINDOW),
     maxTokens: numberOr(model.limit?.output, fallback.maxTokens),
   };
 }
