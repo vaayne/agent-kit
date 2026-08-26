@@ -4,12 +4,14 @@ import { deriveTaskState, type DerivedPullRequest, type DerivedThread } from "./
 import { parseNext } from "./next.js";
 import { TaskBindings, taskInstructions } from "./task-bindings.js";
 import {
+  createComment,
   createTask,
   listComments,
   listProjects,
   listTaskThreads,
   listTasks,
   taskThreadsAttach,
+  updateTask,
   type Task,
   type TaskComment,
   type TaskThread,
@@ -104,6 +106,14 @@ export const taskNavigatorRpc = defineRpcContract({
       taskKey: z.string(),
       attachedThreadIds: z.array(z.string().startsWith("thr_")),
     }).strict(),
+  },
+  archiveStale: {
+    input: z.object({ taskIds: z.array(z.string()).min(1) }).strict(),
+    output: z.object({ archivedTaskIds: z.array(z.string()) }).strict(),
+  },
+  writeNext: {
+    input: z.object({ taskId: z.string(), next: z.string().trim().min(1) }).strict(),
+    output: z.object({ ok: z.literal(true) }).strict(),
   },
 });
 
@@ -437,6 +447,19 @@ export default function plugin(bb: BbPluginApi) {
       bindings.remember(result.task, attachedThreadIds.map((candidate) => ({ threadId: candidate })));
       publishOverviewChanged();
       return { taskKey: taskKey(result.task), attachedThreadIds };
+    },
+    async archiveStale({ taskIds }) {
+      await Promise.all(taskIds.map(async (taskId) => {
+        const result = await updateTask(bb, { taskId, status: "canceled" });
+        if (!result.ok) throw new Error(result.error.message);
+      }));
+      publishOverviewChanged();
+      return { archivedTaskIds: taskIds };
+    },
+    async writeNext({ taskId, next }) {
+      await createComment(bb, { taskId, body: `Next: ${next}` });
+      publishOverviewChanged();
+      return { ok: true as const };
     },
   });
 }

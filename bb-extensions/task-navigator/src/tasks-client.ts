@@ -109,6 +109,10 @@ const createTaskOutputSchema = z.discriminatedUnion("ok", [
     error: z.object({ code: z.string(), message: z.string() }).passthrough(),
   }).strict(),
 ]);
+const updateTaskOutputSchema = createTaskOutputSchema;
+const createCommentOutputSchema = z
+  .object({ comment: commentSchema })
+  .strict();
 const getTaskOutputSchema = z
   .object({ task: taskSchema.nullable() })
   .strict();
@@ -167,6 +171,37 @@ export async function createTask(
       title: z.string().trim().min(1).parse(input.title),
     },
     outputSchema: createTaskOutputSchema,
+  });
+}
+
+export async function updateTask(
+  bb: BbPluginApi,
+  input: { taskId: string; status: "canceled" },
+): Promise<z.infer<typeof updateTaskOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "updateTask",
+    input: {
+      taskId: taskIdSchema.parse(input.taskId),
+      status: input.status,
+    },
+    outputSchema: updateTaskOutputSchema,
+  });
+}
+
+export async function createComment(
+  bb: BbPluginApi,
+  input: { taskId: string; body: string; notify?: boolean },
+): Promise<z.infer<typeof createCommentOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "createComment",
+    input: {
+      taskId: taskIdSchema.parse(input.taskId),
+      body: z.string().trim().min(1).parse(input.body),
+      notify: input.notify ?? false,
+    },
+    outputSchema: createCommentOutputSchema,
   });
 }
 
