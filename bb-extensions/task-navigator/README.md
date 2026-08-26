@@ -23,6 +23,10 @@ plugin also adds a **全景** board page with a **收件箱** fixed tab.
 
 ## Sidebar
 
+A dashed **PMO** row sits above everything when the `pmoThreadId` setting names
+a thread: the standing PMO thread that runs the scheduled sweep and answers any
+question about tasks. It is never filed under a task. See [PMO](#pmo).
+
 The sidebar has four quiet sections:
 
 - **轮到你** shows tasks with a pending interaction, a failing or reviewable
@@ -66,6 +70,33 @@ task key and the handoff convention through `bb.agents.configure`.
 
 The latest task comment whose first line starts with `Next:` or `Next：` is the
 current handoff. `Next: none` means there is no next step.
+
+## Time and status history
+
+Tasks only store `createdAt`, so the overview derives the rest: `startedAt` is
+the first thread attachment, `doneAt` is recorded by the plugin when it first
+observes `status = done` (kv key `status-log`; tasks finished before the plugin
+ran fall back to `updatedAt`). Every observed status change also posts a
+comment `Status: a → b` on the task, so the trail survives a kv reset. The
+board header shows the median created-to-done cycle over 最近完成.
+
+## PMO
+
+`scripts/pmo-instructions.md` is the standing brief for a persistent PMO
+thread (spawned once with `bb thread spawn --title PMO --prompt "$(cat …)"`,
+then `bb plugin config task-navigator set pmoThreadId <thr_…>`). A
+`bb automation` with `--target-thread` sends "巡检" into it on a cron; the
+thread runs `scripts/pmo-sweep.py --apply`, which is the deterministic half:
+
+| Rule | Action |
+| --- | --- |
+| every PR merged, no live thread, status ≠ done | mark done + comment |
+| `Next:` older than 3 days | listed for the agent to nudge or rewrite |
+| stalled (no `Next:`) | listed with the primary thread; the agent reads its output and writes `Next:` |
+| stalled > 30 days | listed for V; never canceled automatically |
+
+The script never cancels or deletes; ask the PMO thread anything about tasks
+between sweeps.
 
 ## State table
 

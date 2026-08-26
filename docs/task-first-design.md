@@ -99,6 +99,8 @@
 - 底部一行 usage（"Claude 42% · Codex 6%"），贴着设置按钮上方，点开看每个窗口。
   沿用 workspace-navigator 的取数，只是从顶部第一段降到底部一行，少抢注意力。
 - 没有计数徽章，没有 provider 名，没有未读点。沿用 navigator 已经验证过的克制。
+- 最顶上一行虚线框 **PMO**：常驻的 PMO 线程，不归任何 task。它是"找谁追踪 task"的
+  答案：定时巡检往这里跑，随时问它任何 task 的情况。设置 `pmoThreadId` 为空则不显示。
 
 ### 4.2 线程面板：这个线程属于什么
 
@@ -192,6 +194,18 @@ UI 挂点冲突检查：tasks 自带 UI 占了 `navPanel`（它的看板页）�
 （::task 卡片）、`messageDirective`。本 plugin 用 `experimental_threadList` 和自己的
 `navPanel` 路由，线程面板复用它的卡片而不是再做一个。4.2 相应缩小：只在它的
 卡片之上补"你上次在这里做到"和改绑动作，能复用就不重做。
+
+## 6.5 PMO 与时间维度
+
+- **PMO 是一个线程，不是一段代码。** 确定性的规则放脚本（`scripts/pmo-sweep.py`：
+  PR 全合并且无线程在跑 → done；Next 超 3 天、停了、停超 30 天各列一份），需要判断的
+  部分交给线程（读线程输出写 `Next:`，催 agent，给 V 写简报）。automation 用
+  `--target-thread` 把「巡检」定时投进这个线程，V 也能随时在同一个线程里提问，历史不散。
+- **PMO 不取消、不删除、不主动 spawn。** 关掉一个 task 是 V 的决定，PMO 只列出来。
+- **时间三点：createdAt、startedAt、doneAt。** Tasks 只有 createdAt；startedAt 取第一个
+  线程 attach 的时间；doneAt 由 plugin 在第一次观察到 status=done 时记进 kv，并在 task 上
+  留一条 `Status: a → b` comment 作为可读的轨迹。plugin 没跑时发生的变化只能回退到 updatedAt。
+- 有了三点，全景顶部给一个中位周期，done 卡片给"用时 Nd"。Dashboard 页留到有真实需求。
 
 ## 7. 顺序（不是排期）
 

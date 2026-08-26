@@ -29,6 +29,7 @@ export function OverviewTab({}: PluginNavPanelProps) {
   if (loading) return <p className="p-5 text-sm text-muted-foreground">Loading tasks…</p>;
   if (overview === null) return <p className="p-5 text-sm text-destructive">{error ?? "Could not load tasks."}</p>;
   const filter = (task: OverviewTask) => projectFilter === null || projectKeyOf(task.key) === projectFilter;
+  const cycleDays = medianCycleDays(overview.groups.done);
   const stale = overview.groups.stalled
     .filter(filter)
     .filter((task) => task.lastMovedAt !== null && now - task.lastMovedAt > THIRTY_DAYS_MS);
@@ -43,7 +44,9 @@ export function OverviewTab({}: PluginNavPanelProps) {
           ))}
         </div>
         <span className="min-w-0 flex-1" />
-        <span className="text-xs text-muted-foreground">本周完成 {overview.doneThisWeek} 件</span>
+        <span className="text-xs text-muted-foreground">
+          本周完成 {overview.doneThisWeek} 件{cycleDays === null ? "" : ` · 近 30 天中位周期 ${cycleDays} 天`}
+        </span>
         <ArchiveStale tasks={stale} onArchived={reload} />
       </header>
       {error !== null ? <p role="status" className="text-xs text-destructive">{error}</p> : null}
@@ -61,6 +64,16 @@ export function OverviewTab({}: PluginNavPanelProps) {
       </div>
     </main>
   );
+}
+
+/** Created to done, over the recently finished tasks that carry both timestamps. */
+function medianCycleDays(done: readonly OverviewTask[]): number | null {
+  const spans = done
+    .flatMap((task) => task.createdAt !== null && task.doneAt !== null ? [task.doneAt - task.createdAt] : [])
+    .sort((left, right) => left - right);
+  if (spans.length === 0) return null;
+  const middle = spans[Math.floor(spans.length / 2)]!;
+  return Math.max(1, Math.round(middle / (24 * 60 * 60_000)));
 }
 
 function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
@@ -128,6 +141,9 @@ function BoardCard({ task, now }: { task: OverviewTask; now: number }) {
       <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
         <span className="tabular-nums">{relativeAge(task.lastMovedAt, now)}</span>
         {task.threads.length > 0 ? <span>{task.threads.length} 线程</span> : null}
+        {task.doneAt !== null && task.createdAt !== null
+          ? <span>用时 {Math.max(1, Math.round((task.doneAt - task.createdAt) / 86_400_000))}d</span>
+          : null}
         <span className="min-w-0 flex-1" />
         {openPullRequest !== undefined
           ? <a href={openPullRequest.url} target="_blank" rel="noreferrer" className="hover:underline">PR #{openPullRequest.number}</a>

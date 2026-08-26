@@ -129,6 +129,9 @@ export function TaskSidebar({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
+        {overview.pmo !== null
+          ? <PmoRow thread={overview.pmo} active={activeThreadId === overview.pmo.id} now={now} onOpen={() => open(overview.pmo!)} />
+          : null}
         <ProjectFilters projects={projects} hidden={hiddenProjects} onToggle={toggleProject} />
         <TaskGroup label="轮到你" tasks={you} activeThreadId={activeThreadId} now={now} onOpen={open} />
         <TaskGroup label="在跑" tasks={running} activeThreadId={activeThreadId} now={now} onOpen={open} />
@@ -175,6 +178,32 @@ export function TaskSidebar({
       <UsageFooter />
     </div>
   );
+}
+
+/** The standing PMO thread: always first, never filed under a task, styled apart from task rows. */
+function PmoRow({ thread, active, now, onOpen }: { thread: ThreadSummary; active: boolean; now: number; onOpen: () => void }) {
+  const glyph = statusGlyph(thread.status);
+  return (
+    <button
+      type="button"
+      aria-label="PMO"
+      className={`mt-1 flex min-h-8 w-full items-center gap-1.5 rounded border border-dashed border-sidebar-border px-1.5 text-left text-xs hover:bg-sidebar-accent ${active ? "bg-sidebar-accent" : ""}`}
+      onClick={onOpen}
+    >
+      <span className="font-mono text-2xs font-medium uppercase tracking-wide text-muted-foreground">PMO</span>
+      <span className="min-w-0 flex-1 truncate text-sidebar-foreground">{glyph ? `${glyph} ` : ""}{pmoHint(thread.status)}</span>
+      <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">{relativeAge(thread.updatedAt, now)}</span>
+    </button>
+  );
+}
+
+function pmoHint(status: ThreadSummary["status"]): string {
+  switch (status) {
+    case "running": return "巡检中";
+    case "pendingInteraction": return "在问你";
+    case "error": return "出错了";
+    case "idle": return "问我任何 task 的事";
+  }
 }
 
 function ProjectFilters({

@@ -70,7 +70,14 @@ const taskOverviewSchema = z
     projectId: z.string(),
     status: z.string(),
     next: z.string().nullable(),
+    /** When the current Next was written; the PMO ages it. */
+    nextAt: z.number().nullable(),
     lastMovedAt: z.number().nullable(),
+    createdAt: z.number().nullable(),
+    /** First thread attached; the moment work actually began. */
+    startedAt: z.number().nullable(),
+    /** Recorded by this plugin when it first observes status = done; older tasks fall back to updatedAt. */
+    doneAt: z.number().nullable(),
     waitingOn: z.enum(["you", "agent", "ci", "nobody"]),
     group: z.enum(["you", "running", "stalled", "waiting", "backlog", "none"]),
     reason: z.string(),
@@ -94,6 +101,8 @@ const overviewSchema = z
     unfiled: z.array(threadSummarySchema),
     filed: z.record(z.string(), z.string()),
     doneThisWeek: z.number().int().nonnegative(),
+    /** The standing PMO thread, when the pmoThreadId setting names one that exists. */
+    pmo: threadSummarySchema.nullable(),
   })
   .strict();
 
@@ -357,6 +366,7 @@ async function readPullRequest(
 
 function nextAndLastMoved(task: Task, comments: readonly TaskComment[], threads: readonly ThreadFacts[], prs: readonly CachedPr[]): {
   next: string | null;
+  nextAt: number | null;
   lastMovedAt: number | null;
 } {
   const parsedNext = parseNext(comments);
@@ -368,6 +378,7 @@ function nextAndLastMoved(task: Task, comments: readonly TaskComment[], threads:
   ].filter((value): value is number => value !== null);
   return {
     next: parsedNext.next,
+    nextAt: parsedNext.lastNextAt,
     lastMovedAt: candidates.length > 0 ? Math.max(...candidates) : null,
   };
 }
@@ -433,6 +444,10 @@ function projectUsage(response: RawUsageResponse): UsageResponse {
 }
 
 const STALE_AFTER_MS = 30 * 24 * 60 * 60_000;
+// Tasks carries no status history, so the plugin remembers the last status it saw per task and
+// timestamps the change. Only transitions observed while the plugin runs are exact.
+const STATUS_LOG_KEY = "status-log";
+type StatusLog = Record<string, { status: string; at: number }>;
 // 7 days keeps Unfiled a nudge (~70 rows here), not a full history; widen if scratch work is filed later than that.
 const UNFILED_WINDOW_MS = 7 * 24 * 60 * 60_000;
 // Finished tasks stay in the sidebar this long so their threads remain reachable; older history lives in Tasks.
@@ -447,7 +462,18 @@ export default function plugin(bb: BbPluginApi) {
       description: "Tasks preset used when 先建 task starts the first thread.",
       default: "Luna",
     },
+    pmoThreadId: {
+      type: "string",
+      label: "PMO thread",
+      description: "Thread id of the standing PMO thread shown at the top of the sidebar (thr_…). Empty hides the row.",
+      default: "",
+    },
   });
+  let statusLog: StatusLog | null = null;
+  const loadStatusLog = async (): Promise<StatusLog> => {
+    if (statusLog === null) statusLog = (await bb.storage.kv.get<StatusLog>(STATUS_LOG_KEY)) ?? {};
+    return statusLog;
+  };
   void bindings.rebuild().catch((error: unknown) => {
     bb.log.warn(`Could not initialize task bindings: ${errorMessage(error)}`);
   });
@@ -497,10 +523,28 @@ export default function plugin(bb: BbPluginApi) {
   });
 
   const computeOverview = async (): Promise<Overview> => {
-    const [tasks, allThreads] = await Promise.all([
+    const [tasks, allThreads, log, { pmoThreadId }] = await Promise.all([
       listAllTasks(bb),
       bb.sdk.threads.list({ includeHidden: true, limit: MAX_THREAD_LIST_LIMIT }),
+      loadStatusLog(),
+      settings.get(),
     ]);
+    let logDirty = false;
+    const transitions: { task: Task; from: string }[] = [];
+    // Synchronous check-and-set, so two concurrent overviews cannot both announce one transition.
+    const observeStatus = (task: Task): number | null => {
+      const seen = log[task.id];
+      if (seen === undefined) {
+        log[task.id] = { status: task.status, at: parseTime(task.updatedAt) ?? Date.now() };
+        logDirty = true;
+      } else if (seen.status !== task.status) {
+        log[task.id] = { status: task.status, at: Date.now() };
+        logDirty = true;
+        transitions.push({ task, from: seen.status });
+      }
+      const current = log[task.id]!;
+      return current.status === "done" ? current.at : null;
+    };
     const threadById = new Map(
       allThreads.map((thread) => [thread.id, threadFacts(thread)]),
     );
@@ -547,7 +591,11 @@ export default function plugin(bb: BbPluginApi) {
       )];
       const prs = (await Promise.all(environments.map(getPullRequest)))
         .filter((value): value is CachedPr => value !== null);
-      const { next, lastMovedAt } = nextAndLastMoved(task, comments, threads, prs);
+      const { next, nextAt, lastMovedAt } = nextAndLastMoved(task, comments, threads, prs);
+      const doneAt = observeStatus(task);
+      const attachedTimes = taskThreads
+        .map((taskThread) => parseTime(taskThread.attachedAt))
+        .filter((value): value is number => value !== null);
       const derivedPrs: DerivedPullRequest[] = prs.flatMap((pr) =>
         pr.pullRequest === null
           ? []
@@ -570,7 +618,11 @@ export default function plugin(bb: BbPluginApi) {
         projectId: task.projectId,
         status: task.status,
         next,
+        nextAt,
         lastMovedAt,
+        createdAt: parseTime(task.createdAt),
+        startedAt: attachedTimes.length > 0 ? Math.min(...attachedTimes) : null,
+        doneAt,
         waitingOn: derived.waitingOn,
         group: derived.group,
         reason: derived.reason,
@@ -578,6 +630,19 @@ export default function plugin(bb: BbPluginApi) {
         pullRequests: prs.flatMap((pr) => pr.pullRequest === null ? [] : [pr.pullRequest]),
       };
     }));
+    if (logDirty) {
+      await bb.storage.kv.set(STATUS_LOG_KEY, log).catch((error: unknown) => {
+        bb.log.warn(`Could not persist status log: ${errorMessage(error)}`);
+      });
+    }
+    for (const { task, from } of transitions) {
+      // A comment is the durable, human-readable trail; the kv entry is only the fast index.
+      void createComment(bb, { taskId: task.id, body: `Status: ${from} → ${task.status}` }).catch((error: unknown) => {
+        bb.log.warn(`Could not record status change for ${taskKey(task)}: ${errorMessage(error)}`);
+      });
+    }
+    const pmoFacts = pmoThreadId.trim() === "" ? undefined : threadById.get(pmoThreadId.trim());
+    const pmo = pmoFacts === undefined ? null : toThreadSummary(pmoFacts);
     const now = Date.now();
     const groups = {
       you: records.filter((record) => record.group === "you"),
@@ -606,6 +671,7 @@ export default function plugin(bb: BbPluginApi) {
         && thread.archivedAt === null
         && now - thread.updatedAt <= UNFILED_WINDOW_MS
         && filed[thread.id] === undefined
+        && thread.id !== pmo?.id
       )
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .map(threadFacts)
@@ -614,7 +680,7 @@ export default function plugin(bb: BbPluginApi) {
       task.status === "done"
       && withinCurrentWeek(parseTime(task.updatedAt) ?? 0, now)
     ).length;
-    return overviewSchema.parse({ groups, unfiled, filed, doneThisWeek });
+    return overviewSchema.parse({ groups, unfiled, filed, doneThisWeek, pmo });
   };
 
   let cachedUsage: { usage: UsageResponse; fetchedAt: number } | null = null;
