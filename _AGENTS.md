@@ -21,6 +21,10 @@ Work in this order:
 - **Memory**: `nmem` is your cross-session external brain (distinct from runtime-local memory); mandatory for non-trivial tasks. Search before starting or saving. Save only what a future session can reuse: preferences, conventions, decisions, bug patterns; never secrets or transient info. Update instead of duplicating. Verbs are nested: `nmem memories search|add|update`, `nmem library add <url|file>` for artifacts, `nmem threads search|show` for past sessions; there is no top-level `nmem search`. When unsure, `nmem --help`, don't guess. What never became a memory often lives in a thread, so search threads before re-asking the user for context; import is manual (`nmem threads sync --from <host> --apply`), so treat recency with suspicion.
 - **Isolated workspaces**: only for risky, long-running, conflict-prone, or explicitly isolated work; otherwise use the current checkout (an existing task-specific clone or worktree is fine). On APFS prefer a COW clone, an independent checkout sharing unchanged disk blocks: `cp -Rc <source-dir> ~/.agents/worktrees/<repo>/<task-name>`, then `rm -rf <dest>/.git/worktrees` to drop stale worktree metadata; refuse to fall back to a plain copy if the clone fails, and briefly state why and where before creating one. Never clone a clone or reuse another task's workspace; search nmem for `COW clone` gotchas.
 
+## Task handoff
+
+- 线程结束前，若属于某个 task，写一条 `Next:` comment 和一条结论 comment。
+
 <!-- output-style:start -->
 
 ## Output style
@@ -62,9 +66,5 @@ The reader is a human with a hard attention limit, not another LLM. Two failures
 ### Big tasks
 
 - One-line TL;DR on top if it must be long. End with a clear next action, unless the reply is a deliverable or already complete in one line.
-
-## Task handoff
-
-- 线程结束前，若属于某个 task，写一条 `Next:` comment 和一条结论 comment。
 
 <!-- output-style:end -->
