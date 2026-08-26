@@ -28,6 +28,20 @@ describe("deriveTaskState", () => {
     })).toMatchObject({ group: "you", waitingOn: "you", reason: "agent 在问你" });
   });
 
+  it("ignores archived errored attempts", () => {
+    expect(deriveTaskState({
+      status: "in_review",
+      threads: [{ status: "error", archived: true }, idle],
+      pullRequests: [],
+      next: null,
+    })).toMatchObject({ group: "stalled", reason: "线程停了，没有 next" });
+  });
+
+  it("flags a live errored thread without calling it a question", () => {
+    expect(deriveTaskState({ status: "in_progress", threads: [{ status: "error" }], pullRequests: [], next: "x" }))
+      .toMatchObject({ group: "you", reason: "线程出错了，看一眼或归档它" });
+  });
+
   it("prioritizes running threads over pull requests", () => {
     expect(deriveTaskState({
       status: "in_progress",

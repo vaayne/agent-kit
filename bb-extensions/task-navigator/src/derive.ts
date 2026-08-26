@@ -3,6 +3,8 @@ export type WaitingOn = "you" | "agent" | "ci" | "nobody";
 
 export interface DerivedThread {
   status: "running" | "pendingInteraction" | "error" | "idle";
+  /** Archived threads are history: a dead errored attempt is not someone asking you. */
+  archived?: boolean;
 }
 
 export type PullRequestChecks = "pending" | "passing" | "failing" | "no_checks" | "unknown";
@@ -47,12 +49,14 @@ export function deriveTaskState(input: DeriveTaskInput): DerivedTaskState {
     }
     return result("stalled", "you", "没有线程记录，写 next 或关掉");
   }
-  if (input.threads.some((thread) =>
-    thread.status === "pendingInteraction" || thread.status === "error"
-  )) {
+  const live = input.threads.filter((thread) => thread.archived !== true);
+  if (live.some((thread) => thread.status === "pendingInteraction")) {
     return result("you", "you", "agent 在问你");
   }
-  if (input.threads.some((thread) => thread.status === "running")) {
+  if (live.some((thread) => thread.status === "error")) {
+    return result("you", "you", "线程出错了，看一眼或归档它");
+  }
+  if (live.some((thread) => thread.status === "running")) {
     return result("running", "agent", "agent 正在工作");
   }
 
