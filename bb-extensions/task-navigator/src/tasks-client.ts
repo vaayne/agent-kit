@@ -81,12 +81,34 @@ const commentSchema = z
   })
   .passthrough();
 
+const taskProjectSchema = z
+  .object({
+    id: taskIdSchema,
+    name: z.string(),
+    prefix: z.string(),
+    nextTaskNumber: z.number().int().positive(),
+    color: z.string(),
+    folderId: taskIdSchema.nullable(),
+    linkedBbProjectId: z.string().startsWith("proj_").nullable(),
+    createdAt: z.string(),
+  })
+  .passthrough();
 const listTasksOutputSchema = z
   .object({
     tasks: z.array(taskSchema),
     nextCursor: z.string().nullable(),
   })
   .strict();
+const listProjectsOutputSchema = z
+  .object({ projects: z.array(taskProjectSchema) })
+  .strict();
+const createTaskOutputSchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), task: taskSchema }).strict(),
+  z.object({
+    ok: z.literal(false),
+    error: z.object({ code: z.string(), message: z.string() }).passthrough(),
+  }).strict(),
+]);
 const getTaskOutputSchema = z
   .object({ task: taskSchema.nullable() })
   .strict();
@@ -102,6 +124,7 @@ const taskThreadMutationOutputSchema = z
 
 export type ListTasksInput = z.infer<typeof listTasksInputSchema>;
 export type Task = z.infer<typeof taskSchema>;
+export type TaskProject = z.infer<typeof taskProjectSchema>;
 export type TaskThread = z.infer<typeof taskThreadSchema>;
 export type TaskComment = z.infer<typeof commentSchema>;
 export type ListTasksResult = z.infer<typeof listTasksOutputSchema>;
@@ -115,6 +138,35 @@ export async function listTasks(
     method: "listTasks",
     input: listTasksInputSchema.parse(input),
     outputSchema: listTasksOutputSchema,
+  });
+}
+
+export async function listProjects(
+  bb: BbPluginApi,
+): Promise<z.infer<typeof listProjectsOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "listProjects",
+    input: {},
+    outputSchema: listProjectsOutputSchema,
+  });
+}
+
+export async function createTask(
+  bb: BbPluginApi,
+  input: {
+    projectId: string;
+    title: string;
+  },
+): Promise<z.infer<typeof createTaskOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "createTask",
+    input: {
+      projectId: taskIdSchema.parse(input.projectId),
+      title: z.string().trim().min(1).parse(input.title),
+    },
+    outputSchema: createTaskOutputSchema,
   });
 }
 

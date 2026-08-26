@@ -4,9 +4,12 @@ import { deriveTaskState, type DerivedPullRequest, type DerivedThread } from "./
 import { parseNext } from "./next.js";
 import { TaskBindings, taskInstructions } from "./task-bindings.js";
 import {
+  createTask,
   listComments,
+  listProjects,
   listTaskThreads,
   listTasks,
+  taskThreadsAttach,
   type Task,
   type TaskComment,
   type TaskThread,
@@ -82,6 +85,10 @@ const overviewSchema = z
   })
   .strict();
 
+export type Overview = z.infer<typeof overviewSchema>;
+export type OverviewTask = z.infer<typeof taskOverviewSchema>;
+export type ThreadSummary = z.infer<typeof threadSummarySchema>;
+
 export const taskNavigatorRpc = defineRpcContract({
   ping: {
     input: z.object({}).strict(),
@@ -90,6 +97,13 @@ export const taskNavigatorRpc = defineRpcContract({
   overview: {
     input: z.object({}).strict(),
     output: overviewSchema,
+  },
+  promoteThread: {
+    input: z.object({ threadId: z.string().startsWith("thr_") }).strict(),
+    output: z.object({
+      taskKey: z.string(),
+      attachedThreadIds: z.array(z.string().startsWith("thr_")),
+    }).strict(),
   },
 });
 
@@ -253,6 +267,19 @@ function withinCurrentWeek(timestamp: number, now: number): boolean {
   return timestamp >= now - 7 * 24 * 60 * 60_000;
 }
 
+function isDescendant(
+  candidate: BbThread,
+  rootThreadId: string,
+  threadById: ReadonlyMap<string, BbThread>,
+): boolean {
+  let parentId = candidate.parentThreadId;
+  for (let depth = 0; parentId !== null && depth < 10; depth++) {
+    if (parentId === rootThreadId) return true;
+    parentId = threadById.get(parentId)?.parentThreadId ?? null;
+  }
+  return false;
+}
+
 export default function plugin(bb: BbPluginApi) {
   const bindings = new TaskBindings(bb);
   void bindings.rebuild().catch((error: unknown) => {
@@ -379,6 +406,37 @@ export default function plugin(bb: BbPluginApi) {
         && withinCurrentWeek(parseTime(task.updatedAt) ?? 0, now)
       ).length;
       return overviewSchema.parse({ groups, unfiled, doneThisWeek });
+    },
+    async promoteThread({ threadId }) {
+      const [thread, { projects }, allThreads] = await Promise.all([
+        bb.sdk.threads.get({ threadId }),
+        listProjects(bb),
+        bb.sdk.threads.list({ includeHidden: true, limit: MAX_THREAD_LIST_LIMIT }),
+      ]);
+      const project = projects.find((candidate) =>
+        candidate.linkedBbProjectId === thread.projectId
+      );
+      if (project === undefined) {
+        throw new Error(`No task project is linked to BB project ${thread.projectId}`);
+      }
+      const result = await createTask(bb, {
+        projectId: project.id,
+        title: thread.title?.trim() || thread.titleFallback?.trim() || "Untitled thread",
+      });
+      if (!result.ok) throw new Error(result.error.message);
+      const threadById = new Map(allThreads.map((candidate) => [candidate.id, candidate]));
+      const attachedThreadIds = allThreads
+        .filter((candidate) =>
+          candidate.id === threadId || isDescendant(candidate, threadId, threadById)
+        )
+        .map((candidate) => candidate.id);
+      if (!attachedThreadIds.includes(threadId)) attachedThreadIds.unshift(threadId);
+      await Promise.all(attachedThreadIds.map((candidate) =>
+        taskThreadsAttach(bb, result.task.id, candidate)
+      ));
+      bindings.remember(result.task, attachedThreadIds.map((candidate) => ({ threadId: candidate })));
+      publishOverviewChanged();
+      return { taskKey: taskKey(result.task), attachedThreadIds };
     },
   });
 }
