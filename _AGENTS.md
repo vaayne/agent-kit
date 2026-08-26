@@ -63,4 +63,8 @@ The reader is a human with a hard attention limit, not another LLM. Two failures
 
 - One-line TL;DR on top if it must be long. End with a clear next action, unless the reply is a deliverable or already complete in one line.
 
+## Task handoff
+
+- 线程结束前，若属于某个 task，写一条 `Next:` comment 和一条结论 comment。
+
 <!-- output-style:end -->

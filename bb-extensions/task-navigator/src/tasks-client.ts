@@ -113,6 +113,15 @@ const updateTaskOutputSchema = createTaskOutputSchema;
 const createCommentOutputSchema = z
   .object({ comment: commentSchema })
   .strict();
+const presetSchema = z
+  .object({ id: taskIdSchema, name: z.string() })
+  .passthrough();
+const listPresetsOutputSchema = z
+  .object({ presets: z.array(presetSchema) })
+  .strict();
+const delegateOutputSchema = z
+  .object({ threadId: threadIdSchema })
+  .strict();
 const getTaskOutputSchema = z
   .object({ task: taskSchema.nullable() })
   .strict();
@@ -174,6 +183,33 @@ export async function createTask(
   });
 }
 
+export async function listPresets(
+  bb: BbPluginApi,
+): Promise<z.infer<typeof listPresetsOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "listPresets",
+    input: null,
+    outputSchema: listPresetsOutputSchema,
+  });
+}
+
+export async function delegate(
+  bb: BbPluginApi,
+  input: { taskId: string; presetId: string; extraInstructions?: string },
+): Promise<z.infer<typeof delegateOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "delegate",
+    input: {
+      taskId: taskIdSchema.parse(input.taskId),
+      presetId: taskIdSchema.parse(input.presetId),
+      ...(input.extraInstructions === undefined ? {} : { extraInstructions: input.extraInstructions }),
+    },
+    outputSchema: delegateOutputSchema,
+  });
+}
+
 export async function updateTask(
   bb: BbPluginApi,
   input: { taskId: string; status: "canceled" },
@@ -202,6 +238,18 @@ export async function createComment(
       notify: input.notify ?? false,
     },
     outputSchema: createCommentOutputSchema,
+  });
+}
+
+export async function getTaskByKey(
+  bb: BbPluginApi,
+  taskKey: string,
+): Promise<z.infer<typeof getTaskOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "getTaskByKey",
+    input: { taskKey: z.string().trim().min(1).parse(taskKey) },
+    outputSchema: getTaskOutputSchema,
   });
 }
 

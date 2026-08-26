@@ -6,7 +6,10 @@ import { TaskBindings, taskInstructions } from "./task-bindings.js";
 import {
   createComment,
   createTask,
+  delegate,
+  getTaskByKey,
   listComments,
+  listPresets,
   listProjects,
   listTaskThreads,
   listTasks,
@@ -115,6 +118,18 @@ export const taskNavigatorRpc = defineRpcContract({
     input: z.object({ taskId: z.string(), next: z.string().trim().min(1) }).strict(),
     output: z.object({ ok: z.literal(true) }).strict(),
   },
+  attachThread: {
+    input: z.object({ taskKey: z.string().trim().min(1), threadId: z.string().startsWith("thr_") }).strict(),
+    output: z.object({ taskKey: z.string() }).strict(),
+  },
+  lastAgentMessage: {
+    input: z.object({ threadId: z.string().startsWith("thr_") }).strict(),
+    output: z.object({ text: z.string().nullable() }).strict(),
+  },
+  createTaskAndSpawn: {
+    input: z.object({ bbProjectId: z.string().nullable(), title: z.string().trim().min(1) }).strict(),
+    output: z.object({ taskKey: z.string(), threadId: z.string().startsWith("thr_") }).strict(),
+  },
 });
 
 type BbThread = Awaited<ReturnType<BbPluginApi["sdk"]["threads"]["list"]>>[number];
@@ -137,6 +152,10 @@ function parseTime(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
   const parsed = typeof value === "number" ? value : Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function firstSentence(text: string): string {
+  return text.split(/(?<=[.!?。！？])\s+/u, 1)[0] ?? text;
 }
 
 function taskKey(task: Task): string {
@@ -460,6 +479,47 @@ export default function plugin(bb: BbPluginApi) {
       await createComment(bb, { taskId, body: `Next: ${next}` });
       publishOverviewChanged();
       return { ok: true as const };
+    },
+    async attachThread({ taskKey: key, threadId }) {
+      const result = await getTaskByKey(bb, key);
+      if (result.task === null) throw new Error(`Task not found: ${key}`);
+      await taskThreadsAttach(bb, result.task.id, threadId);
+      bindings.remember(result.task, [{ threadId }]);
+      publishOverviewChanged();
+      return { taskKey: taskKey(result.task) };
+    },
+    async lastAgentMessage({ threadId }) {
+      const output = await bb.sdk.threads.output({ threadId });
+      const text = output.output?.trim() || null;
+      return { text: text === null ? null : firstSentence(text) };
+    },
+    async createTaskAndSpawn({ bbProjectId, title }) {
+      const [bbProjects, taskProjects, presets] = await Promise.all([
+        bb.sdk.projects.list({ includePersonal: true }),
+        listProjects(bb),
+        listPresets(bb),
+      ]);
+      const selectedBbProjectId = bbProjectId
+        ?? bbProjects.find((project) => project.kind === "personal")?.id
+        ?? "proj_personal";
+      const project = taskProjects.projects.find((candidate) =>
+        candidate.linkedBbProjectId === selectedBbProjectId
+      );
+      if (project === undefined) {
+        throw new Error(`No task project is linked to BB project ${selectedBbProjectId}`);
+      }
+      const created = await createTask(bb, { projectId: project.id, title });
+      if (!created.ok) throw new Error(created.error.message);
+      const preset = presets.presets.find((candidate) => candidate.name === "Luna")
+        ?? presets.presets[0];
+      if (preset === undefined) throw new Error("No Tasks delegation preset is configured");
+      const delegated = await delegate(bb, {
+        taskId: created.task.id,
+        presetId: preset.id,
+        extraInstructions: `Start working on task ${taskKey(created.task)}.`,
+      });
+      publishOverviewChanged();
+      return { taskKey: taskKey(created.task), threadId: delegated.threadId };
     },
   });
 }
