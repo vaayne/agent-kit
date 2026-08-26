@@ -28,14 +28,14 @@ export default definePluginApp((app) => {
     id: "task-navigator",
     title: "Task Navigator",
     icon: "ListChecks",
-    path: "inbox",
-    component: InboxPanel,
+    path: "board",
+    component: OverviewTab,
     fixedTabs: [{
       panelId: "task-navigator",
-      id: "overview",
-      title: "全景",
-      icon: "LayoutGrid",
-      component: OverviewTab,
+      id: "inbox",
+      title: "收件箱",
+      icon: "Inbox",
+      component: InboxPanel,
     }],
   });
 });

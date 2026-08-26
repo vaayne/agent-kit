@@ -8,17 +8,18 @@ import {
   createTask,
   delegate,
   getTaskByKey,
+  listAllTasks,
   listComments,
   listPresets,
   listProjects,
   listTaskThreads,
-  listTasks,
   taskThreadsAttach,
   updateTask,
   type Task,
   type TaskComment,
   type TaskThread,
 } from "./tasks-client.js";
+import type { UsageLimitsResult, UsageProvider, UsageResponse, UsageWindow } from "./usage.js";
 
 const prSchema = z
   .object({
@@ -39,7 +40,7 @@ const prSchema = z
       "ready_to_merge",
       "review_requested",
     ]),
-    checksState: z.enum(["pending", "complete"]),
+    checksState: z.enum(["pending", "passing", "failing", "no_checks", "unknown"]),
     updatedAt: z.number(),
   })
   .strict();
@@ -56,6 +57,8 @@ const threadSummarySchema = z
     status: z.enum(["running", "pendingInteraction", "error", "idle"]),
     updatedAt: z.number(),
     environmentId: z.string().nullable(),
+    /** The host's open() ignores archived threads; the UI must route to them explicitly. */
+    archived: z.boolean(),
   })
   .strict();
 const pullRequestSummarySchema = prSchema;
@@ -69,7 +72,7 @@ const taskOverviewSchema = z
     next: z.string().nullable(),
     lastMovedAt: z.number().nullable(),
     waitingOn: z.enum(["you", "agent", "ci", "nobody"]),
-    group: z.enum(["you", "running", "stalled", "waiting", "none"]),
+    group: z.enum(["you", "running", "stalled", "waiting", "backlog", "none"]),
     reason: z.string(),
     threads: z.array(threadSummarySchema),
     pullRequests: z.array(pullRequestSummarySchema),
@@ -83,10 +86,56 @@ const overviewSchema = z
         running: z.array(taskOverviewSchema),
         stalled: z.array(taskOverviewSchema),
         waiting: z.array(taskOverviewSchema),
+        backlog: z.array(taskOverviewSchema),
+        /** Finished within the recent window; their threads stay reachable from the sidebar. */
+        done: z.array(taskOverviewSchema),
       })
       .strict(),
     unfiled: z.array(threadSummarySchema),
+    filed: z.record(z.string(), z.string()),
     doneThisWeek: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const usageWindowSchema = z
+  .object({
+    label: z.string().min(1),
+    usedPercent: z.number().min(0).max(100),
+    resetsAt: z.string().min(1).nullable(),
+    cost: z
+      .object({
+        usedUsdCents: z.number().int().nonnegative(),
+        limitUsdCents: z.number().int().positive(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+const usageProviderSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("ok"),
+      planLabel: z.string().min(1).nullable(),
+      windows: z.array(usageWindowSchema),
+    })
+    .strict(),
+  z.object({ status: z.literal("not_installed") }).strict(),
+  z.object({ status: z.literal("unauthenticated") }).strict(),
+  z.object({ status: z.literal("expired") }).strict(),
+  z
+    .object({
+      status: z.literal("error"),
+      message: z.string().min(1),
+      planLabel: z.string().min(1).nullable(),
+    })
+    .strict(),
+]);
+const usageLimitsResultSchema = z
+  .object({
+    usage: z.record(z.string().min(1), usageProviderSchema).nullable(),
+    fetchedAt: z.number().nullable(),
+    isStale: z.boolean(),
+    error: z.string().nullable(),
   })
   .strict();
 
@@ -130,6 +179,10 @@ export const taskNavigatorRpc = defineRpcContract({
     input: z.object({ bbProjectId: z.string().nullable(), title: z.string().trim().min(1) }).strict(),
     output: z.object({ taskKey: z.string(), threadId: z.string().startsWith("thr_") }).strict(),
   },
+  usageLimits: {
+    input: z.object({ force: z.boolean() }).strict(),
+    output: usageLimitsResultSchema,
+  },
 });
 
 type BbThread = Awaited<ReturnType<BbPluginApi["sdk"]["threads"]["list"]>>[number];
@@ -139,10 +192,14 @@ type ThreadFacts = DerivedThread & {
   parentThreadId: string | null;
   updatedAt: number;
   environmentId: string | null;
+  archived: boolean;
 };
 
 const PR_CACHE_PREFIX = "pull-request:";
 const MAX_THREAD_LIST_LIMIT = 5_000;
+const USAGE_CACHE_MS = 30_000;
+// Thread events arrive in bursts (active/idle flaps); one overview per burst is enough for every subscriber.
+const PUBLISH_DEBOUNCE_MS = 500;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message ? error.message : String(error);
@@ -154,8 +211,21 @@ function parseTime(value: string | number | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const LAST_MESSAGE_MAX_CHARS = 160;
+
+/** Agent replies are markdown; the re-entry line wants one plain sentence. */
 function firstSentence(text: string): string {
-  return text.split(/(?<=[.!?。！？])\s+/u, 1)[0] ?? text;
+  const plain = text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_`#>]+/g, "")
+    .replace(/[→➜]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const sentence = plain.split(/(?<=[.!?。！？])\s+/u, 1)[0] ?? plain;
+  return sentence.length > LAST_MESSAGE_MAX_CHARS
+    ? `${sentence.slice(0, LAST_MESSAGE_MAX_CHARS - 1)}…`
+    : sentence;
 }
 
 function taskKey(task: Task): string {
@@ -188,22 +258,27 @@ function threadFacts(thread: BbThread): ThreadFacts {
     status: threadStatus(thread),
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
+    archived: thread.archivedAt !== null,
   };
 }
 
-function fallbackThreadFacts(taskThread: TaskThread): ThreadFacts {
-  const liveStatus = taskThread.liveStatus.toLowerCase();
+type BbThreadDetail = Awaited<ReturnType<BbPluginApi["sdk"]["threads"]["get"]>>;
+
+/** The detail endpoint omits activity counters and pending interactions; archived threads are idle anyway. */
+function threadFactsFromDetail(thread: BbThreadDetail): ThreadFacts {
+  const status = String(thread.status);
   return {
-    id: taskThread.threadId,
-    title: taskThread.title || "Untitled thread",
-    parentThreadId: null,
-    status: liveStatus === "running" || liveStatus === "active"
-      ? "running"
-      : liveStatus === "failed" || liveStatus === "error"
+    id: thread.id,
+    title: thread.title?.trim() || thread.titleFallback?.trim() || "Untitled thread",
+    parentThreadId: thread.parentThreadId,
+    status: status === "error" || status === "failed"
       ? "error"
+      : status === "active" || thread.activeBackgroundAgentCount > 0
+      ? "running"
       : "idle",
-    updatedAt: parseTime(taskThread.updatedAt) ?? parseTime(taskThread.attachedAt) ?? 0,
-    environmentId: null,
+    updatedAt: thread.updatedAt,
+    environmentId: thread.environmentId,
+    archived: thread.archivedAt !== null,
   };
 }
 
@@ -215,6 +290,7 @@ function toThreadSummary(thread: ThreadFacts) {
     status: thread.status,
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
+    archived: thread.archived,
   };
 }
 
@@ -243,7 +319,7 @@ function projectPullRequest(
     url: pullRequest.url,
     state: pullRequest.state,
     attention: pullRequest.attention,
-    checksState: pullRequest.checks.state === "pending" ? "pending" : "complete",
+    checksState: pullRequest.checks.state,
     updatedAt: parseTime(pullRequest.updatedAt) ?? Date.now(),
   };
 }
@@ -271,7 +347,11 @@ async function readPullRequest(
     return next;
   } catch (error) {
     bb.log.warn(`PR refresh for ${environmentId} failed: ${errorMessage(error)}`);
-    return cached.success ? cached.data : null;
+    if (cached.success) return cached.data;
+    // Unavailable environments (archived worktrees, 409) stay unavailable; back off instead of retrying every overview.
+    const empty: CachedPr = { pullRequest: null, fetchedAt: Date.now() };
+    await bb.storage.kv.set(key, empty);
+    return empty;
   }
 }
 
@@ -296,27 +376,89 @@ function withinCurrentWeek(timestamp: number, now: number): boolean {
   return timestamp >= now - 7 * 24 * 60 * 60_000;
 }
 
-function isDescendant(
-  candidate: BbThread,
-  rootThreadId: string,
-  threadById: ReadonlyMap<string, BbThread>,
-): boolean {
-  let parentId = candidate.parentThreadId;
-  for (let depth = 0; parentId !== null && depth < 10; depth++) {
-    if (parentId === rootThreadId) return true;
-    parentId = threadById.get(parentId)?.parentThreadId ?? null;
+/** Every thread below the root, however deep; parent links are followed via a child index, not a depth cap. */
+function subtreeThreadIds(rootThreadId: string, threads: readonly BbThread[]): string[] {
+  const childrenByParent = new Map<string, string[]>();
+  for (const thread of threads) {
+    if (thread.parentThreadId === null) continue;
+    const siblings = childrenByParent.get(thread.parentThreadId) ?? [];
+    siblings.push(thread.id);
+    childrenByParent.set(thread.parentThreadId, siblings);
   }
-  return false;
+  const ordered = [rootThreadId];
+  for (let index = 0; index < ordered.length; index++) {
+    for (const childId of childrenByParent.get(ordered[index]!) ?? []) {
+      if (!ordered.includes(childId)) ordered.push(childId);
+    }
+  }
+  return ordered;
 }
+
+function projectUsageWindow(window: {
+  label: string;
+  usedPercent: number;
+  resetsAt: string | null;
+  cost?: { usedUsdCents: number; limitUsdCents: number };
+}): UsageWindow {
+  return {
+    label: window.label,
+    usedPercent: window.usedPercent,
+    resetsAt: window.resetsAt,
+    ...(window.cost === undefined
+      ? {}
+      : { cost: { usedUsdCents: window.cost.usedUsdCents, limitUsdCents: window.cost.limitUsdCents } }),
+  };
+}
+
+type RawUsageResponse = Awaited<ReturnType<BbPluginApi["sdk"]["system"]["usageLimits"]>>;
+
+function projectUsageProvider(provider: RawUsageResponse[keyof RawUsageResponse]): UsageProvider {
+  switch (provider.status) {
+    case "ok":
+      return { status: "ok", planLabel: provider.planLabel, windows: provider.windows.map(projectUsageWindow) };
+    case "error":
+      return { status: "error", message: provider.message, planLabel: provider.planLabel };
+    case "not_installed":
+    case "unauthenticated":
+    case "expired":
+      return { status: provider.status };
+  }
+}
+
+/** Project the daemon response before it crosses into the browser, stripping email. */
+function projectUsage(response: RawUsageResponse): UsageResponse {
+  return Object.fromEntries(
+    Object.entries(response).map(([id, provider]) => [id, projectUsageProvider(provider)]),
+  );
+}
+
+const STALE_AFTER_MS = 30 * 24 * 60 * 60_000;
+// 7 days keeps Unfiled a nudge (~70 rows here), not a full history; widen if scratch work is filed later than that.
+const UNFILED_WINDOW_MS = 7 * 24 * 60 * 60_000;
+// Finished tasks stay in the sidebar this long so their threads remain reachable; older history lives in Tasks.
+const DONE_WINDOW_MS = 30 * 24 * 60 * 60_000;
 
 export default function plugin(bb: BbPluginApi) {
   const bindings = new TaskBindings(bb);
+  const settings = bb.settings.define({
+    delegationPreset: {
+      type: "string",
+      label: "Delegation preset",
+      description: "Tasks preset used when 先建 task starts the first thread.",
+      default: "Luna",
+    },
+  });
   void bindings.rebuild().catch((error: unknown) => {
     bb.log.warn(`Could not initialize task bindings: ${errorMessage(error)}`);
   });
 
+  let publishTimer: ReturnType<typeof setTimeout> | null = null;
   const publishOverviewChanged = () => {
-    bb.realtime.publish("overview-changed", null);
+    if (publishTimer !== null) return;
+    publishTimer = setTimeout(() => {
+      publishTimer = null;
+      bb.realtime.publish("overview-changed", null);
+    }, PUBLISH_DEBOUNCE_MS);
   };
   bb.events.on("thread.created", async ({ thread }) => {
     try {
@@ -335,8 +477,12 @@ export default function plugin(bb: BbPluginApi) {
   bb.events.on("thread.idle", publishOverviewChanged);
   bb.events.on("thread.failed", publishOverviewChanged);
   bb.events.on("thread.archived", publishOverviewChanged);
-  bb.events.on("thread.deleted", ({ thread }) => {
-    bindings.forget(thread.id);
+  bb.events.on("thread.deleted", async ({ thread }) => {
+    try {
+      await bindings.detach(thread.id);
+    } catch (error) {
+      bb.log.warn(`Could not detach deleted thread ${thread.id}: ${errorMessage(error)}`);
+    }
     publishOverviewChanged();
   });
   bb.agents.configure((context) => {
@@ -350,93 +496,145 @@ export default function plugin(bb: BbPluginApi) {
     };
   });
 
+  const computeOverview = async (): Promise<Overview> => {
+    const [tasks, allThreads] = await Promise.all([
+      listAllTasks(bb),
+      bb.sdk.threads.list({ includeHidden: true, limit: MAX_THREAD_LIST_LIMIT }),
+    ]);
+    const threadById = new Map(
+      allThreads.map((thread) => [thread.id, threadFacts(thread)]),
+    );
+    // A task thread missing from the list is either archived (still real) or deleted (a ghost to detach).
+    const missingThreadLookups = new Map<string, Promise<ThreadFacts | null>>();
+    const resolveMissingThread = (taskId: string, taskThread: TaskThread) => {
+      const existing = missingThreadLookups.get(taskThread.threadId);
+      if (existing !== undefined) return existing;
+      const lookup = bb.sdk.threads.get({ threadId: taskThread.threadId })
+        .then((thread) => {
+          if (thread.deletedAt !== null) throw new Error("deleted");
+          return threadFactsFromDetail(thread);
+        })
+        .catch(async () => {
+          bb.log.info(`Detaching missing thread ${taskThread.threadId} from task ${taskId}`);
+          await bindings.detach(taskThread.threadId).catch((error: unknown) => {
+            bb.log.warn(`Could not detach ${taskThread.threadId}: ${errorMessage(error)}`);
+          });
+          return null;
+        });
+      missingThreadLookups.set(taskThread.threadId, lookup);
+      return lookup;
+    };
+    const pullRequestPromises = new Map<string, Promise<CachedPr | null>>();
+    const getPullRequest = (environmentId: string) => {
+      const existing = pullRequestPromises.get(environmentId);
+      if (existing !== undefined) return existing;
+      const promise = readPullRequest(bb, environmentId);
+      pullRequestPromises.set(environmentId, promise);
+      return promise;
+    };
+    const records = await Promise.all(tasks.map(async (task) => {
+      const [{ taskThreads }, { comments }] = await Promise.all([
+        listTaskThreads(bb, task.id),
+        listComments(bb, task.id),
+      ]);
+      const threads = (await Promise.all(taskThreads.map((taskThread) => {
+        const listed = threadById.get(taskThread.threadId);
+        return listed === undefined ? resolveMissingThread(task.id, taskThread) : Promise.resolve(listed);
+      }))).filter((thread): thread is ThreadFacts => thread !== null);
+      bindings.remember(task, threads.map((thread) => ({ threadId: thread.id })));
+      const environments = [...new Set(
+        threads.flatMap((thread) => thread.environmentId === null ? [] : [thread.environmentId]),
+      )];
+      const prs = (await Promise.all(environments.map(getPullRequest)))
+        .filter((value): value is CachedPr => value !== null);
+      const { next, lastMovedAt } = nextAndLastMoved(task, comments, threads, prs);
+      const derivedPrs: DerivedPullRequest[] = prs.flatMap((pr) =>
+        pr.pullRequest === null
+          ? []
+          : [{
+            number: pr.pullRequest.number,
+            state: pr.pullRequest.state,
+            checks: pr.pullRequest.checksState,
+          }]
+      );
+      const derived = deriveTaskState({
+        status: task.status,
+        threads,
+        pullRequests: derivedPrs,
+        next,
+      });
+      return {
+        id: task.id,
+        key: taskKey(task),
+        title: task.title,
+        projectId: task.projectId,
+        status: task.status,
+        next,
+        lastMovedAt,
+        waitingOn: derived.waitingOn,
+        group: derived.group,
+        reason: derived.reason,
+        threads: threads.map(toThreadSummary),
+        pullRequests: prs.flatMap((pr) => pr.pullRequest === null ? [] : [pr.pullRequest]),
+      };
+    }));
+    const now = Date.now();
+    const groups = {
+      you: records.filter((record) => record.group === "you"),
+      running: records.filter((record) => record.group === "running"),
+      stalled: records.filter((record) => record.group === "stalled"),
+      waiting: records.filter((record) => record.group === "waiting"),
+      backlog: records.filter((record) => record.group === "backlog"),
+      done: records
+        .filter((record) =>
+          record.group === "none"
+          && record.threads.length > 0
+          && record.lastMovedAt !== null
+          && now - record.lastMovedAt <= DONE_WINDOW_MS
+        )
+        .sort((left, right) => (right.lastMovedAt ?? 0) - (left.lastMovedAt ?? 0)),
+    };
+    const filed: Record<string, string> = {};
+    for (const record of records) {
+      for (const thread of record.threads) filed[thread.id] = record.key;
+    }
+    // Unfiled is a nudge to file recent scratch work, not an archive of every root thread.
+    const unfiled = allThreads
+      .filter((thread) =>
+        thread.parentThreadId === null
+        && thread.visibility === "visible"
+        && thread.archivedAt === null
+        && now - thread.updatedAt <= UNFILED_WINDOW_MS
+        && filed[thread.id] === undefined
+      )
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .map(threadFacts)
+      .map(toThreadSummary);
+    const doneThisWeek = tasks.filter((task) =>
+      task.status === "done"
+      && withinCurrentWeek(parseTime(task.updatedAt) ?? 0, now)
+    ).length;
+    return overviewSchema.parse({ groups, unfiled, filed, doneThisWeek });
+  };
+
+  let cachedUsage: { usage: UsageResponse; fetchedAt: number } | null = null;
+
   bb.rpc.register(taskNavigatorRpc, {
     async ping() {
-      const { tasks } = await listTasks(bb);
+      const tasks = await listAllTasks(bb);
       const count = tasks.length;
       bb.log.info(`Tasks RPC ping: ${count} tasks`);
       await bindings.rebuild();
       return { count };
     },
     async overview() {
-      const [{ tasks }, allThreads] = await Promise.all([
-        listTasks(bb),
-        bb.sdk.threads.list({ includeHidden: true, limit: MAX_THREAD_LIST_LIMIT }),
-      ]);
-      const threadById = new Map(
-        allThreads.map((thread) => [thread.id, threadFacts(thread)]),
-      );
-      const pullRequestPromises = new Map<string, Promise<CachedPr | null>>();
-      const getPullRequest = (environmentId: string) => {
-        const existing = pullRequestPromises.get(environmentId);
-        if (existing !== undefined) return existing;
-        const promise = readPullRequest(bb, environmentId);
-        pullRequestPromises.set(environmentId, promise);
-        return promise;
-      };
-      const records = await Promise.all(tasks.map(async (task) => {
-        const [{ taskThreads }, { comments }] = await Promise.all([
-          listTaskThreads(bb, task.id),
-          listComments(bb, task.id),
-        ]);
-        bindings.remember(task, taskThreads);
-        const threads = taskThreads.map((taskThread) =>
-          threadById.get(taskThread.threadId) ?? fallbackThreadFacts(taskThread)
-        );
-        const environments = [...new Set(
-          threads.flatMap((thread) => thread.environmentId === null ? [] : [thread.environmentId]),
-        )];
-        const prs = (await Promise.all(environments.map(getPullRequest)))
-          .filter((value): value is CachedPr => value !== null);
-        const { next, lastMovedAt } = nextAndLastMoved(task, comments, threads, prs);
-        const derivedPrs: DerivedPullRequest[] = prs.flatMap((pr) =>
-          pr.pullRequest === null
-            ? []
-            : [{
-              number: pr.pullRequest.number,
-              state: pr.pullRequest.state,
-              checks: pr.pullRequest.checksState,
-            }]
-        );
-        const derived = deriveTaskState({
-          status: task.status,
-          threads,
-          pullRequests: derivedPrs,
-          next,
-        });
-        return {
-          id: task.id,
-          key: taskKey(task),
-          title: task.title,
-          projectId: task.projectId,
-          status: task.status,
-          next,
-          lastMovedAt,
-          waitingOn: derived.waitingOn,
-          group: derived.group,
-          reason: derived.reason,
-          threads: threads.map(toThreadSummary),
-          pullRequests: prs.flatMap((pr) => pr.pullRequest === null ? [] : [pr.pullRequest]),
-        };
-      }));
-      const groups = {
-        you: records.filter((record) => record.group === "you"),
-        running: records.filter((record) => record.group === "running"),
-        stalled: records.filter((record) => record.group === "stalled"),
-        waiting: records.filter((record) => record.group === "waiting"),
-      };
-      const unfiled = allThreads
-        .map(threadFacts)
-        .filter((thread) => thread.parentThreadId === null && bindings.get(thread.id) === undefined)
-        .map(toThreadSummary);
-      const now = Date.now();
-      const doneThisWeek = tasks.filter((task) =>
-        task.status === "done"
-        && withinCurrentWeek(parseTime(task.updatedAt) ?? 0, now)
-      ).length;
-      return overviewSchema.parse({ groups, unfiled, doneThisWeek });
+      return computeOverview();
     },
     async promoteThread({ threadId }) {
+      const existing = bindings.get(threadId);
+      if (existing !== undefined) {
+        throw new Error(`Thread already belongs to ${existing.key}; use 改绑 to move it`);
+      }
       const [thread, { projects }, allThreads] = await Promise.all([
         bb.sdk.threads.get({ threadId }),
         listProjects(bb),
@@ -446,20 +644,16 @@ export default function plugin(bb: BbPluginApi) {
         candidate.linkedBbProjectId === thread.projectId
       );
       if (project === undefined) {
-        throw new Error(`No task project is linked to BB project ${thread.projectId}`);
+        throw new Error(`No task project is linked to BB project ${thread.projectId}; link one with bb tasks project`);
       }
       const result = await createTask(bb, {
         projectId: project.id,
         title: thread.title?.trim() || thread.titleFallback?.trim() || "Untitled thread",
       });
       if (!result.ok) throw new Error(result.error.message);
-      const threadById = new Map(allThreads.map((candidate) => [candidate.id, candidate]));
-      const attachedThreadIds = allThreads
-        .filter((candidate) =>
-          candidate.id === threadId || isDescendant(candidate, threadId, threadById)
-        )
-        .map((candidate) => candidate.id);
-      if (!attachedThreadIds.includes(threadId)) attachedThreadIds.unshift(threadId);
+      // Descendants already filed elsewhere keep their task; only free threads follow the root.
+      const attachedThreadIds = subtreeThreadIds(threadId, allThreads)
+        .filter((candidate) => candidate === threadId || bindings.get(candidate) === undefined);
       await Promise.all(attachedThreadIds.map((candidate) =>
         taskThreadsAttach(bb, result.task.id, candidate)
       ));
@@ -468,12 +662,28 @@ export default function plugin(bb: BbPluginApi) {
       return { taskKey: taskKey(result.task), attachedThreadIds };
     },
     async archiveStale({ taskIds }) {
-      await Promise.all(taskIds.map(async (taskId) => {
-        const result = await updateTask(bb, { taskId, status: "canceled" });
-        if (!result.ok) throw new Error(result.error.message);
-      }));
+      // The browser proposes; the server re-derives so a stale page cannot cancel live work.
+      const overview = await computeOverview();
+      const now = Date.now();
+      const eligible = new Set(
+        overview.groups.stalled
+          .filter((task) => task.lastMovedAt !== null && now - task.lastMovedAt > STALE_AFTER_MS)
+          .map((task) => task.id),
+      );
+      const results = await Promise.allSettled(
+        taskIds.filter((taskId) => eligible.has(taskId)).map(async (taskId) => {
+          const result = await updateTask(bb, { taskId, status: "canceled" });
+          if (!result.ok) throw new Error(result.error.message);
+          return taskId;
+        }),
+      );
+      const archivedTaskIds: string[] = [];
+      for (const result of results) {
+        if (result.status === "fulfilled") archivedTaskIds.push(result.value);
+        else bb.log.warn(`archiveStale skipped one task: ${errorMessage(result.reason)}`);
+      }
       publishOverviewChanged();
-      return { archivedTaskIds: taskIds };
+      return { archivedTaskIds };
     },
     async writeNext({ taskId, next }) {
       await createComment(bb, { taskId, body: `Next: ${next}` });
@@ -483,8 +693,7 @@ export default function plugin(bb: BbPluginApi) {
     async attachThread({ taskKey: key, threadId }) {
       const result = await getTaskByKey(bb, key);
       if (result.task === null) throw new Error(`Task not found: ${key}`);
-      await taskThreadsAttach(bb, result.task.id, threadId);
-      bindings.remember(result.task, [{ threadId }]);
+      await bindings.rebind(threadId, result.task);
       publishOverviewChanged();
       return { taskKey: taskKey(result.task) };
     },
@@ -500,19 +709,24 @@ export default function plugin(bb: BbPluginApi) {
         listPresets(bb),
       ]);
       const selectedBbProjectId = bbProjectId
-        ?? bbProjects.find((project) => project.kind === "personal")?.id
-        ?? "proj_personal";
+        ?? bbProjects.find((project) => project.kind === "personal")?.id;
+      if (selectedBbProjectId === undefined) {
+        throw new Error("Select a project first; no personal BB project is available as a fallback");
+      }
       const project = taskProjects.projects.find((candidate) =>
         candidate.linkedBbProjectId === selectedBbProjectId
       );
       if (project === undefined) {
-        throw new Error(`No task project is linked to BB project ${selectedBbProjectId}`);
+        throw new Error(`No task project is linked to BB project ${selectedBbProjectId}; link one with bb tasks project`);
+      }
+      const { delegationPreset } = await settings.get();
+      const preset = presets.presets.find((candidate) => candidate.name === delegationPreset);
+      if (preset === undefined) {
+        const names = presets.presets.map((candidate) => candidate.name).join(", ") || "none";
+        throw new Error(`Tasks preset "${delegationPreset}" not found (available: ${names}); change it in the plugin settings`);
       }
       const created = await createTask(bb, { projectId: project.id, title });
       if (!created.ok) throw new Error(created.error.message);
-      const preset = presets.presets.find((candidate) => candidate.name === "Luna")
-        ?? presets.presets[0];
-      if (preset === undefined) throw new Error("No Tasks delegation preset is configured");
       const delegated = await delegate(bb, {
         taskId: created.task.id,
         presetId: preset.id,
@@ -520,6 +734,23 @@ export default function plugin(bb: BbPluginApi) {
       });
       publishOverviewChanged();
       return { taskKey: taskKey(created.task), threadId: delegated.threadId };
+    },
+    async usageLimits({ force }): Promise<UsageLimitsResult> {
+      if (!force && cachedUsage !== null && Date.now() - cachedUsage.fetchedAt < USAGE_CACHE_MS) {
+        return { ...cachedUsage, isStale: false, error: null };
+      }
+      try {
+        // No host ID selects BB's primary machine; the daemon owns credentials.
+        const usage = projectUsage(await bb.sdk.system.usageLimits());
+        cachedUsage = { usage, fetchedAt: Date.now() };
+        return { ...cachedUsage, isStale: false, error: null };
+      } catch (error) {
+        const message = errorMessage(error) || "Could not load usage from the BB primary machine.";
+        bb.log.warn(`Usage refresh failed: ${message}`);
+        return cachedUsage
+          ? { ...cachedUsage, isStale: true, error: message }
+          : { usage: null, fetchedAt: null, isStale: false, error: message };
+      }
     },
   });
 }

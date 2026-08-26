@@ -154,6 +154,23 @@ export async function listTasks(
   });
 }
 
+const TASKS_PAGE_LIMIT = 500;
+
+/** Tasks paginates at 100 by default; a navigator must see every task or threads silently fall back to Unfiled. */
+export async function listAllTasks(
+  bb: BbPluginApi,
+  input: Omit<ListTasksInput, "limit" | "cursor"> = {},
+): Promise<Task[]> {
+  const tasks: Task[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await listTasks(bb, { ...input, limit: TASKS_PAGE_LIMIT, ...(cursor === undefined ? {} : { cursor }) });
+    tasks.push(...page.tasks);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor !== undefined);
+  return tasks;
+}
+
 export async function listProjects(
   bb: BbPluginApi,
 ): Promise<z.infer<typeof listProjectsOutputSchema>> {

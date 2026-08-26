@@ -1,71 +1,44 @@
-import {
-  experimental_useSidebarThreadActions as useSidebarThreadActions,
-  useRealtime,
-  useRpc,
-  type PluginThreadListProps,
-} from "@get-bb/plugin-sdk/app";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Overview, OverviewTask, ThreadSummary, taskNavigatorRpc } from "./server.js";
+import { useRpc, type PluginThreadListProps } from "@get-bb/plugin-sdk/app";
+import { useCallback, useMemo, useState } from "react";
+import type { OverviewTask, ThreadSummary, taskNavigatorRpc } from "./server.js";
+import { UsageFooter } from "./UsageFooter.js";
+import { errorText, projectKeyOf, relativeAge, useMinuteClock, useOpenThread, useTaskOverview } from "./useTaskOverview.js";
 
-const FILTER_STORAGE_KEY = "bb-plugin-task-navigator:projects";
-const OTHER_COLLAPSED_STORAGE_KEY = "bb-plugin-task-navigator:other-collapsed";
+// Stored as the projects to hide, so a project created tomorrow shows up without touching the chips.
+const HIDDEN_PROJECTS_STORAGE_KEY = "bb-plugin-task-navigator:hidden-projects";
+const COLLAPSED_STORAGE_KEY = "bb-plugin-task-navigator:collapsed";
 const THREE_DAYS_MS = 3 * 24 * 60 * 60_000;
 
-type GroupName = "you" | "running" | "other";
+type CollapsibleSection = "other" | "done";
 
-function readProjectSelection(): Set<string> | null {
+function readStringSet(key: string): Set<string> {
   try {
-    const value = window.localStorage.getItem(FILTER_STORAGE_KEY);
-    if (value === null) return null;
+    const value = window.localStorage.getItem(key);
+    if (value === null) return new Set();
     const parsed: unknown = JSON.parse(value);
     return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
       ? new Set(parsed)
-      : null;
+      : new Set();
   } catch {
-    return null;
+    return new Set();
   }
 }
 
-function saveProjectSelection(selection: Set<string> | null): void {
+function saveStringSet(key: string, values: ReadonlySet<string>): void {
   try {
-    if (selection === null) window.localStorage.removeItem(FILTER_STORAGE_KEY);
-    else window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify([...selection]));
+    window.localStorage.setItem(key, JSON.stringify([...values]));
   } catch {
     // Sidebar preferences are an enhancement only.
   }
 }
 
-function readOtherCollapsed(): boolean {
-  try {
-    return window.localStorage.getItem(OTHER_COLLAPSED_STORAGE_KEY) !== "false";
-  } catch {
-    return true;
+function readCollapsed(): Set<CollapsibleSection> {
+  const stored = readStringSet(COLLAPSED_STORAGE_KEY);
+  // Both fold by default; the sidebar opens on what needs you, not on history.
+  if (stored.size === 0 && window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === null) {
+    return new Set(["other", "done"]);
   }
-}
-
-function saveOtherCollapsed(collapsed: boolean): void {
-  try {
-    window.localStorage.setItem(OTHER_COLLAPSED_STORAGE_KEY, String(collapsed));
-  } catch {
-    // Sidebar preferences are an enhancement only.
-  }
-}
-
-function relativeUpdatedAt(timestamp: number | null, now = Date.now()): string {
-  if (timestamp === null) return "—";
-  const seconds = Math.max(0, Math.floor((now - timestamp) / 1_000));
-  if (seconds < 60) return "now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return `${Math.floor(days / 7)}w`;
-}
-
-function projectKey(task: OverviewTask): string {
-  return task.key.split("-", 1)[0] ?? task.key;
+  return new Set([...stored].filter((item): item is CollapsibleSection => item === "other" || item === "done"));
 }
 
 function taskMatches(task: OverviewTask, query: string): boolean {
@@ -85,83 +58,62 @@ export function TaskSidebar({
   searchQuery,
 }: PluginThreadListProps) {
   const rpc = useRpc<typeof taskNavigatorRpc>();
-  const actions = useSidebarThreadActions();
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [projectSelection, setProjectSelection] = useState<Set<string> | null>(readProjectSelection);
-  const [otherCollapsed, setOtherCollapsed] = useState(readOtherCollapsed);
+  const openThread = useOpenThread();
+  const { overview, error, reload } = useTaskOverview();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [hiddenProjects, setHiddenProjects] = useState<Set<string>>(() => readStringSet(HIDDEN_PROJECTS_STORAGE_KEY));
+  const [collapsed, setCollapsed] = useState<Set<CollapsibleSection>>(readCollapsed);
   const [promotingThreadId, setPromotingThreadId] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now);
-
-  const load = useCallback(async () => {
-    try {
-      setOverview(await rpc.call("overview", {}));
-      setError(null);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load tasks.");
-    }
-  }, [rpc]);
-  useEffect(() => {
-    void load();
-  }, [load]);
-  const onOverviewChanged = useCallback(() => {
-    void load();
-  }, [load]);
-  useRealtime("overview-changed", onOverviewChanged);
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const now = useMinuteClock();
 
   const projects = useMemo(() => {
     if (overview === null) return [];
-    const tasks = [
-      ...overview.groups.you,
-      ...overview.groups.running,
-      ...overview.groups.stalled,
-      ...overview.groups.waiting,
-    ];
-    return [...new Set(tasks.map(projectKey))].sort((left, right) => left.localeCompare(right));
+    const keys = Object.values(overview.groups).flat().map((task) => projectKeyOf(task.key));
+    return [...new Set(keys)].sort((left, right) => left.localeCompare(right));
   }, [overview]);
-  const selectedProjects = projectSelection === null
-    ? new Set(projects)
-    : new Set([...projectSelection].filter((project) => projects.includes(project)));
   const filterTask = useCallback((task: OverviewTask) =>
-    selectedProjects.has(projectKey(task)) && taskMatches(task, searchQuery),
-  [searchQuery, selectedProjects]);
+    !hiddenProjects.has(projectKeyOf(task.key)) && taskMatches(task, searchQuery),
+  [searchQuery, hiddenProjects]);
   const you = overview?.groups.you.filter(filterTask) ?? [];
   const running = overview?.groups.running.filter(filterTask) ?? [];
   const other = [
     ...(overview?.groups.stalled ?? []),
     ...(overview?.groups.waiting ?? []),
+    ...(overview?.groups.backlog ?? []),
   ].filter(filterTask);
+  const done = overview?.groups.done.filter(filterTask) ?? [];
   const unfiled = (overview?.unfiled ?? []).filter((thread) => {
     const needle = searchQuery.trim().toLocaleLowerCase();
     return !needle || thread.title.toLocaleLowerCase().includes(needle);
   });
 
   const toggleProject = (project: string) => {
-    const next = new Set(selectedProjects);
+    const next = new Set(hiddenProjects);
     if (next.has(project)) next.delete(project);
     else next.add(project);
-    const normalized = next.size === projects.length ? null : next;
-    setProjectSelection(normalized);
-    saveProjectSelection(normalized);
+    setHiddenProjects(next);
+    saveStringSet(HIDDEN_PROJECTS_STORAGE_KEY, next);
   };
-  const toggleOther = () => {
-    const next = !otherCollapsed;
-    setOtherCollapsed(next);
-    saveOtherCollapsed(next);
+  const toggleSection = (section: CollapsibleSection) => {
+    const next = new Set(collapsed);
+    if (next.has(section)) next.delete(section);
+    else next.add(section);
+    setCollapsed(next);
+    saveStringSet(COLLAPSED_STORAGE_KEY, next);
+  };
+  const open = (thread: ThreadSummary) => {
+    openThread(thread);
+    onNavigate();
   };
   const promote = async (thread: ThreadSummary) => {
     setPromotingThreadId(thread.id);
+    setActionError(null);
     try {
       await rpc.call("promoteThread", { threadId: thread.id });
-      actions.open(thread.id);
-      onNavigate();
-      await load();
+      open(thread);
+      await reload();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not promote thread.");
+      setActionError(errorText(cause, "Could not promote thread."));
     } finally {
       setPromotingThreadId(null);
     }
@@ -175,103 +127,114 @@ export function TaskSidebar({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
-      <ProjectFilters projects={projects} selected={selectedProjects} onToggle={toggleProject} />
-      <TaskGroup
-        label="轮到你"
-        tasks={you}
-        activeThreadId={activeThreadId}
-        now={now}
-        onOpen={(threadId) => {
-          actions.open(threadId);
-          onNavigate();
-        }}
-      />
-      <TaskGroup
-        label="在跑"
-        tasks={running}
-        activeThreadId={activeThreadId}
-        now={now}
-        onOpen={(threadId) => {
-          actions.open(threadId);
-          onNavigate();
-        }}
-      />
-      <section aria-label="其它" className="mt-3">
-        <button
-          type="button"
-          className="flex min-h-7 w-full items-center gap-1 rounded px-1.5 text-left text-2xs font-medium uppercase tracking-wide text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          aria-expanded={!otherCollapsed}
-          onClick={toggleOther}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
+        <ProjectFilters projects={projects} hidden={hiddenProjects} onToggle={toggleProject} />
+        <TaskGroup label="轮到你" tasks={you} activeThreadId={activeThreadId} now={now} onOpen={open} />
+        <TaskGroup label="在跑" tasks={running} activeThreadId={activeThreadId} now={now} onOpen={open} />
+        <FoldedSection
+          label="其它"
+          count={other.length + unfiled.length}
+          collapsed={collapsed.has("other")}
+          onToggle={() => toggleSection("other")}
         >
-          <span>其它</span>
-          <span>{otherCollapsed ? `· ${other.length + unfiled.length}` : ""}</span>
-          <span className="min-w-0 flex-1" />
-          <span aria-hidden="true">{otherCollapsed ? "›" : "⌄"}</span>
-        </button>
-        {!otherCollapsed
+          {other.map((task) => (
+            <TaskRow key={task.id} task={task} activeThreadId={activeThreadId} now={now} onOpen={open} />
+          ))}
+          {unfiled.map((thread) => (
+            <UnfiledRow
+              key={thread.id}
+              thread={thread}
+              promoting={promotingThreadId === thread.id}
+              onOpen={() => open(thread)}
+              onPromote={() => void promote(thread)}
+            />
+          ))}
+          {other.length === 0 && unfiled.length === 0
+            ? <p className="px-1.5 py-2 text-xs text-muted-foreground">没有其它 task</p>
+            : null}
+        </FoldedSection>
+        {done.length > 0
           ? (
-            <div className="space-y-1 pt-1">
-              {other.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  activeThreadId={activeThreadId}
-                  now={now}
-                  onOpen={(threadId) => {
-                    actions.open(threadId);
-                    onNavigate();
-                  }}
-                />
+            <FoldedSection
+              label="最近完成"
+              count={done.length}
+              collapsed={collapsed.has("done")}
+              onToggle={() => toggleSection("done")}
+            >
+              {done.map((task) => (
+                <TaskRow key={task.id} task={task} activeThreadId={activeThreadId} now={now} onOpen={open} />
               ))}
-              {unfiled.map((thread) => (
-                <UnfiledRow
-                  key={thread.id}
-                  thread={thread}
-                  promoting={promotingThreadId === thread.id}
-                  onOpen={() => {
-                    actions.open(thread.id);
-                    onNavigate();
-                  }}
-                  onPromote={() => void promote(thread)}
-                />
-              ))}
-              {other.length === 0 && unfiled.length === 0
-                ? <p className="px-1.5 py-2 text-xs text-muted-foreground">没有其它 task</p>
-                : null}
-            </div>
+            </FoldedSection>
           )
           : null}
-      </section>
-      {error !== null ? <p role="status" className="px-1.5 pt-2 text-2xs text-destructive">{error}</p> : null}
+        {(actionError ?? error) !== null
+          ? <p role="status" className="px-1.5 pt-2 text-2xs text-destructive">{actionError ?? error}</p>
+          : null}
+      </div>
+      <UsageFooter />
     </div>
   );
 }
 
 function ProjectFilters({
   projects,
-  selected,
+  hidden,
   onToggle,
 }: {
   projects: readonly string[];
-  selected: ReadonlySet<string>;
+  hidden: ReadonlySet<string>;
   onToggle: (project: string) => void;
 }) {
-  if (projects.length === 0) return null;
+  if (projects.length < 2) return null;
   return (
     <div className="flex gap-1 overflow-x-auto pb-2 pt-1" aria-label="Project filters">
-      {projects.map((project) => (
-        <button
-          key={project}
-          type="button"
-          aria-pressed={selected.has(project)}
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-2xs ${selected.has(project) ? "border-sidebar-border text-sidebar-foreground" : "border-transparent text-muted-foreground"}`}
-          onClick={() => onToggle(project)}
-        >
-          {project}
-        </button>
-      ))}
+      {projects.map((project) => {
+        const selected = !hidden.has(project);
+        return (
+          <button
+            key={project}
+            type="button"
+            aria-pressed={selected}
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-2xs ${selected ? "border-sidebar-border text-sidebar-foreground" : "border-transparent text-muted-foreground"}`}
+            onClick={() => onToggle(project)}
+          >
+            {project}
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+function FoldedSection({
+  label,
+  count,
+  collapsed,
+  onToggle,
+  children,
+}: {
+  label: string;
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-label={label} className="mt-3">
+      <button
+        type="button"
+        className="flex min-h-7 w-full items-center gap-1 rounded px-1.5 text-left text-2xs font-medium uppercase tracking-wide text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        aria-expanded={!collapsed}
+        onClick={onToggle}
+      >
+        <span>{label}</span>
+        <span>{collapsed ? `· ${count}` : ""}</span>
+        <span className="min-w-0 flex-1" />
+        <span aria-hidden="true">{collapsed ? "›" : "⌄"}</span>
+      </button>
+      {!collapsed ? <div className="space-y-1 pt-1">{children}</div> : null}
+    </section>
   );
 }
 
@@ -286,7 +249,7 @@ function TaskGroup({
   tasks: readonly OverviewTask[];
   activeThreadId: string | null;
   now: number;
-  onOpen: (threadId: string) => void;
+  onOpen: (thread: ThreadSummary) => void;
 }) {
   return (
     <section aria-label={label} className="mt-2">
@@ -310,9 +273,10 @@ function TaskRow({
   task: OverviewTask;
   activeThreadId: string | null;
   now: number;
-  onOpen: (threadId: string) => void;
+  onOpen: (thread: ThreadSummary) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const containsActive = activeThreadId !== null && task.threads.some((thread) => thread.id === activeThreadId);
+  const [expanded, setExpanded] = useState(containsActive);
   const stale = task.lastMovedAt !== null && now - task.lastMovedAt > THREE_DAYS_MS;
   return (
     <article className={stale ? "rounded px-1.5 py-1 text-muted-foreground" : "rounded px-1.5 py-1"}>
@@ -330,12 +294,12 @@ function TaskRow({
           </span>
           <span className="block truncate text-2xs text-muted-foreground">{task.next?.slice(0, 40) ?? task.reason}</span>
         </span>
-        <span className="shrink-0 pt-0.5 text-2xs tabular-nums text-muted-foreground">{relativeUpdatedAt(task.lastMovedAt, now)}</span>
+        <span className="shrink-0 pt-0.5 text-2xs tabular-nums text-muted-foreground">{relativeAge(task.lastMovedAt, now)}</span>
       </button>
       {expanded
         ? (
           <div className="ml-4 mt-1 space-y-0.5">
-            <ThreadTree threads={task.threads} parentThreadId={null} activeThreadId={activeThreadId} onOpen={onOpen} />
+            <ThreadTree threads={task.threads} parentThreadId={null} activeThreadId={activeThreadId} now={now} onOpen={onOpen} />
             {task.pullRequests.map((pullRequest) => (
               <a
                 key={pullRequest.url}
@@ -358,12 +322,14 @@ function ThreadTree({
   threads,
   parentThreadId,
   activeThreadId,
+  now,
   onOpen,
 }: {
   threads: readonly ThreadSummary[];
   parentThreadId: string | null;
   activeThreadId: string | null;
-  onOpen: (threadId: string) => void;
+  now: number;
+  onOpen: (thread: ThreadSummary) => void;
 }) {
   const children = threads
     .filter((thread) => thread.parentThreadId === parentThreadId || (parentThreadId === null && !threads.some((candidate) => candidate.id === thread.parentThreadId)))
@@ -375,14 +341,14 @@ function ThreadTree({
           <button
             type="button"
             className={`group flex w-full items-center gap-1 rounded px-1 py-1 text-left text-2xs hover:bg-sidebar-accent ${activeThreadId === thread.id ? "bg-sidebar-accent" : ""}`}
-            onClick={() => onOpen(thread.id)}
+            onClick={() => onOpen(thread)}
           >
             <span className="w-3 shrink-0 text-center text-muted-foreground">{statusGlyph(thread.status)}</span>
-            <span className="min-w-0 flex-1 truncate">{thread.title}</span>
-            <span className="shrink-0 text-muted-foreground">{relativeUpdatedAt(thread.updatedAt)}</span>
+            <span className={`min-w-0 flex-1 truncate ${thread.archived ? "text-muted-foreground" : ""}`}>{thread.title}</span>
+            <span className="shrink-0 text-muted-foreground">{relativeAge(thread.updatedAt, now)}</span>
           </button>
           <div className="ml-3 border-l border-sidebar-border pl-1">
-            <ThreadTree threads={threads} parentThreadId={thread.id} activeThreadId={activeThreadId} onOpen={onOpen} />
+            <ThreadTree threads={threads} parentThreadId={thread.id} activeThreadId={activeThreadId} now={now} onOpen={onOpen} />
           </div>
         </div>
       ))}

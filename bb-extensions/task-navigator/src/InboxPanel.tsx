@@ -1,11 +1,7 @@
-import {
-  useRpc,
-  experimental_useSidebarThreadActions as useSidebarThreadActions,
-  type PluginNavPanelProps,
-} from "@get-bb/plugin-sdk/app";
+import { useRpc, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
 import { useState } from "react";
 import type { OverviewTask, taskNavigatorRpc } from "./server.js";
-import { useTaskOverview } from "./useTaskOverview.js";
+import { errorText, primaryThread, useOpenThread, useTaskOverview } from "./useTaskOverview.js";
 
 export function InboxPanel({}: PluginNavPanelProps) {
   const { overview, error, loading, reload } = useTaskOverview();
@@ -37,25 +33,39 @@ function InboxCard({
   task: OverviewTask;
   onChanged: () => Promise<void>;
 }) {
-  const actions = useSidebarThreadActions();
+  const openThread = useOpenThread();
   const rpc = useRpc<typeof taskNavigatorRpc>();
   const [nextValue, setNextValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const thread = task.threads.find((candidate) =>
+  const [error, setError] = useState<string | null>(null);
+  const asking = task.threads.find((candidate) =>
     candidate.status === "pendingInteraction" || candidate.status === "error"
-  ) ?? task.threads[0];
-  const pullRequest = task.pullRequests[0];
+  );
+  const thread = primaryThread(task.threads);
+  const openPullRequest = task.pullRequests.find((pullRequest) => pullRequest.state === "open");
   const writeNext = async () => {
     if (!nextValue.trim()) return;
     setSaving(true);
+    setError(null);
     try {
       await rpc.call("writeNext", { taskId: task.id, next: nextValue.trim() });
       setNextValue("");
       await onChanged();
+    } catch (cause) {
+      setError(errorText(cause, "保存失败"));
     } finally {
       setSaving(false);
     }
   };
+
+  // The button follows the same precedence as the reason text: a thread asking beats a PR waiting.
+  const action = asking !== undefined
+    ? { label: "打开线程回答", run: () => openThread(asking) }
+    : openPullRequest !== undefined
+    ? { label: `打开 PR #${openPullRequest.number}`, href: openPullRequest.url }
+    : thread !== undefined
+    ? { label: "打开线程", run: () => openThread(thread) }
+    : null;
 
   return (
     <article className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -64,26 +74,19 @@ function InboxCard({
         <h2 className="mt-1 text-lg font-semibold">{task.title}</h2>
         <p className="mt-3 text-sm text-muted-foreground">{task.reason}</p>
       </div>
-      {pullRequest !== undefined ? (
-        <a
-          href={pullRequest.url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
-        >
-          打开 PR #{pullRequest.number}
-        </a>
-      ) : thread !== undefined ? (
-        <button
-          type="button"
-          className="rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
-          onClick={() => actions.open(thread.id)}
-        >
-          打开线程回答
-        </button>
-      ) : (
-        <span className="text-sm text-muted-foreground">暂无线程</span>
-      )}
+      {action === null
+        ? <span className="text-sm text-muted-foreground">暂无线程</span>
+        : "href" in action
+        ? (
+          <a href={action.href} target="_blank" rel="noreferrer" className="inline-flex rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90">
+            {action.label}
+          </a>
+        )
+        : (
+          <button type="button" className="rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90" onClick={action.run}>
+            {action.label}
+          </button>
+        )}
       {task.group === "stalled" || thread === undefined ? (
         <form
           className="space-y-2 border-t border-border pt-3"
@@ -107,6 +110,7 @@ function InboxCard({
           </div>
         </form>
       ) : null}
+      {error !== null ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
       <button
         type="button"
         className="text-xs text-muted-foreground underline hover:text-foreground"

@@ -9,9 +9,14 @@ describe("deriveTaskState", () => {
       .toEqual({ group: "none", waitingOn: "nobody", reason: "已结束" });
   });
 
-  it("puts a task without threads in your queue", () => {
-    expect(deriveTaskState({ status: "todo", threads: [], pullRequests: [], next: null }).group)
-      .toBe("you");
+  it("keeps a never-started task out of your queue", () => {
+    expect(deriveTaskState({ status: "todo", threads: [], pullRequests: [], next: null }))
+      .toMatchObject({ group: "backlog", waitingOn: "you", reason: "未开始" });
+  });
+
+  it("treats claimed progress without any thread as stalled", () => {
+    expect(deriveTaskState({ status: "in_review", threads: [], pullRequests: [], next: null }).group)
+      .toBe("stalled");
   });
 
   it("prioritizes blocked and failed threads", () => {
@@ -41,13 +46,40 @@ describe("deriveTaskState", () => {
     })).toMatchObject({ group: "waiting", waitingOn: "ci", reason: "PR #12 CI 运行中" });
   });
 
-  it("puts a reviewed open PR in your queue", () => {
+  it("puts a green open PR in your queue", () => {
     expect(deriveTaskState({
       status: "in_review",
       threads: [idle],
-      pullRequests: [{ number: 12, state: "open", checks: "complete" }],
+      pullRequests: [{ number: 12, state: "open", checks: "passing" }],
       next: "continue",
     })).toMatchObject({ group: "you", waitingOn: "you", reason: "PR #12 CI 通过，等你 review" });
+  });
+
+  it("never reports a failing PR as passing", () => {
+    expect(deriveTaskState({
+      status: "in_review",
+      threads: [idle],
+      pullRequests: [{ number: 12, state: "open", checks: "failing" }],
+      next: "continue",
+    })).toMatchObject({ group: "you", reason: "PR #12 CI 失败" });
+  });
+
+  it("asks for review without claiming CI when a PR has no checks", () => {
+    expect(deriveTaskState({
+      status: "in_review",
+      threads: [idle],
+      pullRequests: [{ number: 12, state: "open", checks: "no_checks" }],
+      next: "continue",
+    })).toMatchObject({ group: "you", reason: "PR #12 等你 review" });
+  });
+
+  it("treats a draft PR as unfinished agent work", () => {
+    expect(deriveTaskState({
+      status: "in_progress",
+      threads: [idle],
+      pullRequests: [{ number: 12, state: "draft", checks: "passing" }],
+      next: "finish the PR",
+    })).toMatchObject({ group: "waiting", waitingOn: "agent" });
   });
 
   it("calls out stopped work without a next step", () => {

@@ -3,13 +3,16 @@ import type {
   PluginAgentConfigurationContext,
 } from "@get-bb/plugin-sdk";
 import {
+  listAllTasks,
   listTaskThreads,
-  listTasks,
   taskThreadsAttach,
+  taskThreadsDetach,
   type Task,
 } from "./tasks-client.js";
 
 const MAX_PARENT_DEPTH = 10;
+// A full rebuild is one listTasks plus one listTaskThreads per task; fan-out spawns must not repeat it per child.
+const REBUILD_TTL_MS = 30_000;
 
 export interface TaskBinding {
   taskId: string;
@@ -33,6 +36,7 @@ export function taskInstructions(binding: TaskBinding): string {
 export class TaskBindings {
   private readonly byThreadId = new Map<string, TaskBinding>();
   private rebuildPromise: Promise<void> | null = null;
+  private rebuiltAt = 0;
 
   constructor(private readonly bb: BbPluginApi) {}
 
@@ -60,6 +64,25 @@ export class TaskBindings {
     this.byThreadId.delete(threadId);
   }
 
+  /** Move a thread to another task; the previous task loses it so it never shows under two trees. */
+  async rebind(threadId: string, task: Task): Promise<void> {
+    const previous = this.get(threadId);
+    if (previous !== undefined && previous.taskId !== task.id) {
+      await taskThreadsDetach(this.bb, previous.taskId, threadId);
+    }
+    await taskThreadsAttach(this.bb, task.id, threadId);
+    this.remember(task, [{ threadId }]);
+  }
+
+  /** Drop a thread from its task on both sides; a no-op when it was never bound. */
+  async detach(threadId: string): Promise<void> {
+    const binding = this.get(threadId);
+    this.forget(threadId);
+    if (binding !== undefined) {
+      await taskThreadsDetach(this.bb, binding.taskId, threadId);
+    }
+  }
+
   async rebuild(): Promise<void> {
     if (this.rebuildPromise !== null) return this.rebuildPromise;
     this.rebuildPromise = this.load().finally(() => {
@@ -68,16 +91,18 @@ export class TaskBindings {
     return this.rebuildPromise;
   }
 
+  private async ensureFresh(): Promise<void> {
+    if (Date.now() - this.rebuiltAt < REBUILD_TTL_MS) return;
+    await this.rebuild();
+  }
+
   private async load(): Promise<void> {
-    const { tasks } = await listTasks(this.bb);
-    const next = new Map<string, TaskBinding>();
+    const tasks = await listAllTasks(this.bb);
     const results = await Promise.allSettled(
       tasks.map(async (task) => {
         const { taskThreads } = await listTaskThreads(this.bb, task.id);
-        const binding = bindingFor(task);
-        for (const taskThread of taskThreads) {
-          next.set(taskThread.threadId, binding);
-        }
+        // Merge instead of clear-and-refill so bindings written while this snapshot was in flight survive.
+        this.remember(task, taskThreads);
       }),
     );
     for (const result of results) {
@@ -87,14 +112,11 @@ export class TaskBindings {
         );
       }
     }
-    this.byThreadId.clear();
-    for (const [threadId, binding] of next) {
-      this.byThreadId.set(threadId, binding);
-    }
+    this.rebuiltAt = Date.now();
   }
 
   async findAncestor(threadId: string): Promise<TaskBinding | undefined> {
-    await this.rebuild();
+    await this.ensureFresh();
     let currentId: string | null = threadId;
     for (let depth = 0; currentId !== null && depth < MAX_PARENT_DEPTH; depth++) {
       const binding = this.get(currentId);
