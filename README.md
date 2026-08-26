@@ -1,6 +1,6 @@
 # Agent Kit
 
-A curated collection of skills, extensions, and instructions for AI coding agents. Skills sync to a shared `~/.agents/skills` directory and are symlinked into Claude Code, Pi, Codex, and other runtimes; `_AGENTS.md` is the single instruction file linked to all of them.
+A curated collection of skills, Pi extensions, BB plugins, and instructions for AI coding agents. Skills sync to a shared `~/.agents/skills` directory and are symlinked into Claude Code, Pi, Codex, and other runtimes; `_AGENTS.md` is the single instruction file linked to all of them.
 
 ## Setup
 
@@ -60,13 +60,27 @@ Remote skills installed during sync (see [skills/remote-skills.txt](skills/remot
 | **codex-usage-status**          | Show Codex usage windows in the status line                                    |
 | **model-context**               | Tell the agent its active Pi model without changing the prompt                 |
 
+## BB extensions
+
+| Extension               | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| **workspace-navigator** | Browse projects, worktrees, and sessions in a compact sidebar |
+
+Install the Workspace Navigator from this repository with:
+
+```bash
+npm --prefix bb-extensions/workspace-navigator install
+bb plugin install ./bb-extensions/workspace-navigator --yes
+```
+
 ## Project structure
 
 ```
 agent-kit/
 ├── _AGENTS.md    # Shared agent instructions, symlinked to every framework
 ├── skills/       # Local skills + remote-skills.txt registry
-└── extensions/   # Pi extensions
+├── pi-extensions/   # Pi extensions
+└── bb-extensions/   # BB plugins
 ```
 
 ### Generic Pi providers

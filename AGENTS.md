@@ -6,7 +6,7 @@ not this file's job to restate it; read it directly when working on its content.
 ## Layout
 
 - `skills/` — local skills, one directory per skill, plus `remote-skills.txt`
-- `extensions/` — Pi extensions, linked into `~/.pi/agent/extensions` by `mise run sync`
+- `pi-extensions/` — Pi extensions, linked into `~/.pi/agent/extensions` by `mise run sync`
 - `.mise/tasks/sync/skills` — the skill sync script; everything else lives in `mise.toml`
 
 ## Commands
