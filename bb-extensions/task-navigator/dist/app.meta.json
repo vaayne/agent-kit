@@ -1,0 +1,11 @@
+{
+  "sdkMajor": 0,
+  "sdkVersion": "0.4.21",
+  "artifactFormatVersion": 1,
+  "pluginId": "task-navigator",
+  "pluginVersion": "0.4.21",
+  "builtWith": {
+    "bbVersion": "0.40.0",
+    "pluginSdkVersion": "0.4.21"
+  }
+}

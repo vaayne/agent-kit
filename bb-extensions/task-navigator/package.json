@@ -1,0 +1,40 @@
+{
+  "name": "bb-plugin-task-navigator",
+  "version": "0.4.21",
+  "private": true,
+  "type": "module",
+  "description": "A task-first navigator for BB.",
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.4.21"
+  },
+  "bb": {
+    "name": "Task Navigator",
+    "description": "Find work by task, with threads attached beneath their durable intent.",
+    "branding": {
+      "icon": "ListChecks"
+    },
+    "app": "./app.tsx",
+    "server": "./src/server.ts"
+  },
+  "keywords": [
+    "bb-plugin",
+    "sidebar",
+    "tasks"
+  ],
+  "dependencies": {
+    "zod": "4.3.6"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.4.21",
+    "@types/node": "24.12.4",
+    "@types/react": "19.2.13",
+    "react": "19.2.4",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "vitest": "4.1.1"
+  }
+}
