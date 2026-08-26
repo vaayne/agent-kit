@@ -48,7 +48,10 @@ const taskSchema = z
     parentTaskId: taskIdSchema.nullable(),
     labelIds: z.array(taskIdSchema),
     key: z.string().optional(),
+    number: z.number().int().positive().optional(),
     projectPrefix: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
   })
   .passthrough();
 
@@ -64,6 +67,19 @@ const taskThreadSchema = z
     updatedAt: z.string(),
   })
   .passthrough();
+const commentSchema = z
+  .object({
+    id: taskIdSchema,
+    taskId: taskIdSchema,
+    kind: z.enum(["user", "agent", "system"]),
+    authorName: z.string(),
+    presetName: z.string().nullable(),
+    threadId: threadIdSchema.nullable(),
+    body: z.string(),
+    notifiedCount: z.number().int().nonnegative(),
+    createdAt: z.string(),
+  })
+  .passthrough();
 
 const listTasksOutputSchema = z
   .object({
@@ -77,6 +93,9 @@ const getTaskOutputSchema = z
 const listTaskThreadsOutputSchema = z
   .object({ taskThreads: z.array(taskThreadSchema) })
   .strict();
+const listCommentsOutputSchema = z
+  .object({ comments: z.array(commentSchema) })
+  .strict();
 const taskThreadMutationOutputSchema = z
   .object({ threadId: threadIdSchema })
   .strict();
@@ -84,6 +103,7 @@ const taskThreadMutationOutputSchema = z
 export type ListTasksInput = z.infer<typeof listTasksInputSchema>;
 export type Task = z.infer<typeof taskSchema>;
 export type TaskThread = z.infer<typeof taskThreadSchema>;
+export type TaskComment = z.infer<typeof commentSchema>;
 export type ListTasksResult = z.infer<typeof listTasksOutputSchema>;
 
 export async function listTasks(
@@ -119,6 +139,18 @@ export async function listTaskThreads(
     method: "listTaskThreads",
     input: { taskId: taskIdSchema.parse(taskId) },
     outputSchema: listTaskThreadsOutputSchema,
+  });
+}
+
+export async function listComments(
+  bb: BbPluginApi,
+  taskId: string,
+): Promise<z.infer<typeof listCommentsOutputSchema>> {
+  return bb.sdk.plugins.callRpc({
+    pluginId: "tasks",
+    method: "listComments",
+    input: { taskId: taskIdSchema.parse(taskId) },
+    outputSchema: listCommentsOutputSchema,
   });
 }
 

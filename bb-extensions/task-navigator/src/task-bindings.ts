@@ -40,6 +40,13 @@ export class TaskBindings {
     return this.byThreadId.get(threadId);
   }
 
+  remember(task: Task, taskThreads: readonly { threadId: string }[]): void {
+    const binding = bindingFor(task);
+    for (const taskThread of taskThreads) {
+      this.byThreadId.set(taskThread.threadId, binding);
+    }
+  }
+
   getForAgentContext(
     context: PluginAgentConfigurationContext,
   ): TaskBinding | undefined {
