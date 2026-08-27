@@ -19,6 +19,7 @@ Work in this order:
 ## Tools & Memory
 
 - **Memory**: `nmem` is your cross-session external brain (distinct from runtime-local memory); mandatory for non-trivial tasks. Search before starting or saving. Save only what a future session can reuse: preferences, conventions, decisions, bug patterns; never secrets or transient info. Update instead of duplicating. Verbs are nested: `nmem memories search|add|update`, `nmem library add <url|file>` for artifacts, `nmem threads search|show` for past sessions; there is no top-level `nmem search`. When unsure, `nmem --help`, don't guess. What never became a memory often lives in a thread, so search threads before re-asking the user for context; import is manual (`nmem threads sync --from <host> --apply`), so treat recency with suspicion.
+- **GitHub**: prefer `gh` CLI for GitHub work, including reading code and documentation.
 - **Isolated workspaces**: only for risky, long-running, conflict-prone, or explicitly isolated work; otherwise use the current checkout (an existing task-specific clone or worktree is fine). On APFS prefer a COW clone, an independent checkout sharing unchanged disk blocks: `cp -Rc <source-dir> ~/.agents/worktrees/<repo>/<task-name>`, then `rm -rf <dest>/.git/worktrees` to drop stale worktree metadata; refuse to fall back to a plain copy if the clone fails, and briefly state why and where before creating one. Never clone a clone or reuse another task's workspace; search nmem for `COW clone` gotchas.
 
 ## Task handoff
