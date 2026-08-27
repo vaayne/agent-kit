@@ -23,31 +23,34 @@ plugin also adds a **全景** board page with a **收件箱** fixed tab.
 
 ## Sidebar
 
-A dashed **PMO** row sits above everything when the `pmoThreadId` setting names
-a thread: the standing PMO thread that runs the scheduled sweep and answers any
-question about tasks. It is never filed under a task. See [PMO](#pmo).
+The sidebar answers one question: where do I click next. Three layers, and
+nothing else by default:
 
-The sidebar has seven quiet sections; only the first two open by default:
+- **PMO**: a dashed row for the standing PMO thread (setting `pmoThreadId`).
+- **Now**: tasks that need you (agent asking, thread errored, PR waiting on
+  your review or failing CI) or are running, plus the task that owns the thread
+  you are in, whatever state it derived to. Each row: status dot, key, title,
+  one reason word, age. The section disappears when it is empty.
+- **Scratch**: root threads from the last 7 days not filed under a task,
+  newest first. One-off work lives here and never needs a task; hover a row
+  for "Make a task". Six rows by default, expand to all.
+- **More**: folded, no counts. Inside, small groups Waiting / Stalled / Not
+  started / Recently done. Search expands it automatically.
 
-- **轮到你** shows tasks with a pending interaction, a failing or reviewable
-  PR, or a thread that stopped without a `Next:` handoff.
-- **在跑** shows tasks with active thread work.
-- **临时** folds root threads from the last 7 days not yet filed to a task,
-  newest first; hover a row for 提升为 task.
-- **等 CI / 等别人**, **停了**, **未开始** each fold with a count; they carry
-  the same names and meaning as the board columns.
-- **最近完成** folds tasks finished in the last 30 days so their threads stay
-  reachable; older history lives in the Tasks page.
-
-Task rows show the key, title, the first 40 characters of `next`, and coarse
-relative age. Expanding a row shows its thread tree and pull requests; archived
-threads are dimmed and still open. Search matches task key, title, `next`, and
-thread titles. Project chips use the task key prefix; a hidden project stays
-hidden in this browser, and new projects show by default.
+There is no project filter in the sidebar: the task key prefix on every row is
+the project, and typing `AK-` in search filters by it. The board keeps project
+chips. Expanding a task row shows its thread tree and pull requests; archived
+threads are dimmed and still open.
 
 A one-line usage footer ("Claude 42% · Codex 6%") sits under the list, above
 Settings. Click it for per-window detail; the data comes from BB's primary
 machine, cached 30 seconds.
+
+## Language
+
+All strings live in `src/strings.ts` (`zh` and `en`). The `language` setting
+picks one; `auto` (default) follows the browser. Derived reasons are codes
+(`asking`, `ciFailed`, …) so every surface renders them in the chosen language.
 
 Child threads automatically inherit their parent's task. Agents receive the
 task key and the handoff convention through `bb.agents.configure`.

@@ -1,35 +1,38 @@
 import { useRpc, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
 import { useState } from "react";
 import type { OverviewTask, taskNavigatorRpc } from "./server.js";
-import { errorText, primaryThread, useOpenThread, useTaskOverview } from "./useTaskOverview.js";
+import { reasonText, type Strings } from "./strings.js";
+import { errorText, primaryThread, useOpenThread, useStrings, useTaskOverview } from "./useTaskOverview.js";
 
 export function InboxPanel({}: PluginNavPanelProps) {
   const { overview, error, loading, reload } = useTaskOverview();
-  if (loading) return <PanelMessage>Loading tasks…</PanelMessage>;
+  const t = useStrings();
+  if (loading) return <PanelMessage>{t.loading}</PanelMessage>;
   if (error !== null && overview === null) return <PanelMessage tone="error">{error}</PanelMessage>;
-  if (overview === null) return <PanelMessage>没有事轮到你</PanelMessage>;
+  if (overview === null) return <PanelMessage>{t.inbox.empty}</PanelMessage>;
   const tasks = overview.groups.you;
   if (tasks.length === 0) {
-    return <PanelMessage>没有事轮到你</PanelMessage>;
+    return <PanelMessage>{t.inbox.empty}</PanelMessage>;
   }
   return (
     <main className="mx-auto w-full max-w-2xl space-y-4 p-5">
       <header>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">收件箱</p>
-        <h1 className="mt-1 text-xl font-semibold">现在轮到我的</h1>
+        <h1 className="text-xl font-semibold">{t.inbox.title}</h1>
       </header>
-      <InboxCard task={tasks[0]!} onChanged={reload} />
+      <InboxCard t={t} task={tasks[0]!} onChanged={reload} />
       {tasks.length > 1 ? (
-        <p className="text-sm text-muted-foreground">还有 {tasks.length - 1} 件</p>
+        <p className="text-sm text-muted-foreground">{t.inbox.more(tasks.length - 1)}</p>
       ) : null}
     </main>
   );
 }
 
 function InboxCard({
+  t,
   task,
   onChanged,
 }: {
+  t: Strings;
   task: OverviewTask;
   onChanged: () => Promise<void>;
 }) {
@@ -52,7 +55,7 @@ function InboxCard({
       setNextValue("");
       await onChanged();
     } catch (cause) {
-      setError(errorText(cause, "保存失败"));
+      setError(errorText(cause, t.inbox.saveError));
     } finally {
       setSaving(false);
     }
@@ -60,11 +63,11 @@ function InboxCard({
 
   // The button follows the same precedence as the reason text: a thread asking beats a PR waiting.
   const action = asking !== undefined
-    ? { label: "打开线程回答", run: () => openThread(asking) }
+    ? { label: t.inbox.openThreadAnswer, run: () => openThread(asking) }
     : openPullRequest !== undefined
-    ? { label: `打开 PR #${openPullRequest.number}`, href: openPullRequest.url }
+    ? { label: t.inbox.openPr(openPullRequest.number), href: openPullRequest.url }
     : thread !== undefined
-    ? { label: "打开线程", run: () => openThread(thread) }
+    ? { label: t.inbox.openThread, run: () => openThread(thread) }
     : null;
 
   return (
@@ -72,10 +75,10 @@ function InboxCard({
       <div>
         <p className="font-mono text-xs text-muted-foreground">{task.key}</p>
         <h2 className="mt-1 text-lg font-semibold">{task.title}</h2>
-        <p className="mt-3 text-sm text-muted-foreground">{task.reason}</p>
+        <p className="mt-3 text-sm text-muted-foreground">{reasonText(t, task.reason, task.reasonPr)}</p>
       </div>
       {action === null
-        ? <span className="text-sm text-muted-foreground">暂无线程</span>
+        ? <span className="text-sm text-muted-foreground">{t.inbox.noThread}</span>
         : "href" in action
         ? (
           <a href={action.href} target="_blank" rel="noreferrer" className="inline-flex rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90">
@@ -95,17 +98,17 @@ function InboxCard({
             void writeNext();
           }}
         >
-          <label className="block text-sm font-medium">写下一步</label>
+          <label className="block text-sm font-medium">{t.inbox.writeNext}</label>
           <div className="flex gap-2">
             <input
               value={nextValue}
               disabled={saving}
               className="min-w-0 flex-1 rounded border border-input bg-background px-2 py-1.5 text-sm"
-              placeholder="下一步谁做什么"
+              placeholder={t.inbox.nextPlaceholder}
               onChange={(event) => setNextValue(event.target.value)}
             />
             <button type="submit" disabled={saving || !nextValue.trim()} className="rounded border border-input px-3 py-1.5 text-sm disabled:opacity-50">
-              {saving ? "保存中…" : "保存"}
+              {saving ? t.inbox.saving : t.inbox.save}
             </button>
           </div>
         </form>
@@ -116,7 +119,7 @@ function InboxCard({
         className="text-xs text-muted-foreground underline hover:text-foreground"
         onClick={() => void onChanged()}
       >
-        刷新收件箱
+        {t.inbox.refresh}
       </button>
     </article>
   );

@@ -1,6 +1,6 @@
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { deriveTaskState, type DerivedPullRequest, type DerivedThread } from "./derive.js";
+import { deriveTaskState, REASON_CODES, type DerivedPullRequest, type DerivedThread } from "./derive.js";
 import { parseNext } from "./next.js";
 import { TaskBindings, taskInstructions } from "./task-bindings.js";
 import {
@@ -80,7 +80,8 @@ const taskOverviewSchema = z
     doneAt: z.number().nullable(),
     waitingOn: z.enum(["you", "agent", "ci", "nobody"]),
     group: z.enum(["you", "running", "stalled", "waiting", "backlog", "none"]),
-    reason: z.string(),
+    reason: z.enum(REASON_CODES),
+    reasonPr: z.number().int().nullable(),
     threads: z.array(threadSummarySchema),
     pullRequests: z.array(pullRequestSummarySchema),
   })
@@ -103,6 +104,8 @@ const overviewSchema = z
     doneThisWeek: z.number().int().nonnegative(),
     /** The standing PMO thread, when the pmoThreadId setting names one that exists. */
     pmo: threadSummarySchema.nullable(),
+    /** UI language from the plugin setting; "auto" follows the browser. */
+    language: z.enum(["auto", "zh", "en"]),
   })
   .strict();
 
@@ -468,6 +471,12 @@ export default function plugin(bb: BbPluginApi) {
       description: "Thread id of the standing PMO thread shown at the top of the sidebar (thr_…). Empty hides the row.",
       default: "",
     },
+    language: {
+      type: "string",
+      label: "Language",
+      description: "UI language: auto (follow the browser), zh, or en.",
+      default: "auto",
+    },
   });
   let statusLog: StatusLog | null = null;
   const loadStatusLog = async (): Promise<StatusLog> => {
@@ -626,6 +635,7 @@ export default function plugin(bb: BbPluginApi) {
         waitingOn: derived.waitingOn,
         group: derived.group,
         reason: derived.reason,
+        reasonPr: derived.reasonPr,
         threads: threads.map(toThreadSummary),
         pullRequests: prs.flatMap((pr) => pr.pullRequest === null ? [] : [pr.pullRequest]),
       };
@@ -680,7 +690,9 @@ export default function plugin(bb: BbPluginApi) {
       task.status === "done"
       && withinCurrentWeek(parseTime(task.updatedAt) ?? 0, now)
     ).length;
-    return overviewSchema.parse({ groups, unfiled, filed, doneThisWeek, pmo });
+    const { language: rawLanguage } = await settings.get();
+    const language = rawLanguage === "zh" || rawLanguage === "en" ? rawLanguage : "auto";
+    return overviewSchema.parse({ groups, unfiled, filed, doneThisWeek, pmo, language });
   };
 
   let cachedUsage: { usage: UsageResponse; fetchedAt: number } | null = null;

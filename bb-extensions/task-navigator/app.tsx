@@ -4,6 +4,10 @@ import { NewTaskAction } from "./src/NewTaskAction.js";
 import { OverviewTab } from "./src/OverviewTab.js";
 import { ThreadTaskPanel } from "./src/ThreadTaskPanel.js";
 import { TaskSidebar } from "./src/TaskSidebar.js";
+import { resolveLanguage, STRINGS } from "./src/strings.js";
+
+// Slot titles are registered before any RPC runs, so they follow the browser language only.
+const t = STRINGS[resolveLanguage(undefined)];
 
 export default definePluginApp((app) => {
   app.slots.experimental_threadList({
@@ -14,13 +18,13 @@ export default definePluginApp((app) => {
   });
   app.slots.threadPanelAction({
     id: "task",
-    title: "所属 task",
+    title: t.panel.title,
     icon: "ListChecks",
     component: ThreadTaskPanel,
   });
   app.slots.experimental_newThreadPanelAction({
     id: "new-task",
-    title: "先建 task",
+    title: t.newTask.title,
     icon: "ListChecks",
     component: NewTaskAction,
   });
@@ -33,7 +37,7 @@ export default definePluginApp((app) => {
     fixedTabs: [{
       panelId: "task-navigator",
       id: "inbox",
-      title: "收件箱",
+      title: t.inbox.kicker,
       icon: "Inbox",
       component: InboxPanel,
     }],

@@ -6,12 +6,12 @@ const idle: DerivedThread = { status: "idle" };
 describe("deriveTaskState", () => {
   it("keeps manual terminal states out of active groups", () => {
     expect(deriveTaskState({ status: "done", threads: [], pullRequests: [], next: null }))
-      .toEqual({ group: "none", waitingOn: "nobody", reason: "已结束" });
+      .toEqual({ group: "none", waitingOn: "nobody", reason: "ended", reasonPr: null });
   });
 
   it("keeps a never-started task out of your queue", () => {
     expect(deriveTaskState({ status: "todo", threads: [], pullRequests: [], next: null }))
-      .toMatchObject({ group: "backlog", waitingOn: "you", reason: "未开始" });
+      .toMatchObject({ group: "backlog", waitingOn: "you", reason: "notStarted" });
   });
 
   it("treats claimed progress without any thread as stalled", () => {
@@ -25,7 +25,7 @@ describe("deriveTaskState", () => {
       threads: [{ status: "pendingInteraction" }, idle],
       pullRequests: [],
       next: "continue",
-    })).toMatchObject({ group: "you", waitingOn: "you", reason: "agent 在问你" });
+    })).toMatchObject({ group: "you", waitingOn: "you", reason: "asking" });
   });
 
   it("ignores archived errored attempts", () => {
@@ -34,12 +34,12 @@ describe("deriveTaskState", () => {
       threads: [{ status: "error", archived: true }, idle],
       pullRequests: [],
       next: null,
-    })).toMatchObject({ group: "stalled", reason: "线程停了，没有 next" });
+    })).toMatchObject({ group: "stalled", reason: "stalled" });
   });
 
   it("flags a live errored thread without calling it a question", () => {
     expect(deriveTaskState({ status: "in_progress", threads: [{ status: "error" }], pullRequests: [], next: "x" }))
-      .toMatchObject({ group: "you", reason: "线程出错了，看一眼或归档它" });
+      .toMatchObject({ group: "you", reason: "error" });
   });
 
   it("prioritizes running threads over pull requests", () => {
@@ -57,7 +57,7 @@ describe("deriveTaskState", () => {
       threads: [idle],
       pullRequests: [{ number: 12, state: "open", checks: "pending" }],
       next: "continue",
-    })).toMatchObject({ group: "waiting", waitingOn: "ci", reason: "PR #12 CI 运行中" });
+    })).toMatchObject({ group: "waiting", waitingOn: "ci", reason: "ciPending", reasonPr: 12 });
   });
 
   it("puts a green open PR in your queue", () => {
@@ -66,7 +66,7 @@ describe("deriveTaskState", () => {
       threads: [idle],
       pullRequests: [{ number: 12, state: "open", checks: "passing" }],
       next: "continue",
-    })).toMatchObject({ group: "you", waitingOn: "you", reason: "PR #12 CI 通过，等你 review" });
+    })).toMatchObject({ group: "you", waitingOn: "you", reason: "reviewPassing", reasonPr: 12 });
   });
 
   it("never reports a failing PR as passing", () => {
@@ -75,7 +75,7 @@ describe("deriveTaskState", () => {
       threads: [idle],
       pullRequests: [{ number: 12, state: "open", checks: "failing" }],
       next: "continue",
-    })).toMatchObject({ group: "you", reason: "PR #12 CI 失败" });
+    })).toMatchObject({ group: "you", reason: "ciFailed", reasonPr: 12 });
   });
 
   it("asks for review without claiming CI when a PR has no checks", () => {
@@ -84,7 +84,7 @@ describe("deriveTaskState", () => {
       threads: [idle],
       pullRequests: [{ number: 12, state: "open", checks: "no_checks" }],
       next: "continue",
-    })).toMatchObject({ group: "you", reason: "PR #12 等你 review" });
+    })).toMatchObject({ group: "you", reason: "review", reasonPr: 12 });
   });
 
   it("treats a draft PR as unfinished agent work", () => {
@@ -98,11 +98,25 @@ describe("deriveTaskState", () => {
 
   it("calls out stopped work without a next step", () => {
     expect(deriveTaskState({ status: "in_review", threads: [idle], pullRequests: [], next: null }))
-      .toMatchObject({ group: "stalled", waitingOn: "you", reason: "线程停了，没有 next" });
+      .toMatchObject({ group: "stalled", waitingOn: "you", reason: "stalled" });
   });
 
   it("waits on the agent when an explicit next step exists", () => {
     expect(deriveTaskState({ status: "in_progress", threads: [idle], pullRequests: [], next: "run tests" }))
       .toMatchObject({ group: "waiting", waitingOn: "agent" });
+  });
+
+  it("keeps a done task in Now while one of its threads still runs", () => {
+    expect(deriveTaskState({
+      status: "done",
+      threads: [{ status: "running" }, { status: "idle", archived: true }],
+      pullRequests: [],
+      next: null,
+    })).toMatchObject({ group: "running", reason: "running" });
+  });
+
+  it("treats a done task with only idle threads as ended", () => {
+    expect(deriveTaskState({ status: "done", threads: [{ status: "idle" }], pullRequests: [], next: null }))
+      .toMatchObject({ group: "none", reason: "ended" });
   });
 });

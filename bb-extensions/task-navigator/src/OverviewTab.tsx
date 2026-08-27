@@ -1,7 +1,8 @@
 import { useRpc, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
 import { useMemo, useState } from "react";
 import type { Overview, OverviewTask, taskNavigatorRpc } from "./server.js";
-import { errorText, primaryThread, projectKeyOf, relativeAge, useMinuteClock, useOpenThread, useTaskOverview } from "./useTaskOverview.js";
+import { reasonText, type Strings } from "./strings.js";
+import { errorText, primaryThread, projectKeyOf, relativeAge, useMinuteClock, useOpenThread, useStrings, useTaskOverview } from "./useTaskOverview.js";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60_000;
 
@@ -9,25 +10,19 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60_000;
  * Columns are derived attention states, never the manual status field, so a
  * card moves when facts change and nobody has to drag it.
  */
-const COLUMNS: readonly { key: keyof Overview["groups"]; label: string; hint: string }[] = [
-  { key: "you", label: "等你", hint: "agent 在问、PR 等 review" },
-  { key: "running", label: "在跑", hint: "agent 正在工作" },
-  { key: "waiting", label: "等 CI / 等别人", hint: "有 next，不用你动" },
-  { key: "stalled", label: "停了", hint: "没有 next，写一条或关掉" },
-  { key: "backlog", label: "未开始", hint: "还没有线程" },
-  { key: "done", label: "最近完成", hint: "30 天内结束" },
-];
+const COLUMNS: readonly (keyof Overview["groups"])[] = ["you", "running", "waiting", "stalled", "backlog", "done"];
 
 export function OverviewTab({}: PluginNavPanelProps) {
   const { overview, error, loading, reload } = useTaskOverview();
+  const t = useStrings();
   const now = useMinuteClock();
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const projects = useMemo(() => {
     if (overview === null) return [];
     return [...new Set(Object.values(overview.groups).flat().map((task) => projectKeyOf(task.key)))].sort();
   }, [overview]);
-  if (loading) return <p className="p-5 text-sm text-muted-foreground">Loading tasks…</p>;
-  if (overview === null) return <p className="p-5 text-sm text-destructive">{error ?? "Could not load tasks."}</p>;
+  if (loading) return <p className="p-5 text-sm text-muted-foreground">{t.loading}</p>;
+  if (overview === null) return <p className="p-5 text-sm text-destructive">{error ?? t.loadError}</p>;
   const filter = (task: OverviewTask) => projectFilter === null || projectKeyOf(task.key) === projectFilter;
   const cycleDays = medianCycleDays(overview.groups.done);
   const stale = overview.groups.stalled
@@ -36,29 +31,30 @@ export function OverviewTab({}: PluginNavPanelProps) {
   return (
     <main className="flex h-full min-h-0 flex-col gap-3 p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <h1 className="text-base font-semibold">全景</h1>
+        <h1 className="text-base font-semibold">{t.board.title}</h1>
         <div className="flex gap-1 overflow-x-auto" aria-label="Project filters">
-          <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>全部</FilterChip>
+          <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>{t.board.all}</FilterChip>
           {projects.map((project) => (
             <FilterChip key={project} active={projectFilter === project} onClick={() => setProjectFilter(project)}>{project}</FilterChip>
           ))}
         </div>
         <span className="min-w-0 flex-1" />
         <span className="text-xs text-muted-foreground">
-          本周完成 {overview.doneThisWeek} 件{cycleDays === null ? "" : ` · 近 30 天中位周期 ${cycleDays} 天`}
+          {t.board.doneThisWeek(overview.doneThisWeek)}{cycleDays === null ? "" : ` · ${t.board.cycle(cycleDays)}`}
         </span>
-        <ArchiveStale tasks={stale} onArchived={reload} />
+        <ArchiveStale t={t} tasks={stale} onArchived={reload} />
       </header>
       {error !== null ? <p role="status" className="text-xs text-destructive">{error}</p> : null}
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
         {COLUMNS.map((column) => (
           <BoardColumn
-            key={column.key}
-            label={column.label}
-            hint={column.hint}
-            tasks={overview.groups[column.key].filter(filter)}
+            key={column}
+            t={t}
+            label={t.board.columns[column][0]}
+            hint={t.board.columns[column][1]}
+            tasks={overview.groups[column].filter(filter)}
             now={now}
-            muted={column.key === "done" || column.key === "backlog"}
+            muted={column === "done" || column === "backlog"}
           />
         ))}
       </div>
@@ -90,12 +86,14 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 function BoardColumn({
+  t,
   label,
   hint,
   tasks,
   now,
   muted,
 }: {
+  t: Strings;
   label: string;
   hint: string;
   tasks: readonly OverviewTask[];
@@ -112,14 +110,14 @@ function BoardColumn({
         <p className="text-2xs text-muted-foreground">{hint}</p>
       </header>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-        {tasks.map((task) => <BoardCard key={task.id} task={task} now={now} />)}
-        {tasks.length === 0 ? <p className="px-1 py-2 text-xs text-muted-foreground">没有</p> : null}
+        {tasks.map((task) => <BoardCard key={task.id} t={t} task={task} now={now} />)}
+        {tasks.length === 0 ? <p className="px-1 py-2 text-xs text-muted-foreground">{t.board.none}</p> : null}
       </div>
     </section>
   );
 }
 
-function BoardCard({ task, now }: { task: OverviewTask; now: number }) {
+function BoardCard({ t, task, now }: { t: Strings; task: OverviewTask; now: number }) {
   const openThread = useOpenThread();
   const thread = primaryThread(task.threads);
   const openPullRequest = task.pullRequests.find((pullRequest) => pullRequest.state === "open" || pullRequest.state === "draft");
@@ -129,7 +127,7 @@ function BoardCard({ task, now }: { task: OverviewTask; now: number }) {
         type="button"
         className="block w-full text-left hover:underline disabled:no-underline"
         disabled={thread === undefined}
-        title={thread === undefined ? "还没有线程" : `打开 ${thread.title}`}
+        title={thread === undefined ? t.noThread : thread.title}
         onClick={() => {
           if (thread !== undefined) openThread(thread);
         }}
@@ -137,12 +135,12 @@ function BoardCard({ task, now }: { task: OverviewTask; now: number }) {
         <span className="font-mono text-2xs text-muted-foreground">{task.key}</span>
         <span className="mt-0.5 line-clamp-2 block leading-snug">{task.title}</span>
       </button>
-      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.next ?? task.reason}</p>
+      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.next ?? reasonText(t, task.reason, task.reasonPr)}</p>
       <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
         <span className="tabular-nums">{relativeAge(task.lastMovedAt, now)}</span>
-        {task.threads.length > 0 ? <span>{task.threads.length} 线程</span> : null}
+        {task.threads.length > 0 ? <span>{t.board.threads(task.threads.length)}</span> : null}
         {task.doneAt !== null && task.createdAt !== null
-          ? <span>用时 {Math.max(1, Math.round((task.doneAt - task.createdAt) / 86_400_000))}d</span>
+          ? <span>{t.board.took(Math.max(1, Math.round((task.doneAt - task.createdAt) / 86_400_000)))}</span>
           : null}
         <span className="min-w-0 flex-1" />
         {openPullRequest !== undefined
@@ -154,9 +152,11 @@ function BoardCard({ task, now }: { task: OverviewTask; now: number }) {
 }
 
 function ArchiveStale({
+  t,
   tasks,
   onArchived,
 }: {
+  t: Strings;
   tasks: readonly OverviewTask[];
   onArchived: () => Promise<void>;
 }) {
@@ -170,28 +170,28 @@ function ArchiveStale({
     try {
       const { archivedTaskIds } = await rpc.call("archiveStale", { taskIds: tasks.map((task) => task.id) });
       if (archivedTaskIds.length < tasks.length) {
-        setError(`只归档了 ${archivedTaskIds.length} / ${tasks.length} 件，其余已重新活跃或更新失败`);
+        setError(t.board.archivedPartial(archivedTaskIds.length, tasks.length));
       }
       setConfirming(false);
       await onArchived();
     } catch (cause) {
-      setError(errorText(cause, "归档失败"));
+      setError(errorText(cause, t.board.archiveError));
     } finally {
       setSaving(false);
     }
   };
   if (tasks.length === 0 && error === null) {
-    return <button type="button" disabled className="rounded border border-input px-2 py-1 text-xs opacity-50">归档 30 天没动的</button>;
+    return <button type="button" disabled className="rounded border border-input px-2 py-1 text-xs opacity-50">{t.board.archiveStale}</button>;
   }
   if (confirming) {
     return (
       <div className="space-y-2 rounded border border-border p-2 text-xs">
-        <p>将归档 {tasks.length} 件：</p>
+        <p>{t.board.willArchive(tasks.length)}</p>
         <p className="max-w-56 text-muted-foreground">{tasks.map((task) => task.key).join("、")}</p>
         {error !== null ? <p role="alert" className="text-destructive">{error}</p> : null}
         <div className="flex justify-end gap-1">
-          <button type="button" disabled={saving} className="rounded px-2 py-1" onClick={() => setConfirming(false)}>取消</button>
-          <button type="button" disabled={saving} className="rounded bg-destructive/15 px-2 py-1 text-destructive" onClick={() => void archive()}>{saving ? "归档中…" : "确认归档"}</button>
+          <button type="button" disabled={saving} className="rounded px-2 py-1" onClick={() => setConfirming(false)}>{t.board.cancel}</button>
+          <button type="button" disabled={saving} className="rounded bg-destructive/15 px-2 py-1 text-destructive" onClick={() => void archive()}>{saving ? t.board.archiving : t.board.confirmArchive}</button>
         </div>
       </div>
     );
@@ -199,7 +199,7 @@ function ArchiveStale({
   return (
     <div className="flex items-center gap-2">
       {error !== null ? <span role="alert" className="text-xs text-destructive">{error}</span> : null}
-      <button type="button" disabled={tasks.length === 0} className="rounded border border-input px-2 py-1 text-xs hover:bg-accent disabled:opacity-50" onClick={() => setConfirming(true)}>归档 30 天没动的</button>
+      <button type="button" disabled={tasks.length === 0} className="rounded border border-input px-2 py-1 text-xs hover:bg-accent disabled:opacity-50" onClick={() => setConfirming(true)}>{t.board.archiveStale}</button>
     </div>
   );
 }

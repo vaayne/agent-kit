@@ -14,6 +14,14 @@ RPC = os.environ.get("TASK_NAVIGATOR_RPC", "http://127.0.0.1:38886/api/v1/plugin
 NEXT_MAX_DAYS = 3
 STALE_DAYS = 30
 DAY_MS = 86_400_000
+REASON = {"ended": "已结束", "notStarted": "未开始", "noThreads": "没有线程", "asking": "agent 在问你", "error": "线程出错",
+          "running": "在跑", "ciPending": "CI 运行中", "ciFailed": "CI 失败", "reviewPassing": "CI 通过，等你 review",
+          "review": "等你 review", "stalled": "没有 next", "waitingAgent": "等 agent"}
+
+
+def reason(t):
+    text = REASON.get(t["reason"], t["reason"])
+    return f"PR #{t['reasonPr']} {text}" if t.get("reasonPr") else text
 
 
 def rpc(method, payload=None):
@@ -106,7 +114,7 @@ def main():
         print(f"- {t['key']} {t['title']} · {d:.0f} 天")
     print(f"\n## 等你 ({c['you']})")
     for t in groups["you"]:
-        print(f"- {t['key']} {t['title']} · {t['reason']}")
+        print(f"- {t['key']} {t['title']} · {reason(t)}")
 
 
 if __name__ == "__main__":

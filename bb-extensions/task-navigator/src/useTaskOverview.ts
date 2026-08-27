@@ -6,6 +6,7 @@ import {
   useRpc,
 } from "@get-bb/plugin-sdk/app";
 import type { Overview, taskNavigatorRpc } from "./server.js";
+import { resolveLanguage, STRINGS, type Strings } from "./strings.js";
 
 type Rpc = ReturnType<typeof useRpc<typeof taskNavigatorRpc>>;
 
@@ -68,6 +69,12 @@ export function useTaskOverview(): {
     loading: snapshot.overview === null && snapshot.error === null,
     reload,
   };
+}
+
+/** Strings for the language the plugin setting picks, falling back to the browser's. */
+export function useStrings(): Strings {
+  const snapshot = useSyncExternalStore(subscribe, () => store);
+  return STRINGS[resolveLanguage(snapshot.overview?.language)];
 }
 
 /** A clock that ticks once a minute so relative ages stay honest without reloading. */
