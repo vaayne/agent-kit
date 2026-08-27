@@ -86,8 +86,9 @@ The PMO lives in BB's **Personal** project (`proj_personal`, tracker prefix
 `PERSONAL`), never in a code project: it manages tasks across every project,
 while agent-kit only hosts this plugin's source and its own implementation
 tasks (`AK-*`). `scripts/pmo-instructions.md` is its standing brief (spawned
-once with `bb thread spawn --project proj_personal --title PMO --prompt
-"$(cat …)"`, then `bb plugin config task-navigator set pmoThreadId <thr_…>`).
+once with `bb thread spawn --project proj_personal --provider pi --model
+cpa/gpt-5.6-luna --permission-mode full --title PMO --prompt "$(cat …)"`;
+the pi provider accepts only `full`, then `bb plugin config task-navigator set pmoThreadId <thr_…>`).
 A `bb automation … --target-thread <thr_…>` sends "巡检" into it on a cron.
 BB automations cannot be created in the Personal project (`--project
 proj_personal` returns 404), so the schedule is hosted in agent-kit as a
