@@ -201,6 +201,13 @@ UI 挂点冲突检查：tasks 自带 UI 占了 `navPanel`（它的看板页）�
   PR 全合并且无线程在跑 → done；Next 超 3 天、停了、停超 30 天各列一份），需要判断的
   部分交给线程（读线程输出写 `Next:`，催 agent，给 V 写简报）。automation 用
   `--target-thread` 把「巡检」定时投进这个线程，V 也能随时在同一个线程里提问，历史不散。
+- **PMO 归 Personal project，不归任何代码 project。** Project 在这里是 facet：代码 project
+  （agent-kit、stella、cherry-studio）承载各自仓库的实现任务，agent-kit 额外承载
+  task-navigator 插件源码；跨 project 的管理（PMO 线程、PMO automation、跨项目 task 追踪）
+  统一放 BB 的 Personal project（`proj_personal`，tracker 前缀 `PERSONAL`）。PMO 线程的
+  cwd 不在仓库里，脚本走绝对路径。已知限制：BB 的 automation 不能建在 Personal project
+  （404），所以定时器暂时挂在 agent-kit 下，只负责按时把「巡检」投进 Personal 的 PMO 线程；
+  BB 支持后迁走。
 - **PMO 不取消、不删除、不主动 spawn。** 关掉一个 task 是 V 的决定，PMO 只列出来。
 - **时间三点：createdAt、startedAt、doneAt。** Tasks 只有 createdAt；startedAt 取第一个
   线程 attach 的时间；doneAt 由 plugin 在第一次观察到 status=done 时记进 kv，并在 task 上

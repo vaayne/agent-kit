@@ -82,11 +82,18 @@ board header shows the median created-to-done cycle over 最近完成.
 
 ## PMO
 
-`scripts/pmo-instructions.md` is the standing brief for a persistent PMO
-thread (spawned once with `bb thread spawn --title PMO --prompt "$(cat …)"`,
-then `bb plugin config task-navigator set pmoThreadId <thr_…>`). A
-`bb automation` with `--target-thread` sends "巡检" into it on a cron; the
-thread runs `scripts/pmo-sweep.py --apply`, which is the deterministic half:
+The PMO lives in BB's **Personal** project (`proj_personal`, tracker prefix
+`PERSONAL`), never in a code project: it manages tasks across every project,
+while agent-kit only hosts this plugin's source and its own implementation
+tasks (`AK-*`). `scripts/pmo-instructions.md` is its standing brief (spawned
+once with `bb thread spawn --project proj_personal --title PMO --prompt
+"$(cat …)"`, then `bb plugin config task-navigator set pmoThreadId <thr_…>`).
+A `bb automation … --target-thread <thr_…>` sends "巡检" into it on a cron.
+BB automations cannot be created in the Personal project (`--project
+proj_personal` returns 404), so the schedule is hosted in agent-kit as a
+timer only; the thread it targets, and every comment it writes, stay in
+Personal. Move the automation once BB allows it. the thread runs `scripts/pmo-sweep.py --apply`
+by absolute path (its cwd is not this repo), which is the deterministic half:
 
 | Rule | Action |
 | --- | --- |
