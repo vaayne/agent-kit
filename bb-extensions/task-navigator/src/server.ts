@@ -59,6 +59,8 @@ const threadSummarySchema = z
     environmentId: z.string().nullable(),
     /** The host's open() ignores archived threads; the UI must route to them explicitly. */
     archived: z.boolean(),
+    /** Something happened since you last read it (latestAttentionAt after lastReadAt). */
+    unread: z.boolean(),
   })
   .strict();
 const pullRequestSummarySchema = prSchema;
@@ -205,7 +207,12 @@ type ThreadFacts = DerivedThread & {
   updatedAt: number;
   environmentId: string | null;
   archived: boolean;
+  unread: boolean;
 };
+
+function isUnread(thread: { lastReadAt: number | null; latestAttentionAt: number }): boolean {
+  return thread.lastReadAt === null || thread.latestAttentionAt > thread.lastReadAt;
+}
 
 const PR_CACHE_PREFIX = "pull-request:";
 const MAX_THREAD_LIST_LIMIT = 5_000;
@@ -271,6 +278,7 @@ function threadFacts(thread: BbThread): ThreadFacts {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archivedAt !== null,
+    unread: isUnread(thread),
   };
 }
 
@@ -291,6 +299,7 @@ function threadFactsFromDetail(thread: BbThreadDetail): ThreadFacts {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archivedAt !== null,
+    unread: isUnread(thread),
   };
 }
 
@@ -303,6 +312,7 @@ function toThreadSummary(thread: ThreadFacts) {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archived,
+    unread: thread.unread,
   };
 }
 

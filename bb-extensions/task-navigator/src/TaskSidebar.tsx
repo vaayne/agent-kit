@@ -1,6 +1,7 @@
 import { useRpc, type PluginThreadListProps } from "@get-bb/plugin-sdk/app";
 import { useState } from "react";
 import type { OverviewTask, ThreadSummary, taskNavigatorRpc } from "./server.js";
+import { attentionOf, StatusIcon } from "./StatusIcon.js";
 import { reasonText, type Strings } from "./strings.js";
 import { UsageFooter } from "./UsageFooter.js";
 import { errorText, relativeAge, useMinuteClock, useOpenThread, useStrings, useTaskOverview } from "./useTaskOverview.js";
@@ -185,13 +186,6 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-/** A 6px dot: filled when running, ring when asking, destructive when errored, none when idle. */
-function StatusDot({ status }: { status: ThreadSummary["status"] }) {
-  if (status === "idle") return <span className="size-1.5 shrink-0" />;
-  const tone = status === "running" ? "bg-sidebar-foreground" : status === "error" ? "bg-destructive" : "border border-sidebar-foreground";
-  return <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${tone}`} />;
-}
-
 function PmoRow({ t, thread, active, now, onOpen }: { t: Strings; thread: ThreadSummary; active: boolean; now: number; onOpen: () => void }) {
   return (
     <button
@@ -200,20 +194,12 @@ function PmoRow({ t, thread, active, now, onOpen }: { t: Strings; thread: Thread
       className={`mt-1 flex min-h-7 w-full items-center gap-1.5 rounded border border-dashed border-sidebar-border px-1.5 text-left text-xs hover:bg-sidebar-accent ${active ? "bg-sidebar-accent" : ""}`}
       onClick={onOpen}
     >
-      <StatusDot status={thread.status} />
+      <StatusIcon state={attentionOf([thread])} t={t} />
       <span className="font-medium text-sidebar-foreground">{t.pmo}</span>
       <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">{t.pmoHint[thread.status]}</span>
       <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">{relativeAge(thread.updatedAt, now)}</span>
     </button>
   );
-}
-
-function taskStatus(task: OverviewTask): ThreadSummary["status"] {
-  const live = task.threads.filter((thread) => !thread.archived);
-  if (live.some((thread) => thread.status === "pendingInteraction")) return "pendingInteraction";
-  if (live.some((thread) => thread.status === "error")) return "error";
-  if (live.some((thread) => thread.status === "running")) return "running";
-  return "idle";
 }
 
 function TaskRow({ t, task, activeThreadId, now, onOpen, muted = false }: {
@@ -235,7 +221,7 @@ function TaskRow({ t, task, activeThreadId, now, onOpen, muted = false }: {
         title={task.title}
         onClick={() => setExpanded((value) => !value)}
       >
-        <StatusDot status={taskStatus(task)} />
+        <StatusIcon state={attentionOf(task.threads)} t={t} />
         <span className="min-w-0 flex-1 truncate text-xs">
           <span className="mr-1 font-mono text-2xs text-muted-foreground">{task.key}</span>
           <span className={muted ? "" : "text-sidebar-foreground"}>{task.title}</span>
@@ -280,7 +266,7 @@ function ThreadTree({ t, threads, parentThreadId, activeThreadId, now, onOpen }:
             title={thread.archived ? `${thread.title} · ${t.archived}` : thread.title}
             onClick={() => onOpen(thread)}
           >
-            <StatusDot status={thread.status} />
+            <StatusIcon state={attentionOf([thread])} t={t} />
             <span className={`min-w-0 flex-1 truncate ${thread.archived ? "text-muted-foreground" : "text-sidebar-foreground"}`}>{thread.title}</span>
             <span className="shrink-0 tabular-nums text-muted-foreground">{relativeAge(thread.updatedAt, now)}</span>
           </button>
@@ -302,19 +288,33 @@ function ScratchRow({ t, thread, active, now, promoting, onOpen, onPromote }: {
   onOpen: () => void;
   onPromote: () => void;
 }) {
+  // Hover state in React: the plugin CSS build does not emit group-hover variants.
+  const [hover, setHover] = useState(false);
+  const showPromote = hover || promoting;
   return (
-    <div className={`group flex min-h-7 items-center gap-1.5 rounded px-1.5 text-xs hover:bg-sidebar-accent ${active ? "bg-sidebar-accent" : ""}`}>
-      <StatusDot status={thread.status} />
+    <div
+      className={`flex min-h-7 items-center gap-1.5 rounded px-1.5 text-xs hover:bg-sidebar-accent ${active ? "bg-sidebar-accent" : ""}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setHover(false);
+      }}
+    >
+      <StatusIcon state={attentionOf([thread])} t={t} />
       <button type="button" className="min-w-0 flex-1 truncate text-left text-sidebar-foreground" title={thread.title} onClick={onOpen}>{thread.title}</button>
-      <span className="shrink-0 text-2xs tabular-nums text-muted-foreground group-hover:hidden">{relativeAge(thread.updatedAt, now)}</span>
-      <button
-        type="button"
-        className="hidden shrink-0 rounded px-1 text-2xs text-muted-foreground hover:text-sidebar-foreground group-hover:block"
-        disabled={promoting}
-        onClick={onPromote}
-      >
-        {promoting ? t.promoting : t.promote}
-      </button>
+      {showPromote
+        ? (
+          <button
+            type="button"
+            className="shrink-0 rounded px-1 text-2xs text-muted-foreground hover:text-sidebar-foreground disabled:opacity-50"
+            disabled={promoting}
+            onClick={onPromote}
+          >
+            {promoting ? t.promoting : t.promote}
+          </button>
+        )
+        : <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">{relativeAge(thread.updatedAt, now)}</span>}
     </div>
   );
 }

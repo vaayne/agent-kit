@@ -117,28 +117,31 @@ function BoardColumn({
   );
 }
 
+/** The Tasks builtin owns the task page; the board is for tracking, so the card goes there, not to a thread. */
+function taskPageHref(key: string): string {
+  return `/plugins/tasks/tasks/task/${encodeURIComponent(key)}`;
+}
+
 function BoardCard({ t, task, now }: { t: Strings; task: OverviewTask; now: number }) {
   const openThread = useOpenThread();
   const thread = primaryThread(task.threads);
   const openPullRequest = task.pullRequests.find((pullRequest) => pullRequest.state === "open" || pullRequest.state === "draft");
   return (
     <article className="rounded-md border border-border bg-card p-2 text-sm shadow-sm">
-      <button
-        type="button"
-        className="block w-full text-left hover:underline disabled:no-underline"
-        disabled={thread === undefined}
-        title={thread === undefined ? t.noThread : thread.title}
-        onClick={() => {
-          if (thread !== undefined) openThread(thread);
-        }}
-      >
+      <a href={taskPageHref(task.key)} className="block hover:underline" title={task.title}>
         <span className="font-mono text-2xs text-muted-foreground">{task.key}</span>
         <span className="mt-0.5 line-clamp-2 block leading-snug">{task.title}</span>
-      </button>
+      </a>
       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.next ?? reasonText(t, task.reason, task.reasonPr)}</p>
       <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
         <span className="tabular-nums">{relativeAge(task.lastMovedAt, now)}</span>
-        {task.threads.length > 0 ? <span>{t.board.threads(task.threads.length)}</span> : null}
+        {thread !== undefined
+          ? (
+            <button type="button" className="hover:underline" title={thread.title} onClick={() => openThread(thread)}>
+              {t.board.threads(task.threads.length)}
+            </button>
+          )
+          : null}
         {task.doneAt !== null && task.createdAt !== null
           ? <span>{t.board.took(Math.max(1, Math.round((task.doneAt - task.createdAt) / 86_400_000)))}</span>
           : null}

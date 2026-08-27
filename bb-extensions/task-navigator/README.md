@@ -29,8 +29,10 @@ nothing else by default:
 - **PMO**: a dashed row for the standing PMO thread (setting `pmoThreadId`).
 - **Now**: tasks that need you (agent asking, thread errored, PR waiting on
   your review or failing CI) or are running, plus the task that owns the thread
-  you are in, whatever state it derived to. Each row: status dot, key, title,
-  one reason word, age. The section disappears when it is empty.
+  you are in, whatever state it derived to. Each row: status icon, key, title,
+  one reason word, age. Icons, by urgency: amber question mark (agent asking),
+  red exclamation (thread errored), spinning arc (running), dot (unread since
+  you last opened it). Idle and read shows nothing. The section disappears when it is empty.
 - **Scratch**: root threads from the last 7 days not filed under a task,
   newest first. One-off work lives here and never needs a task; hover a row
   for "Make a task". Six rows by default, expand to all.
