@@ -27,13 +27,15 @@ A dashed **PMO** row sits above everything when the `pmoThreadId` setting names
 a thread: the standing PMO thread that runs the scheduled sweep and answers any
 question about tasks. It is never filed under a task. See [PMO](#pmo).
 
-The sidebar has four quiet sections:
+The sidebar has seven quiet sections; only the first two open by default:
 
 - **轮到你** shows tasks with a pending interaction, a failing or reviewable
   PR, or a thread that stopped without a `Next:` handoff.
 - **在跑** shows tasks with active thread work.
-- **其它** folds waiting, stalled, and never-started tasks, plus root threads
-  from the last 7 days not yet filed to a task.
+- **临时** folds root threads from the last 7 days not yet filed to a task,
+  newest first; hover a row for 提升为 task.
+- **等 CI / 等别人**, **停了**, **未开始** each fold with a count; they carry
+  the same names and meaning as the board columns.
 - **最近完成** folds tasks finished in the last 30 days so their threads stay
   reachable; older history lives in the Tasks page.
 

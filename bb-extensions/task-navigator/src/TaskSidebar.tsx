@@ -9,7 +9,8 @@ const HIDDEN_PROJECTS_STORAGE_KEY = "bb-plugin-task-navigator:hidden-projects";
 const COLLAPSED_STORAGE_KEY = "bb-plugin-task-navigator:collapsed";
 const THREE_DAYS_MS = 3 * 24 * 60 * 60_000;
 
-type CollapsibleSection = "other" | "done";
+type CollapsibleSection = "scratch" | "waiting" | "stalled" | "backlog" | "done";
+const COLLAPSIBLE: readonly CollapsibleSection[] = ["scratch", "waiting", "stalled", "backlog", "done"];
 
 function readStringSet(key: string): Set<string> {
   try {
@@ -34,11 +35,11 @@ function saveStringSet(key: string, values: ReadonlySet<string>): void {
 
 function readCollapsed(): Set<CollapsibleSection> {
   const stored = readStringSet(COLLAPSED_STORAGE_KEY);
-  // Both fold by default; the sidebar opens on what needs you, not on history.
+  // All fold by default; the sidebar opens on what needs you, not on history or scratch.
   if (stored.size === 0 && window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === null) {
-    return new Set(["other", "done"]);
+    return new Set(COLLAPSIBLE);
   }
-  return new Set([...stored].filter((item): item is CollapsibleSection => item === "other" || item === "done"));
+  return new Set([...stored].filter((item): item is CollapsibleSection => (COLLAPSIBLE as readonly string[]).includes(item)));
 }
 
 function taskMatches(task: OverviewTask, query: string): boolean {
@@ -76,11 +77,9 @@ export function TaskSidebar({
   [searchQuery, hiddenProjects]);
   const you = overview?.groups.you.filter(filterTask) ?? [];
   const running = overview?.groups.running.filter(filterTask) ?? [];
-  const other = [
-    ...(overview?.groups.stalled ?? []),
-    ...(overview?.groups.waiting ?? []),
-    ...(overview?.groups.backlog ?? []),
-  ].filter(filterTask);
+  const waiting = overview?.groups.waiting.filter(filterTask) ?? [];
+  const stalled = overview?.groups.stalled.filter(filterTask) ?? [];
+  const backlog = overview?.groups.backlog.filter(filterTask) ?? [];
   const done = overview?.groups.done.filter(filterTask) ?? [];
   const unfiled = (overview?.unfiled ?? []).filter((thread) => {
     const needle = searchQuery.trim().toLocaleLowerCase();
@@ -136,27 +135,45 @@ export function TaskSidebar({
         <TaskGroup label="轮到你" tasks={you} activeThreadId={activeThreadId} now={now} onOpen={open} />
         <TaskGroup label="在跑" tasks={running} activeThreadId={activeThreadId} now={now} onOpen={open} />
         <FoldedSection
-          label="其它"
-          count={other.length + unfiled.length}
-          collapsed={collapsed.has("other")}
-          onToggle={() => toggleSection("other")}
+          label="临时"
+          count={unfiled.length}
+          collapsed={collapsed.has("scratch")}
+          onToggle={() => toggleSection("scratch")}
         >
-          {other.map((task) => (
-            <TaskRow key={task.id} task={task} activeThreadId={activeThreadId} now={now} onOpen={open} />
-          ))}
           {unfiled.map((thread) => (
             <UnfiledRow
               key={thread.id}
               thread={thread}
+              active={activeThreadId === thread.id}
+              now={now}
               promoting={promotingThreadId === thread.id}
               onOpen={() => open(thread)}
               onPromote={() => void promote(thread)}
             />
           ))}
-          {other.length === 0 && unfiled.length === 0
-            ? <p className="px-1.5 py-2 text-xs text-muted-foreground">没有其它 task</p>
+          {unfiled.length === 0
+            ? <p className="px-1.5 py-2 text-xs text-muted-foreground">最近 7 天没有未归 task 的线程</p>
             : null}
         </FoldedSection>
+        {([
+          { key: "waiting", label: "等 CI / 等别人", hint: "有 next，不用你动", tasks: waiting },
+          { key: "stalled", label: "停了", hint: "没有 next，写一条或关掉", tasks: stalled },
+          { key: "backlog", label: "未开始", hint: "还没有线程", tasks: backlog },
+        ] as const).map((section) => (
+          <FoldedSection
+            key={section.key}
+            label={section.label}
+            hint={section.hint}
+            count={section.tasks.length}
+            collapsed={collapsed.has(section.key)}
+            onToggle={() => toggleSection(section.key)}
+          >
+            {section.tasks.map((task) => (
+              <TaskRow key={task.id} task={task} activeThreadId={activeThreadId} now={now} onOpen={open} />
+            ))}
+            {section.tasks.length === 0 ? <p className="px-1.5 py-2 text-xs text-muted-foreground">没有</p> : null}
+          </FoldedSection>
+        ))}
         {done.length > 0
           ? (
             <FoldedSection
@@ -238,12 +255,14 @@ function ProjectFilters({
 
 function FoldedSection({
   label,
+  hint,
   count,
   collapsed,
   onToggle,
   children,
 }: {
   label: string;
+  hint?: string;
   count: number;
   collapsed: boolean;
   onToggle: () => void;
@@ -255,6 +274,7 @@ function FoldedSection({
         type="button"
         className="flex min-h-7 w-full items-center gap-1 rounded px-1.5 text-left text-2xs font-medium uppercase tracking-wide text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
         aria-expanded={!collapsed}
+        title={hint}
         onClick={onToggle}
       >
         <span>{label}</span>
@@ -385,23 +405,30 @@ function ThreadTree({
   );
 }
 
+/** Scratch threads: no task yet, newest first (the server sorts by updatedAt). */
 function UnfiledRow({
   thread,
+  active,
+  now,
   promoting,
   onOpen,
   onPromote,
 }: {
   thread: ThreadSummary;
+  active: boolean;
+  now: number;
   promoting: boolean;
   onOpen: () => void;
   onPromote: () => void;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-sidebar-accent">
+    <div className={`group flex items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-sidebar-accent ${active ? "bg-sidebar-accent" : ""}`}>
+      <span className="w-3 shrink-0 text-center text-muted-foreground">{statusGlyph(thread.status)}</span>
       <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={onOpen}>{thread.title}</button>
+      <span className="shrink-0 text-2xs tabular-nums text-muted-foreground group-hover:hidden">{relativeAge(thread.updatedAt, now)}</span>
       <button
         type="button"
-        className="shrink-0 rounded px-1.5 py-0.5 text-2xs text-muted-foreground hover:bg-sidebar-border hover:text-sidebar-foreground"
+        className="hidden shrink-0 rounded px-1.5 py-0.5 text-2xs text-muted-foreground hover:bg-sidebar-border hover:text-sidebar-foreground group-hover:block"
         disabled={promoting}
         onClick={onPromote}
       >
