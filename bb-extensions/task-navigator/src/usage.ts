@@ -132,12 +132,12 @@ export function nearestResetUsageWindow(
 }
 
 /** The sidebar shows only the limit that resets next for each provider. */
-export function usageSummary(usage: UsageResponse): UsageSummary {
+export function usageSummary(usage: UsageResponse, now = Date.now()): UsageSummary {
   const allItems = visibleUsageProviders(usage)
     .flatMap((entry) => {
       const provider = entry.usage;
       if (provider.status !== "ok" || provider.windows.length === 0) return [];
-      const window = nearestResetUsageWindow(provider.windows);
+      const window = nearestResetUsageWindow(provider.windows, now);
       if (!window) return [];
       return [
         {

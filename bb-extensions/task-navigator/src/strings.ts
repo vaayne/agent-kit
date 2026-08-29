@@ -16,6 +16,7 @@ const zh = {
   pmo: "PMO",
   pmoHint: { running: "巡检中", pendingInteraction: "在问你", error: "出错了", idle: "问它任何 task 的事" },
   now: "现在",
+  nowReason: { unread: "新结果", seen: "刚看过", current: "当前" },
   scratch: "临时",
   scratchEmpty: "最近 7 天没有独立线程",
   showAll: (n: number) => `全部 ${n} 条`,
@@ -122,8 +123,14 @@ const zh = {
 
 const en: typeof zh = {
   pmo: "PMO",
-  pmoHint: { running: "sweeping", pendingInteraction: "asking you", error: "errored", idle: "ask it anything about tasks" },
+  pmoHint: {
+    running: "sweeping",
+    pendingInteraction: "asking you",
+    error: "errored",
+    idle: "ask it anything about tasks",
+  },
   now: "Now",
+  nowReason: { unread: "new result", seen: "just viewed", current: "current" },
   scratch: "Scratch",
   scratchEmpty: "No standalone threads in the last 7 days",
   showAll: (n) => `All ${n}`,

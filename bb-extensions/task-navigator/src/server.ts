@@ -1,6 +1,6 @@
-import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
+import { type BbPluginApi, defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { deriveTaskState, REASON_CODES, type DerivedPullRequest, type DerivedThread } from "./derive.js";
+import { type DerivedPullRequest, type DerivedThread, deriveTaskState, REASON_CODES } from "./derive.js";
 import { parseNext } from "./next.js";
 import { TaskBindings, taskInstructions } from "./task-bindings.js";
 import {
@@ -13,11 +13,11 @@ import {
   listPresets,
   listProjects,
   listTaskThreads,
-  taskThreadsAttach,
-  updateTask,
   type Task,
   type TaskComment,
   type TaskThread,
+  taskThreadsAttach,
+  updateTask,
 } from "./tasks-client.js";
 import type { UsageLimitsResult, UsageProvider, UsageResponse, UsageWindow } from "./usage.js";
 
@@ -59,7 +59,10 @@ const threadSummarySchema = z
     environmentId: z.string().nullable(),
     /** The host's open() ignores archived threads; the UI must route to them explicitly. */
     archived: z.boolean(),
-    /** Something happened since you last read it (latestAttentionAt after lastReadAt). */
+    /** Null for archived or hidden threads, which never enter the attention shelf. */
+    latestAttentionAt: z.number().nullable(),
+    lastReadAt: z.number().nullable(),
+    /** Snapshot convenience; the browser overlays BB's live read state before selecting Now. */
     unread: z.boolean(),
   })
   .strict();
@@ -207,11 +210,29 @@ type ThreadFacts = DerivedThread & {
   updatedAt: number;
   environmentId: string | null;
   archived: boolean;
+  latestAttentionAt: number | null;
+  lastReadAt: number | null;
   unread: boolean;
 };
 
 function isUnread(thread: { lastReadAt: number | null; latestAttentionAt: number }): boolean {
   return thread.lastReadAt === null || thread.latestAttentionAt > thread.lastReadAt;
+}
+
+function attentionFields(thread: {
+  archivedAt: number | null;
+  visibility: string;
+  lastReadAt: number | null;
+  latestAttentionAt: number;
+}): Pick<ThreadFacts, "latestAttentionAt" | "lastReadAt" | "unread"> {
+  if (thread.archivedAt !== null || thread.visibility !== "visible") {
+    return { latestAttentionAt: null, lastReadAt: thread.lastReadAt, unread: false };
+  }
+  return {
+    latestAttentionAt: thread.latestAttentionAt,
+    lastReadAt: thread.lastReadAt,
+    unread: isUnread(thread),
+  };
 }
 
 const PR_CACHE_PREFIX = "pull-request:";
@@ -278,7 +299,7 @@ function threadFacts(thread: BbThread): ThreadFacts {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archivedAt !== null,
-    unread: isUnread(thread),
+    ...attentionFields(thread),
   };
 }
 
@@ -299,7 +320,7 @@ function threadFactsFromDetail(thread: BbThreadDetail): ThreadFacts {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archivedAt !== null,
-    unread: isUnread(thread),
+    ...attentionFields(thread),
   };
 }
 
@@ -312,6 +333,8 @@ function toThreadSummary(thread: ThreadFacts) {
     updatedAt: thread.updatedAt,
     environmentId: thread.environmentId,
     archived: thread.archived,
+    latestAttentionAt: thread.latestAttentionAt,
+    lastReadAt: thread.lastReadAt,
     unread: thread.unread,
   };
 }
@@ -377,7 +400,12 @@ async function readPullRequest(
   }
 }
 
-function nextAndLastMoved(task: Task, comments: readonly TaskComment[], threads: readonly ThreadFacts[], prs: readonly CachedPr[]): {
+function nextAndLastMoved(
+  task: Task,
+  comments: readonly TaskComment[],
+  threads: readonly ThreadFacts[],
+  prs: readonly CachedPr[],
+): {
   next: string | null;
   nextAt: number | null;
   lastMovedAt: number | null;
@@ -605,9 +633,11 @@ export default function plugin(bb: BbPluginApi) {
         return listed === undefined ? resolveMissingThread(task.id, taskThread) : Promise.resolve(listed);
       }))).filter((thread): thread is ThreadFacts => thread !== null);
       bindings.remember(task, threads.map((thread) => ({ threadId: thread.id })));
-      const environments = [...new Set(
-        threads.flatMap((thread) => thread.environmentId === null ? [] : [thread.environmentId]),
-      )];
+      const environments = [
+        ...new Set(
+          threads.flatMap((thread) => thread.environmentId === null ? [] : [thread.environmentId]),
+        ),
+      ];
       const prs = (await Promise.all(environments.map(getPullRequest)))
         .filter((value): value is CachedPr => value !== null);
       const { next, nextAt, lastMovedAt } = nextAndLastMoved(task, comments, threads, prs);
@@ -728,9 +758,7 @@ export default function plugin(bb: BbPluginApi) {
         listProjects(bb),
         bb.sdk.threads.list({ includeHidden: true, limit: MAX_THREAD_LIST_LIMIT }),
       ]);
-      const project = projects.find((candidate) =>
-        candidate.linkedBbProjectId === thread.projectId
-      );
+      const project = projects.find((candidate) => candidate.linkedBbProjectId === thread.projectId);
       if (project === undefined) {
         throw new Error(`No task project is linked to BB project ${thread.projectId}; link one with bb tasks project`);
       }
@@ -742,9 +770,7 @@ export default function plugin(bb: BbPluginApi) {
       // Descendants already filed elsewhere keep their task; only free threads follow the root.
       const attachedThreadIds = subtreeThreadIds(threadId, allThreads)
         .filter((candidate) => candidate === threadId || bindings.get(candidate) === undefined);
-      await Promise.all(attachedThreadIds.map((candidate) =>
-        taskThreadsAttach(bb, result.task.id, candidate)
-      ));
+      await Promise.all(attachedThreadIds.map((candidate) => taskThreadsAttach(bb, result.task.id, candidate)));
       bindings.remember(result.task, attachedThreadIds.map((candidate) => ({ threadId: candidate })));
       publishOverviewChanged();
       return { taskKey: taskKey(result.task), attachedThreadIds };
@@ -801,17 +827,19 @@ export default function plugin(bb: BbPluginApi) {
       if (selectedBbProjectId === undefined) {
         throw new Error("Select a project first; no personal BB project is available as a fallback");
       }
-      const project = taskProjects.projects.find((candidate) =>
-        candidate.linkedBbProjectId === selectedBbProjectId
-      );
+      const project = taskProjects.projects.find((candidate) => candidate.linkedBbProjectId === selectedBbProjectId);
       if (project === undefined) {
-        throw new Error(`No task project is linked to BB project ${selectedBbProjectId}; link one with bb tasks project`);
+        throw new Error(
+          `No task project is linked to BB project ${selectedBbProjectId}; link one with bb tasks project`,
+        );
       }
       const { delegationPreset } = await settings.get();
       const preset = presets.presets.find((candidate) => candidate.name === delegationPreset);
       if (preset === undefined) {
         const names = presets.presets.map((candidate) => candidate.name).join(", ") || "none";
-        throw new Error(`Tasks preset "${delegationPreset}" not found (available: ${names}); change it in the plugin settings`);
+        throw new Error(
+          `Tasks preset "${delegationPreset}" not found (available: ${names}); change it in the plugin settings`,
+        );
       }
       const created = await createTask(bb, { projectId: project.id, title });
       if (!created.ok) throw new Error(created.error.message);

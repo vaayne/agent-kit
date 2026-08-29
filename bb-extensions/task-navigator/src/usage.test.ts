@@ -136,7 +136,7 @@ describe("usage presentation", () => {
         isLoading: false,
       }),
     ).toEqual({ kind: "windows", windows: [weekly, fiveHour] });
-    expect(usageSummary(usageWithResets).items).toContainEqual({
+    expect(usageSummary(usageWithResets, now).items).toContainEqual({
       id: "claude-code",
       name: "Claude",
       usedPercent: 44,

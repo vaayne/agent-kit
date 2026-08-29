@@ -27,12 +27,14 @@ The sidebar answers one question: where do I click next. Three layers, and
 nothing else by default:
 
 - **PMO**: a dashed row for the standing PMO thread (setting `pmoThreadId`).
-- **Now**: tasks that need you (agent asking, thread errored, PR waiting on
-  your review or failing CI) or are running, plus the task that owns the thread
-  you are in, whatever state it derived to. Each row: status icon, key, title,
-  one reason word, age. Icons, by urgency: amber question mark (agent asking),
-  red exclamation (thread errored), spinning arc (running), dot (unread since
-  you last opened it). Idle and read shows nothing. The section disappears when it is empty.
+- **Now**: one compact attention shelf. Tasks needing you come first, followed
+  by unread agent results, results opened within the last 30 minutes, running
+  tasks, and finally the task that owns the thread you are in. Workflow state
+  stays independent: an unread result can bring a waiting, stalled, or done
+  task back into Now without moving its board column. Each row: status icon,
+  key, title, one reason word, age. Icons, by urgency: amber question mark
+  (agent asking), red exclamation (thread errored), spinning arc (running), dot
+  (unread since you last opened it). The section disappears when it is empty.
 - **Scratch**: root threads from the last 7 days not filed under a task,
   newest first. One-off work lives here and never needs a task; hover a row
   for "Make a task". Six rows by default, expand to all.
@@ -64,9 +66,12 @@ task key and the handoff convention through `bb.agents.configure`.
   move when facts change; nothing is dragged. It offers a confirm-before-archive
   action for stalled tasks untouched for 30 days; the server re-derives the
   candidate list so a stale page cannot cancel live work.
-- **收件箱** (fixed tab beside the board) shows one actionable task at a time.
-  The rest collapse to **还有 N 件**. Its button follows the reason: answer the
-  asking thread, open the open PR, or write a `Next:` comment.
+- **收件箱** (fixed tab beside the board) consumes the same attention set as
+  Now, excluding running/current-only rows, and shows one task at a time. The
+  rest collapse to **还有 N 件**. Its button follows the reason: answer the
+  asking thread, open the open PR, open the exact thread with a new result, or
+  write a `Next:` comment. Opening an unread result marks it read only after a
+  30-minute return-to-it retention record is stored in this browser.
 - **所属 task** is available from an existing thread's panel. It shows the
   task handoff, sibling threads, PRs, and the last agent sentence, and supports
   re-binding (detaches from the previous task) or promoting an unfiled thread.
@@ -103,30 +108,30 @@ timer only; the thread it targets, and every comment it writes, stay in
 Personal. Move the automation once BB allows it. the thread runs `scripts/pmo-sweep.py --apply`
 by absolute path (its cwd is not this repo), which is the deterministic half:
 
-| Rule | Action |
-| --- | --- |
-| every PR merged, no live thread, status ≠ done | mark done + comment |
-| `Next:` older than 3 days | listed for the agent to nudge or rewrite |
-| stalled (no `Next:`) | listed with the primary thread; the agent reads its output and writes `Next:` |
-| stalled > 30 days | listed for V; never canceled automatically |
+| Rule                                           | Action                                                                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| every PR merged, no live thread, status ≠ done | mark done + comment                                                           |
+| `Next:` older than 3 days                      | listed for the agent to nudge or rewrite                                      |
+| stalled (no `Next:`)                           | listed with the primary thread; the agent reads its output and writes `Next:` |
+| stalled > 30 days                              | listed for V; never canceled automatically                                    |
 
 The script never cancels or deletes; ask the PMO thread anything about tasks
 between sweeps.
 
 ## State table
 
-| Facts | Group | Reason |
-| --- | --- | --- |
-| status done / canceled | none (最近完成 for 30 days) | 已结束 |
-| no threads, status backlog / todo | backlog | 未开始 |
-| no threads, status in_progress / in_review | stalled | 没有线程记录 |
-| a thread is asking or errored | you | agent 在问你 |
-| a thread is running | running | agent 正在工作 |
-| open PR with pending checks | waiting (ci) | PR CI 运行中 |
-| open PR with failing checks | you | PR CI 失败 |
-| open PR otherwise | you | 等你 review |
-| idle, no `Next:` | stalled | 线程停了，没有 next |
-| idle, has `Next:` | waiting (agent) | 等待 agent 的下一步 |
+| Facts                                      | Group                       | Reason              |
+| ------------------------------------------ | --------------------------- | ------------------- |
+| status done / canceled                     | none (最近完成 for 30 days) | 已结束              |
+| no threads, status backlog / todo          | backlog                     | 未开始              |
+| no threads, status in_progress / in_review | stalled                     | 没有线程记录        |
+| a thread is asking or errored              | you                         | agent 在问你        |
+| a thread is running                        | running                     | agent 正在工作      |
+| open PR with pending checks                | waiting (ci)                | PR CI 运行中        |
+| open PR with failing checks                | you                         | PR CI 失败          |
+| open PR otherwise                          | you                         | 等你 review         |
+| idle, no `Next:`                           | stalled                     | 线程停了，没有 next |
+| idle, has `Next:`                          | waiting (agent)             | 等待 agent 的下一步 |
 
 Draft PRs do not count as open; they fall through to the `Next:` rules.
 
