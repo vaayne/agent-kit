@@ -49,7 +49,7 @@ export function useTaskAttention(
   return useMemo(
     () =>
       overview === null
-        ? { now: [], inbox: [] }
+        ? { pinned: [], now: [], inbox: [] }
         : selectTaskAttention(overview, liveThreads, retention, activeThreadId),
     [activeThreadId, liveThreads, overview, retention],
   );

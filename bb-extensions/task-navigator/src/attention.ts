@@ -10,7 +10,15 @@ export interface AttentionRetention {
 }
 
 export type AttentionRetentionMap = ReadonlyMap<string, AttentionRetention>;
-export type TaskAttentionClass = "asking" | "error" | "action" | "unread" | "seen" | "running" | "current";
+export type TaskAttentionClass =
+  | "asking"
+  | "error"
+  | "action"
+  | "unread"
+  | "seen"
+  | "running"
+  | "current"
+  | "pinned";
 
 export interface TaskAttentionItem {
   task: OverviewTask;
@@ -21,6 +29,7 @@ export interface TaskAttentionItem {
 }
 
 export interface AttentionSelection {
+  pinned: readonly TaskAttentionItem[];
   now: readonly TaskAttentionItem[];
   inbox: readonly TaskAttentionItem[];
 }
@@ -33,6 +42,21 @@ function liveRunning(thread: PluginSidebarThread): boolean {
     || thread.indicator === "plan-mode"
     || thread.indicator === "workflow"
     || Object.values(thread.activity).some((count) => count > 0);
+}
+
+export function threadSummaryFromLive(thread: PluginSidebarThread): ThreadSummary {
+  return {
+    id: thread.id,
+    title: thread.title?.trim() || thread.titleFallback?.trim() || "Untitled thread",
+    parentThreadId: thread.parentThreadId,
+    status: thread.hasPendingInteraction ? "pendingInteraction" : liveRunning(thread) ? "running" : "idle",
+    updatedAt: thread.updatedAt,
+    environmentId: thread.environment?.id ?? null,
+    archived: thread.isArchived,
+    latestAttentionAt: thread.isArchived ? null : thread.latestAttentionAt,
+    lastReadAt: thread.lastReadAt,
+    unread: !thread.isArchived && thread.isUnread,
+  };
 }
 
 /** Overlay the expensive overview with BB's live read and activity facts. */
@@ -192,6 +216,7 @@ const CLASS_ORDER: Record<TaskAttentionClass, number> = {
   seen: 4,
   running: 5,
   current: 6,
+  pinned: 7,
 };
 
 function compareAttention(left: TaskAttentionItem, right: TaskAttentionItem): number {
@@ -215,11 +240,37 @@ export function selectTaskAttention(
     ...task,
     threads: task.threads.map((thread) => mergeThreadSummary(thread, liveById.get(thread.id))),
   }));
+  const pinnedThreadIds = new Set(
+    liveThreads.filter((thread) => thread.isPinned && !thread.isArchived).map((thread) => thread.id),
+  );
+  const pinned = tasks.flatMap((task) => {
+    const pinnedThreads = task.threads.filter((thread) => pinnedThreadIds.has(thread.id));
+    if (pinnedThreads.length === 0) return [];
+    const attention = attentionForTask(task, retention, activeThreadId, now);
+    const target = attention?.targetThreadId !== null && attention?.targetThreadId !== undefined
+      ? attention.targetThreadId
+      : newest(pinnedThreads, () => true, (thread) => thread.updatedAt)?.id ?? null;
+    return [
+      {
+        task,
+        class: attention?.class ?? "pinned",
+        at: attention?.at ?? Math.max(...pinnedThreads.map((thread) => thread.updatedAt)),
+        targetThreadId: target,
+        inbox: attention?.inbox ?? false,
+      } satisfies TaskAttentionItem,
+    ];
+  }).sort(compareAttention);
+  const pinnedTaskIds = new Set(pinned.map((item) => item.task.id));
   const selected = tasks
+    .filter((task) => !pinnedTaskIds.has(task.id))
     .flatMap((task) => {
       const attention = attentionForTask(task, retention, activeThreadId, now);
       return attention === null ? [] : [attention];
     })
     .sort(compareAttention);
-  return { now: selected, inbox: selected.filter((item) => item.inbox) };
+  return {
+    pinned,
+    now: selected,
+    inbox: [...pinned.filter((item) => item.inbox), ...selected.filter((item) => item.inbox)].sort(compareAttention),
+  };
 }

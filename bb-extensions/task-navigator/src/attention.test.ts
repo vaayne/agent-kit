@@ -156,6 +156,38 @@ describe("selectTaskAttention", () => {
     expect(selected.inbox).toEqual([]);
   });
 
+  it("moves a task with any pinned thread into the pinned shelf", () => {
+    const waiting = task({
+      group: "waiting",
+      waitingOn: "agent",
+      reason: "waitingAgent",
+      threads: [thread({ unread: false, lastReadAt: 100 })],
+    });
+    const selected = selectTaskAttention(
+      overview([waiting]),
+      [live({ isPinned: true, isUnread: false, lastReadAt: 100 })],
+      new Map(),
+      null,
+      200,
+    );
+    expect(selected.pinned[0]).toMatchObject({ class: "pinned", targetThreadId: "thr_1" });
+    expect(selected.now).toEqual([]);
+    expect(selected.inbox).toEqual([]);
+  });
+
+  it("keeps actionable pinned tasks in Inbox without duplicating them in Now", () => {
+    const selected = selectTaskAttention(
+      overview([task()]),
+      [live({ isPinned: true })],
+      new Map(),
+      null,
+      200,
+    );
+    expect(selected.pinned[0]).toMatchObject({ class: "unread" });
+    expect(selected.now).toEqual([]);
+    expect(selected.inbox).toHaveLength(1);
+  });
+
   it("puts actionable and unread tasks ahead of stable running work", () => {
     const action = task({ id: "action", key: "AK-2", group: "you", waitingOn: "you", reason: "review" });
     const running = task({

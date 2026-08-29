@@ -23,10 +23,14 @@ plugin also adds a **全景** board page with a **收件箱** fixed tab.
 
 ## Sidebar
 
-The sidebar answers one question: where do I click next. Three layers, and
+The sidebar answers one question: where do I click next. Four layers, and
 nothing else by default:
 
-- **PMO**: a dashed row for the standing PMO thread (setting `pmoThreadId`).
+- **Pinned**: tasks with any pinned visible thread, plus pinned unfiled threads.
+  Hover a task to pin the thread currently carrying its attention; unpinning a
+  task clears every pinned thread attached to it. Pinned entries do not repeat
+  in Now, Scratch, or More. The standing PMO thread (`pmoThreadId`) remains a
+  dashed compatibility entry here, effectively the original pin.
 - **Now**: one compact attention shelf. Tasks needing you come first, followed
   by unread agent results, results opened within the last 30 minutes, running
   tasks, and finally the task that owns the thread you are in. Workflow state
@@ -37,7 +41,7 @@ nothing else by default:
   (unread since you last opened it). The section disappears when it is empty.
 - **Scratch**: root threads from the last 7 days not filed under a task,
   newest first. One-off work lives here and never needs a task; hover a row
-  for "Make a task". Six rows by default, expand to all.
+  for Pin or "Make a task". Six rows by default, expand to all.
 - **More**: folded, no counts. Inside, small groups Waiting / Stalled / Not
   started / Recently done. Search expands it automatically.
 
