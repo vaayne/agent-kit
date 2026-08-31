@@ -4,39 +4,19 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
- * Registers configurable API providers from auth.json.
+ * Registers API providers from generic-provider.json.
  *
- * The provider ID is the auth.json key. A generic provider uses:
- *
- *   {
- *     "my-gateway": {
- *       "type": "api_key",
- *       "key": "sk-...",
- *       "env": {
- *         "PI_PROVIDER_BASE_URL": "https://example.com/v1",
- *         "PI_PROVIDER_API": "openai-responses"
- *       }
- *     }
- *   }
- *
- * The credential `type` must stay `api_key`; Pi validates that field before
- * loading extensions. `PI_PROVIDER_API` selects the Pi streaming adapter and
- * model discovery format. OpenAI APIs use `{baseUrl}/models`; Anthropic Messages uses
- * `{baseUrl}/v1/models`.
- *
- * Model IDs determine availability; models.dev supplies canonical pricing and limits.
- * Optional filtering and metadata overrides live in generic-provider.json.
+ * The file owns provider credentials, endpoints, model discovery, filtering,
+ * and metadata overrides. OpenAI APIs use `{baseUrl}/models`; Anthropic
+ * Messages uses `{baseUrl}/v1/models`. Model IDs determine availability;
+ * models.dev supplies canonical pricing and limits before local overrides.
  */
-
-const GENERIC_BASE_URL_KEY = "PI_PROVIDER_BASE_URL";
-const GENERIC_API_KEY = "PI_PROVIDER_API";
 const DEFAULT_API = "openai-responses";
 const SUPPORTED_APIS = [
   "openai-responses",
   "openai-completions",
   "anthropic-messages",
 ] as const;
-const AUTH_FILE = join(getAgentDir(), "auth.json");
 const CONFIG_FILE = join(getAgentDir(), "generic-provider.json");
 const MODELS_DEV_API_URL = "https://models.dev/api.json";
 const MODELS_DEV_MODELS_URL = "https://models.dev/models.json";
@@ -85,7 +65,9 @@ type ProviderModelRules = {
   overrides?: Record<string, ModelOverride>;
 };
 
-type GenericProviderConfig = Record<string, ProviderModelRules>;
+type GenericProviderConfig = {
+  providers: ConfiguredProvider[];
+};
 
 type ModelCache = {
   providerId: string;
@@ -95,17 +77,12 @@ type ModelCache = {
   models: ProviderModelConfig[];
 };
 
-type StoredCredential = {
-  type?: unknown;
-  key?: unknown;
-  env?: unknown;
-};
-
 type ConfiguredProvider = {
   id: string;
   baseUrl: string;
   apiKey: string;
   api: SupportedApi;
+  rules?: ProviderModelRules;
 };
 
 type GatewayModel = {
@@ -222,11 +199,6 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function configuredValue(credential: StoredCredential, key: string): string | undefined {
-  const env = isRecord(credential.env) ? credential.env : {};
-  return stringValue(env[key]);
-}
-
 function stringArray(value: unknown, field: string): string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string" && entry.length > 0)) {
@@ -235,17 +207,34 @@ function stringArray(value: unknown, field: string): string[] | undefined {
   return value;
 }
 
-function parseProviderModelRules(providerId: string, value: unknown): ProviderModelRules {
-  if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: ${providerId} must be an object`);
+function parseProviderModelRules(providerId: string, value: unknown): ProviderModelRules | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: ${providerId}.models must be an object`);
   const overrides = value.overrides;
   if (overrides !== undefined && !isRecord(overrides)) {
-    throw new Error(`${CONFIG_FILE}: ${providerId}.overrides must be an object`);
+    throw new Error(`${CONFIG_FILE}: ${providerId}.models.overrides must be an object`);
   }
 
   return {
-    include: stringArray(value.include, `${providerId}.include`),
-    exclude: stringArray(value.exclude, `${providerId}.exclude`),
+    include: stringArray(value.include, `${providerId}.models.include`),
+    exclude: stringArray(value.exclude, `${providerId}.models.exclude`),
     overrides: overrides as Record<string, ModelOverride> | undefined,
+  };
+}
+
+function parseConfiguredProvider(id: string, value: unknown): ConfiguredProvider {
+  if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: providers.${id} must be an object`);
+  const baseUrl = stringValue(value.baseUrl);
+  const apiKey = stringValue(value.apiKey);
+  if (!baseUrl) throw new Error(`${CONFIG_FILE}: providers.${id}.baseUrl must be a non-empty string`);
+  if (!apiKey) throw new Error(`${CONFIG_FILE}: providers.${id}.apiKey must be a non-empty string`);
+
+  return {
+    id,
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    apiKey,
+    api: parseApi(id, stringValue(value.api)),
+    rules: parseProviderModelRules(id, value.models),
   };
 }
 
@@ -254,14 +243,16 @@ async function readGenericProviderConfig(): Promise<GenericProviderConfig> {
   try {
     parsed = JSON.parse(await readFile(CONFIG_FILE, "utf8")) as unknown;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { providers: [] };
     throw new Error(`Failed to read ${CONFIG_FILE}`, { cause: error });
   }
-  if (!isRecord(parsed)) throw new Error(`${CONFIG_FILE}: root must be an object`);
+  if (!isRecord(parsed) || !isRecord(parsed.providers)) {
+    throw new Error(`${CONFIG_FILE}: root.providers must be an object`);
+  }
 
-  return Object.fromEntries(
-    Object.entries(parsed).map(([providerId, rules]) => [providerId, parseProviderModelRules(providerId, rules)]),
-  );
+  return {
+    providers: Object.entries(parsed.providers).map(([id, value]) => parseConfiguredProvider(id, value)),
+  };
 }
 
 function globMatches(pattern: string, value: string): boolean {
@@ -301,32 +292,6 @@ function parseApi(providerId: string, value: string | undefined): SupportedApi {
     `Provider ${providerId}: unsupported API "${api}". `
       + `Supported APIs: ${SUPPORTED_APIS.join(", ")}`,
   );
-}
-
-async function readConfiguredProviders(): Promise<ConfiguredProvider[]> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await readFile(AUTH_FILE, "utf8")) as unknown;
-  } catch {
-    return [];
-  }
-  if (!isRecord(parsed)) return [];
-
-  return Object.entries(parsed).flatMap(([id, rawCredential]) => {
-    if (!isRecord(rawCredential) || rawCredential.type !== "api_key") return [];
-    const credential = rawCredential as StoredCredential;
-    const baseUrl = configuredValue(credential, GENERIC_BASE_URL_KEY);
-    const api = configuredValue(credential, GENERIC_API_KEY);
-    const apiKey = stringValue(credential.key);
-    if (!baseUrl || !apiKey) return [];
-
-    return [{
-      id,
-      baseUrl: baseUrl.replace(/\/+$/, ""),
-      apiKey,
-      api: parseApi(id, api),
-    }];
-  });
 }
 
 function modelCachePath(providerId: string): string {
@@ -569,22 +534,18 @@ async function getModels(
 }
 
 export default async function genericProvider(pi: ExtensionAPI) {
-  const [providers, config] = await Promise.all([
-    readConfiguredProviders(),
-    readGenericProviderConfig(),
-  ]);
+  const { providers } = await readGenericProviderConfig();
 
   for (const provider of providers) {
-    const rules = config[provider.id];
+    const rules = provider.rules;
     let models = applyModelRules(
       await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey),
       rules,
     );
 
-    // Do not pass apiKey here. Pi's auth composer resolves the stored credential
-    // for requests, preserving its normal auth precedence and refresh behavior.
     pi.registerProvider(provider.id, {
       baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey,
       api: provider.api,
       models,
       // Returning the last known list keeps the offline phase from blanking the catalog.

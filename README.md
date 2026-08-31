@@ -85,56 +85,44 @@ agent-kit/
 
 ### Generic Pi providers
 
-`generic-provider.ts` registers one provider for every `api_key` entry in
-`~/.pi/agent/auth.json` that has `PI_PROVIDER_BASE_URL`. The auth key is the
-provider ID and the model list is fetched from the endpoint according to
-`PI_PROVIDER_API`.
+`generic-provider.ts` reads all provider configuration from
+`~/.pi/agent/generic-provider.json`; matching entries in `auth.json` are neither
+required nor consulted. Keep this file private because it contains API keys.
 
 ```json
 {
-  "my-gateway": {
-    "type": "api_key",
-    "key": "sk-...",
-    "env": {
-      "PI_PROVIDER_BASE_URL": "https://gateway.example.com/v1",
-      "PI_PROVIDER_API": "openai-responses"
-    }
-  }
-}
-```
-
-`PI_PROVIDER_API` supports `openai-responses`, `openai-completions`, and
-`anthropic-messages`, and defaults to `openai-responses`. OpenAI providers use
-`{PI_PROVIDER_BASE_URL}/models`; Anthropic providers use
-`{PI_PROVIDER_BASE_URL}/v1/models`. Keep the auth credential `type` as
-`api_key`, because Pi validates that field independently from the API adapter
-type. Pricing, context limits, and modalities are enriched from models.dev; the
-provider's own model-list response remains the availability source.
-
-Optional per-provider filtering and metadata overrides live in
-`~/.pi/agent/generic-provider.json`. `include` and `exclude` accept `*` and `?`
-globs. Overrides are keyed by exact model ID and are applied after API discovery
-and models.dev enrichment, so they also apply to cached model lists.
-
-```json
-{
-  "my-gateway": {
-    "include": ["gpt-*", "claude-sonnet-*"],
-    "exclude": ["*-preview"],
-    "overrides": {
-      "gpt-custom": {
-        "contextWindow": 128000,
-        "maxTokens": 32000,
-        "reasoning": true,
-        "thinkingLevelMap": {
-          "minimal": "low",
-          "xhigh": "xhigh"
+  "providers": {
+    "my-gateway": {
+      "baseUrl": "https://gateway.example.com/v1",
+      "apiKey": "sk-...",
+      "api": "openai-responses",
+      "models": {
+        "include": ["gpt-*", "claude-sonnet-*"],
+        "exclude": ["*-preview"],
+        "overrides": {
+          "gpt-custom": {
+            "contextWindow": 128000,
+            "maxTokens": 32000,
+            "reasoning": true,
+            "thinkingLevelMap": {
+              "minimal": "low",
+              "xhigh": "xhigh"
+            }
+          }
         }
       }
     }
   }
 }
 ```
+
+`api` supports `openai-responses`, `openai-completions`, and
+`anthropic-messages`, and defaults to `openai-responses`. OpenAI providers use
+`{baseUrl}/models`; Anthropic providers use `{baseUrl}/v1/models`. The provider
+model-list response remains the availability source, then pricing, context
+limits, and modalities are enriched from models.dev. `include` and `exclude`
+accept `*` and `?` globs. Overrides are keyed by exact model ID and apply last,
+including when the discovered list came from the local cache.
 
 ## License
 
