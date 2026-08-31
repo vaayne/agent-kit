@@ -1,0 +1,31 @@
+{
+  "name": "bb-plugin-message-usage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Per-message token usage badges: input, output, cache, cache rate, tok/s, model, and estimated cost.",
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.4.21"
+  },
+  "bb": {
+    "name": "Message Usage",
+    "description": "Show token usage under each assistant reply: input, output, cache, cache rate, tok/s, model, estimated cost.",
+    "branding": {
+      "icon": "Gauge"
+    },
+    "app": "./app.ts",
+    "server": "./src/server.ts"
+  },
+  "dependencies": {
+    "zod": "4.3.6"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.4.21",
+    "@types/node": "24.12.4",
+    "typescript": "npm:@typescript/typescript6@6.0.2"
+  }
+}
