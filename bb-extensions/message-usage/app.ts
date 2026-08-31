@@ -124,13 +124,17 @@ function buildBadge(report: UsageReport): HTMLElement {
   return badge;
 }
 
-/** Thread view routes: `/threads/:id/*` and `/projects/:pid/threads/:id/*` (hash router). */
-function extractThreadId(hash: string): string | null {
-  const path = hash.startsWith("#") ? hash.slice(1) : hash;
-  const projectless = path.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
-  if (projectless) return projectless[1]!;
-  const project = path.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
-  if (project) return project[1]!;
+/** Thread view routes: `/threads/:id/*` and `/projects/:pid/threads/:id/*` (BrowserRouter, real paths). */
+function extractThreadId(location: { pathname: string; hash: string }): string | null {
+  // Prefer the real path; older builds served a hash router, so keep the
+  // hash fallback for compatibility.
+  const candidates = [location.pathname, location.hash.startsWith("#") ? location.hash.slice(1) : location.hash];
+  for (const path of candidates) {
+    const projectless = path.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
+    if (projectless) return projectless[1]!;
+    const project = path.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
+    if (project) return project[1]!;
+  }
   return null;
 }
 
@@ -182,7 +186,7 @@ export default definePluginApp((app) => {
 
       const refresh = async () => {
         if (inFlight) return;
-        const threadId = extractThreadId(window.location.hash);
+        const threadId = extractThreadId(window.location);
         if (!threadId) {
           removeBadge();
           return;
@@ -220,12 +224,24 @@ export default definePluginApp((app) => {
         if (external) schedule();
       });
       observer.observe(document.body, { childList: true, subtree: true });
-      const timer = window.setInterval(() => void refresh(), 3000);
+      const timer = window.setInterval(() => void refresh(), 2000);
+      // React Router navigations replace the path without a document-level
+      // childList mutation, so poll the route too.
+      let lastPath = window.location.pathname;
+      const routeTimer = window.setInterval(() => {
+        if (window.location.pathname !== lastPath) {
+          lastPath = window.location.pathname;
+          removeBadge();
+          void refresh();
+          return;
+        }
+      }, 300);
       void refresh();
 
       const cleanup = () => {
         observer.disconnect();
         window.clearInterval(timer);
+        window.clearInterval(routeTimer);
         removeBadge();
       };
       signal.addEventListener("abort", cleanup, { once: true });

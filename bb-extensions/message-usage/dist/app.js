@@ -5,39 +5,39 @@ if (g == null || g.pluginSdkApp == null) {
   );
 }
 var p = g.pluginSdkApp,
-  E = "default" in p ? p.default : p,
+  M = "default" in p ? p.default : p,
   {
-    Markdown: A,
-    ThreadChat: M,
-    UrlLink: L,
+    Markdown: L,
+    ThreadChat: U,
+    UrlLink: B,
     definePluginApp: T,
-    experimental_Diff: U,
-    experimental_FileLink: B,
-    experimental_NewThreadComposer: O,
-    experimental_PermissionModePicker: F,
-    experimental_ProviderModelPicker: j,
-    experimental_SourceCode: N,
-    experimental_useAppPanel: D,
-    experimental_useFixedTabTarget: H,
-    experimental_useProviders: z,
-    experimental_useSidebarThreadActions: W,
-    experimental_useSidebarThreadPullRequest: q,
-    experimental_useSidebarThreadSplit: G,
-    experimental_useSidebarThreads: V,
-    useBbContext: Z,
-    useBbNavigate: J,
-    useComposer: K,
-    useComposerView: Q,
-    useRealtime: X,
-    useRealtimeConnectionState: Y,
-    useRpc: ee,
-    useSettings: te,
+    experimental_Diff: O,
+    experimental_FileLink: F,
+    experimental_NewThreadComposer: j,
+    experimental_PermissionModePicker: N,
+    experimental_ProviderModelPicker: D,
+    experimental_SourceCode: H,
+    experimental_useAppPanel: z,
+    experimental_useFixedTabTarget: W,
+    experimental_useProviders: q,
+    experimental_useSidebarThreadActions: G,
+    experimental_useSidebarThreadPullRequest: V,
+    experimental_useSidebarThreadSplit: Z,
+    experimental_useSidebarThreads: J,
+    useBbContext: K,
+    useBbNavigate: Q,
+    useComposer: X,
+    useComposerView: Y,
+    useRealtime: ee,
+    useRealtimeConnectionState: te,
+    useRpc: ne,
+    useSettings: oe,
   } = p;
-var _ = "message-usage", $ = "message-usage-badge";
-var S = "[data-message-column=\"\"]";
-async function R(e) {
+var S = "message-usage", v = "message-usage-badge";
+var R = "[data-message-column=\"\"]";
+async function C(e) {
   try {
-    let t = await fetch(`/api/v1/plugins/${encodeURIComponent(_)}/rpc/getUsage`, {
+    let t = await fetch(`/api/v1/plugins/${encodeURIComponent(S)}/rpc/getUsage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ threadId: e }),
@@ -57,37 +57,37 @@ function h(e) {
     ? `${(e / 1e3).toFixed(1)}k`
     : String(e);
 }
-function C(e, t) {
+function P(e, t) {
   if (e === null) return null;
   let n = e >= .1 ? `$${e.toFixed(2)}` : e >= .01 ? `$${e.toFixed(3)}` : `$${e.toFixed(4)}`;
   return t ? `~${n}` : n;
 }
-function v(e) {
+function I(e) {
   if (!e) return null;
   let t = e.split("/").pop() ?? e, n = t.split("@")[0] ?? t;
   return n.length > 28 ? `${n.slice(0, 27)}\u2026` : n;
 }
-function P(e) {
-  let t = [], n = v(e.model);
+function y(e) {
+  let t = [], n = I(e.model);
   if (n && t.push(n), e.last) {
-    let { inputTokens: l, cachedInputTokens: i, outputTokens: r } = e.last, u = I(l, i);
-    if (t.push(`\u2191${h(u)}`), i > 0 && u > 0) {
-      let d = Math.round(i / u * 100);
-      t.push(`cache ${d}%`);
+    let { inputTokens: a, cachedInputTokens: l, outputTokens: r } = e.last, d = E(a, l);
+    if (t.push(`\u2191${h(d)}`), l > 0 && d > 0) {
+      let u = Math.round(l / d * 100);
+      t.push(`cache ${u}%`);
     }
     t.push(`\u2193${h(r)}`), e.outputTokensPerSecond !== null && t.push(`${e.outputTokensPerSecond} tok/s`);
   }
-  let s = C(e.estimatedCostUsd, e.costIsEstimate);
+  let s = P(e.estimatedCostUsd, e.costIsEstimate);
   return s && t.push(s), e.total && t.push(`\u03A3${h(e.total.totalTokens)}`), t.join(" \xB7 ");
 }
-function I(e, t) {
+function E(e, t) {
   return Math.max(0, e - t) + t;
 }
 function k(e) {
   let t = document.createElement("div");
-  return t.className = $,
+  return t.className = v,
     t.setAttribute("data-message-usage-badge", ""),
-    t.textContent = P(e),
+    t.textContent = y(e),
     t.title = e.last
       ? [
         `input ${e.last.inputTokens} (cached ${e.last.cachedInputTokens})`,
@@ -98,68 +98,72 @@ function k(e) {
       : "No usage reported yet",
     t;
 }
-function y(e) {
-  let t = e.startsWith("#") ? e.slice(1) : e, n = t.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
-  if (n) return n[1];
-  let s = t.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
-  return s ? s[1] : null;
+function A(e) {
+  let t = [e.pathname, e.hash.startsWith("#") ? e.hash.slice(1) : e.hash];
+  for (let n of t) {
+    let s = n.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
+    if (s) return s[1];
+    let a = n.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
+    if (a) return a[1];
+  }
+  return null;
 }
-var ie = T(e => {
+var ue = T(e => {
   e.contentScripts.register({
     id: "message-usage-badge",
     mount({ signal: t }) {
       let n = null,
         s = null,
-        l = !1,
-        i = 0,
+        a = !1,
+        l = 0,
         r = () => {
           n?.remove(), n = null, s = null;
         },
-        u = o => {
-          let a = o.messageRowId;
-          if (!a) {
+        d = o => {
+          let i = o.messageRowId;
+          if (!i) {
             r();
             return;
           }
           let c = document.querySelector(
-            `[data-timeline-row-id="${a.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"] ${S}`,
+            `[data-timeline-row-id="${i.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"] ${R}`,
           );
           if (!c) {
             r();
             return;
           }
-          if (n && s === a) {
+          if (n && s === i) {
             let m = k(o);
             n.textContent !== m.textContent && (n.replaceWith(m), n = m);
             return;
           }
-          r(), n = k(o), s = a, c.appendChild(n);
+          r(), n = k(o), s = i, c.appendChild(n);
         },
-        d = async () => {
-          if (l) return;
-          let o = y(window.location.hash);
+        u = async () => {
+          if (a) return;
+          let o = A(window.location);
           if (!o) {
             r();
             return;
           }
-          l = !0;
+          a = !0;
           try {
-            let a = await R(o);
+            let i = await C(o);
             if (t.aborted) return;
-            if (!a) {
+            if (!i) {
               r();
               return;
             }
-            u(a);
+            d(i);
           } finally {
-            l = !1;
+            a = !1;
           }
         },
         x = () => {
           let o = Date.now();
-          o - i < 800 || (i = o,
+          o - l < 800 || (l = o,
             window.setTimeout(() => {
-              d();
+              u();
             }, 50));
         },
         f = new MutationObserver(o => {
@@ -167,15 +171,22 @@ var ie = T(e => {
             && x();
         });
       f.observe(document.body, { childList: !0, subtree: !0 });
-      let w = window.setInterval(() => {
-        d();
-      }, 3e3);
-      d();
-      let b = () => {
-        f.disconnect(), window.clearInterval(w), r();
+      let _ = window.setInterval(() => {
+          u();
+        }, 2e3),
+        b = window.location.pathname,
+        $ = window.setInterval(() => {
+          if (window.location.pathname !== b) {
+            b = window.location.pathname, r(), u();
+            return;
+          }
+        }, 300);
+      u();
+      let w = () => {
+        f.disconnect(), window.clearInterval(_), window.clearInterval($), r();
       };
-      return t.addEventListener("abort", b, { once: !0 }), b;
+      return t.addEventListener("abort", w, { once: !0 }), w;
     },
   });
 });
-export { ie as default };
+export { ue as default };
