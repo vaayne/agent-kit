@@ -25,6 +25,7 @@ import { join } from "node:path";
  * `{baseUrl}/v1/models`.
  *
  * Model IDs determine availability; models.dev supplies canonical pricing and limits.
+ * Optional filtering and metadata overrides live in generic-provider.json.
  */
 
 const GENERIC_BASE_URL_KEY = "PI_PROVIDER_BASE_URL";
@@ -36,6 +37,7 @@ const SUPPORTED_APIS = [
   "anthropic-messages",
 ] as const;
 const AUTH_FILE = join(getAgentDir(), "auth.json");
+const CONFIG_FILE = join(getAgentDir(), "generic-provider.json");
 const MODELS_DEV_API_URL = "https://models.dev/api.json";
 const MODELS_DEV_MODELS_URL = "https://models.dev/models.json";
 const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -59,6 +61,8 @@ type ModelCost = {
   }>;
 };
 
+type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
 type ProviderModelConfig = {
   id: string;
   name: string;
@@ -67,7 +71,21 @@ type ProviderModelConfig = {
   cost: ModelCost;
   contextWindow: number;
   maxTokens: number;
+  thinkingLevelMap?: Partial<Record<ThinkingLevel, string | null>>;
+  compat?: Record<string, unknown>;
 };
+
+type ModelOverride = Partial<Omit<ProviderModelConfig, "id" | "cost">> & {
+  cost?: Partial<ModelCost>;
+};
+
+type ProviderModelRules = {
+  include?: string[];
+  exclude?: string[];
+  overrides?: Record<string, ModelOverride>;
+};
+
+type GenericProviderConfig = Record<string, ProviderModelRules>;
 
 type ModelCache = {
   providerId: string;
@@ -207,6 +225,73 @@ function stringValue(value: unknown): string | undefined {
 function configuredValue(credential: StoredCredential, key: string): string | undefined {
   const env = isRecord(credential.env) ? credential.env : {};
   return stringValue(env[key]);
+}
+
+function stringArray(value: unknown, field: string): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string" && entry.length > 0)) {
+    throw new Error(`${CONFIG_FILE}: ${field} must be an array of non-empty strings`);
+  }
+  return value;
+}
+
+function parseProviderModelRules(providerId: string, value: unknown): ProviderModelRules {
+  if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: ${providerId} must be an object`);
+  const overrides = value.overrides;
+  if (overrides !== undefined && !isRecord(overrides)) {
+    throw new Error(`${CONFIG_FILE}: ${providerId}.overrides must be an object`);
+  }
+
+  return {
+    include: stringArray(value.include, `${providerId}.include`),
+    exclude: stringArray(value.exclude, `${providerId}.exclude`),
+    overrides: overrides as Record<string, ModelOverride> | undefined,
+  };
+}
+
+async function readGenericProviderConfig(): Promise<GenericProviderConfig> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(CONFIG_FILE, "utf8")) as unknown;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw new Error(`Failed to read ${CONFIG_FILE}`, { cause: error });
+  }
+  if (!isRecord(parsed)) throw new Error(`${CONFIG_FILE}: root must be an object`);
+
+  return Object.fromEntries(
+    Object.entries(parsed).map(([providerId, rules]) => [providerId, parseProviderModelRules(providerId, rules)]),
+  );
+}
+
+function globMatches(pattern: string, value: string): boolean {
+  const expression = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replaceAll("*", ".*")
+    .replaceAll("?", ".");
+  return new RegExp(`^${expression}$`).test(value);
+}
+
+function applyModelRules(models: ProviderModelConfig[], rules: ProviderModelRules | undefined): ProviderModelConfig[] {
+  if (rules === undefined) return models;
+
+  return models
+    .filter((model) => rules.include === undefined || rules.include.some((pattern) => globMatches(pattern, model.id)))
+    .filter((model) => !rules.exclude?.some((pattern) => globMatches(pattern, model.id)))
+    .map((model) => {
+      const override = rules.overrides?.[model.id];
+      if (override === undefined) return model;
+      return {
+        ...model,
+        ...override,
+        id: model.id,
+        cost: { ...model.cost, ...override.cost },
+        thinkingLevelMap: override.thinkingLevelMap === undefined
+          ? model.thinkingLevelMap
+          : { ...model.thinkingLevelMap, ...override.thinkingLevelMap },
+        compat: override.compat === undefined ? model.compat : { ...model.compat, ...override.compat },
+      };
+    });
 }
 
 function parseApi(providerId: string, value: string | undefined): SupportedApi {
@@ -484,10 +569,17 @@ async function getModels(
 }
 
 export default async function genericProvider(pi: ExtensionAPI) {
-  const providers = await readConfiguredProviders();
+  const [providers, config] = await Promise.all([
+    readConfiguredProviders(),
+    readGenericProviderConfig(),
+  ]);
 
   for (const provider of providers) {
-    let models = await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey);
+    const rules = config[provider.id];
+    let models = applyModelRules(
+      await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey),
+      rules,
+    );
 
     // Do not pass apiKey here. Pi's auth composer resolves the stored credential
     // for requests, preserving its normal auth precedence and refresh behavior.
@@ -498,7 +590,10 @@ export default async function genericProvider(pi: ExtensionAPI) {
       // Returning the last known list keeps the offline phase from blanking the catalog.
       async refreshModels({ allowNetwork, force, signal }) {
         if (allowNetwork) {
-          models = await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey, { force, signal });
+          models = applyModelRules(
+            await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey, { force, signal }),
+            rules,
+          );
         }
         return models;
       },

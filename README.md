@@ -111,6 +111,31 @@ provider ID and the model list is fetched from the endpoint according to
 type. Pricing, context limits, and modalities are enriched from models.dev; the
 provider's own model-list response remains the availability source.
 
+Optional per-provider filtering and metadata overrides live in
+`~/.pi/agent/generic-provider.json`. `include` and `exclude` accept `*` and `?`
+globs. Overrides are keyed by exact model ID and are applied after API discovery
+and models.dev enrichment, so they also apply to cached model lists.
+
+```json
+{
+  "my-gateway": {
+    "include": ["gpt-*", "claude-sonnet-*"],
+    "exclude": ["*-preview"],
+    "overrides": {
+      "gpt-custom": {
+        "contextWindow": 128000,
+        "maxTokens": 32000,
+        "reasoning": true,
+        "thinkingLevelMap": {
+          "minimal": "low",
+          "xhigh": "xhigh"
+        }
+      }
+    }
+  }
+}
+```
+
 ## License
 
 [MIT](./LICENSE)
