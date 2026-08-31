@@ -164,7 +164,11 @@ export async function listAllTasks(
   const tasks: Task[] = [];
   let cursor: string | undefined;
   do {
-    const page = await listTasks(bb, { ...input, limit: TASKS_PAGE_LIMIT, ...(cursor === undefined ? {} : { cursor }) });
+    const page = await listTasks(bb, {
+      ...input,
+      limit: TASKS_PAGE_LIMIT,
+      ...(cursor === undefined ? {} : { cursor }),
+    });
     tasks.push(...page.tasks);
     cursor = page.nextCursor ?? undefined;
   } while (cursor !== undefined);

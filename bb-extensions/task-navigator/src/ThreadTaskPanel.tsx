@@ -1,4 +1,4 @@
-import { useRpc, type PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
+import { type PluginThreadPanelProps, useRpc } from "@get-bb/plugin-sdk/app";
 import { useEffect, useState } from "react";
 import type { Overview, OverviewTask, taskNavigatorRpc } from "./server.js";
 import { reasonText } from "./strings.js";
@@ -55,15 +55,37 @@ export function ThreadTaskPanel({ threadId }: PluginThreadPanelProps) {
     }
   };
   const rebindForm = (
-    <form className="space-y-2 border-t border-border pt-3" onSubmit={(event) => { event.preventDefault(); void bind(); }}>
-      <label className="block text-xs text-muted-foreground">{task === undefined ? t.panel.fileTo : t.panel.rebindTo}</label>
+    <form
+      className="space-y-2 border-t border-border pt-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void bind();
+      }}
+    >
+      <label className="block text-xs text-muted-foreground">
+        {task === undefined ? t.panel.fileTo : t.panel.rebindTo}
+      </label>
       <div className="flex gap-2">
-        <input value={taskKey} disabled={busy} className="min-w-0 flex-1 rounded border border-input bg-background px-2 py-1 text-sm" placeholder={t.panel.keyPlaceholder} onChange={(event) => setTaskKey(event.target.value)} />
-        <button type="submit" disabled={busy || !taskKey.trim()} className="rounded border border-input px-2 py-1 text-xs disabled:opacity-50">{task === undefined ? t.panel.file : t.panel.rebind}</button>
+        <input
+          value={taskKey}
+          disabled={busy}
+          className="min-w-0 flex-1 rounded border border-input bg-background px-2 py-1 text-sm"
+          placeholder={t.panel.keyPlaceholder}
+          onChange={(event) => setTaskKey(event.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={busy || !taskKey.trim()}
+          className="rounded border border-input px-2 py-1 text-xs disabled:opacity-50"
+        >
+          {task === undefined ? t.panel.file : t.panel.rebind}
+        </button>
       </div>
     </form>
   );
-  const errorLine = actionError !== null ? <p role="alert" className="text-xs text-destructive">{actionError}</p> : null;
+  const errorLine = actionError !== null
+    ? <p role="alert" className="text-xs text-destructive">{actionError}</p>
+    : null;
   const filedKey = overview.filed[threadId];
   if (task === undefined && filedKey !== undefined) {
     return (
@@ -81,7 +103,12 @@ export function ThreadTaskPanel({ threadId }: PluginThreadPanelProps) {
       <section className="space-y-3 p-4 text-sm">
         <h2 className="font-semibold">{t.panel.title}</h2>
         <p className="text-muted-foreground">{t.panel.unfiled}</p>
-        <button type="button" disabled={busy} className="rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50" onClick={() => void promote()}>
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
+          onClick={() => void promote()}
+        >
           {busy ? t.panel.busy : t.panel.promote}
         </button>
         {rebindForm}
@@ -98,12 +125,14 @@ export function ThreadTaskPanel({ threadId }: PluginThreadPanelProps) {
         <h2 className="mt-1 font-semibold">{task.title}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{reasonText(t, task.reason, task.reasonPr)}</p>
       </div>
-      {lastMessage !== null ? (
-        <div className="rounded border border-border p-2">
-          <p className="text-xs text-muted-foreground">{t.panel.lastHere}</p>
-          <p className="mt-1">{lastMessage}</p>
-        </div>
-      ) : null}
+      {lastMessage !== null
+        ? (
+          <div className="rounded border border-border p-2">
+            <p className="text-xs text-muted-foreground">{t.panel.lastHere}</p>
+            <p className="mt-1">{lastMessage}</p>
+          </div>
+        )
+        : null}
       <div>
         <p className="text-xs text-muted-foreground">{t.panel.next}</p>
         <p className="mt-1">{task.next ?? t.panel.noNext}</p>
@@ -112,28 +141,44 @@ export function ThreadTaskPanel({ threadId }: PluginThreadPanelProps) {
         <p className="text-xs text-muted-foreground">{t.panel.currentThread}</p>
         <p className="mt-1">{current?.title ?? threadId}</p>
       </div>
-      {siblings.length > 0 ? (
-        <div>
-          <p className="text-xs text-muted-foreground">{t.panel.siblings}</p>
-          <div className="mt-1 space-y-1">
-            {siblings.map((sibling) => (
-              <button key={sibling.id} type="button" className="block w-full truncate text-left hover:underline" onClick={() => openThread(sibling)}>
-                {sibling.title}{sibling.archived ? ` · ${t.archived}` : ""}
-              </button>
+      {siblings.length > 0
+        ? (
+          <div>
+            <p className="text-xs text-muted-foreground">{t.panel.siblings}</p>
+            <div className="mt-1 space-y-1">
+              {siblings.map((sibling) => (
+                <button
+                  key={sibling.id}
+                  type="button"
+                  className="block w-full truncate text-left hover:underline"
+                  onClick={() => openThread(sibling)}
+                >
+                  {sibling.title}
+                  {sibling.archived ? ` · ${t.archived}` : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+        : null}
+      {task.pullRequests.length > 0
+        ? (
+          <div>
+            <p className="text-xs text-muted-foreground">{t.panel.pr}</p>
+            {task.pullRequests.map((pullRequest) => (
+              <a
+                key={pullRequest.url}
+                href={pullRequest.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block hover:underline"
+              >
+                #{pullRequest.number} {pullRequest.title} · {pullRequest.state}
+              </a>
             ))}
           </div>
-        </div>
-      ) : null}
-      {task.pullRequests.length > 0 ? (
-        <div>
-          <p className="text-xs text-muted-foreground">{t.panel.pr}</p>
-          {task.pullRequests.map((pullRequest) => (
-            <a key={pullRequest.url} href={pullRequest.url} target="_blank" rel="noreferrer" className="mt-1 block hover:underline">
-              #{pullRequest.number} {pullRequest.title} · {pullRequest.state}
-            </a>
-          ))}
-        </div>
-      ) : null}
+        )
+        : null}
       {rebindForm}
       {errorLine}
     </section>

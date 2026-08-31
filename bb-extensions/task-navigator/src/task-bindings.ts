@@ -1,14 +1,5 @@
-import type {
-  BbPluginApi,
-  PluginAgentConfigurationContext,
-} from "@get-bb/plugin-sdk";
-import {
-  listAllTasks,
-  listTaskThreads,
-  taskThreadsAttach,
-  taskThreadsDetach,
-  type Task,
-} from "./tasks-client.js";
+import type { BbPluginApi, PluginAgentConfigurationContext } from "@get-bb/plugin-sdk";
+import { listAllTasks, listTaskThreads, type Task, taskThreadsAttach, taskThreadsDetach } from "./tasks-client.js";
 
 const MAX_PARENT_DEPTH = 10;
 // A full rebuild is one listTasks plus one listTaskThreads per task; fan-out spawns must not repeat it per child.

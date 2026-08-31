@@ -21,7 +21,18 @@ export function attentionOf(threads: readonly Pick<ThreadSummary, "status" | "ar
 export function StatusIcon({ state, t }: { state: AttentionState; t: Strings }) {
   if (state === "none") return <span className="size-3 shrink-0" aria-hidden="true" />;
   const label = t.state[state];
-  const common = { width: 12, height: 12, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, role: "img" as const, "aria-label": label };
+  const common = {
+    width: 12,
+    height: 12,
+    viewBox: "0 0 16 16",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.75,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    role: "img" as const,
+    "aria-label": label,
+  };
   switch (state) {
     case "running":
       return (

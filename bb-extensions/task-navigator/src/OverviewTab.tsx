@@ -1,8 +1,17 @@
-import { useRpc, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
+import { type PluginNavPanelProps, useRpc } from "@get-bb/plugin-sdk/app";
 import { useMemo, useState } from "react";
 import type { Overview, OverviewTask, taskNavigatorRpc } from "./server.js";
 import { reasonText, type Strings } from "./strings.js";
-import { errorText, primaryThread, projectKeyOf, relativeAge, useMinuteClock, useOpenThread, useStrings, useTaskOverview } from "./useTaskOverview.js";
+import {
+  errorText,
+  primaryThread,
+  projectKeyOf,
+  relativeAge,
+  useMinuteClock,
+  useOpenThread,
+  useStrings,
+  useTaskOverview,
+} from "./useTaskOverview.js";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60_000;
 
@@ -35,12 +44,19 @@ export function OverviewTab({}: PluginNavPanelProps) {
         <div className="flex gap-1 overflow-x-auto" aria-label="Project filters">
           <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>{t.board.all}</FilterChip>
           {projects.map((project) => (
-            <FilterChip key={project} active={projectFilter === project} onClick={() => setProjectFilter(project)}>{project}</FilterChip>
+            <FilterChip
+              key={project}
+              active={projectFilter === project}
+              onClick={() => setProjectFilter(project)}
+            >
+              {project}
+            </FilterChip>
           ))}
         </div>
         <span className="min-w-0 flex-1" />
         <span className="text-xs text-muted-foreground">
-          {t.board.doneThisWeek(overview.doneThisWeek)}{cycleDays === null ? "" : ` · ${t.board.cycle(cycleDays)}`}
+          {t.board.doneThisWeek(overview.doneThisWeek)}
+          {cycleDays === null ? "" : ` · ${t.board.cycle(cycleDays)}`}
         </span>
         <ArchiveStale t={t} tasks={stale} onArchived={reload} />
       </header>
@@ -77,7 +93,9 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       aria-pressed={active}
-      className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${active ? "border-input text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+      className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${
+        active ? "border-input text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+      }`}
       onClick={onClick}
     >
       {children}
@@ -101,7 +119,10 @@ function BoardColumn({
   muted: boolean;
 }) {
   return (
-    <section aria-label={label} className={`flex w-64 shrink-0 flex-col rounded-lg border border-border bg-muted/30 ${muted ? "opacity-80" : ""}`}>
+    <section
+      aria-label={label}
+      className={`flex w-64 shrink-0 flex-col rounded-lg border border-border bg-muted/30 ${muted ? "opacity-80" : ""}`}
+    >
       <header className="px-3 pb-1 pt-2">
         <div className="flex items-baseline gap-2">
           <h2 className="text-sm font-medium">{label}</h2>
@@ -125,14 +146,18 @@ function taskPageHref(key: string): string {
 function BoardCard({ t, task, now }: { t: Strings; task: OverviewTask; now: number }) {
   const openThread = useOpenThread();
   const thread = primaryThread(task.threads);
-  const openPullRequest = task.pullRequests.find((pullRequest) => pullRequest.state === "open" || pullRequest.state === "draft");
+  const openPullRequest = task.pullRequests.find((pullRequest) =>
+    pullRequest.state === "open" || pullRequest.state === "draft"
+  );
   return (
     <article className="rounded-md border border-border bg-card p-2 text-sm shadow-sm">
       <a href={taskPageHref(task.key)} className="block hover:underline" title={task.title}>
         <span className="font-mono text-2xs text-muted-foreground">{task.key}</span>
         <span className="mt-0.5 line-clamp-2 block leading-snug">{task.title}</span>
       </a>
-      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{task.next ?? reasonText(t, task.reason, task.reasonPr)}</p>
+      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+        {task.next ?? reasonText(t, task.reason, task.reasonPr)}
+      </p>
       <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
         <span className="tabular-nums">{relativeAge(task.lastMovedAt, now)}</span>
         {thread !== undefined
@@ -147,7 +172,11 @@ function BoardCard({ t, task, now }: { t: Strings; task: OverviewTask; now: numb
           : null}
         <span className="min-w-0 flex-1" />
         {openPullRequest !== undefined
-          ? <a href={openPullRequest.url} target="_blank" rel="noreferrer" className="hover:underline">PR #{openPullRequest.number}</a>
+          ? (
+            <a href={openPullRequest.url} target="_blank" rel="noreferrer" className="hover:underline">
+              PR #{openPullRequest.number}
+            </a>
+          )
           : null}
       </div>
     </article>
@@ -184,7 +213,11 @@ function ArchiveStale({
     }
   };
   if (tasks.length === 0 && error === null) {
-    return <button type="button" disabled className="rounded border border-input px-2 py-1 text-xs opacity-50">{t.board.archiveStale}</button>;
+    return (
+      <button type="button" disabled className="rounded border border-input px-2 py-1 text-xs opacity-50">
+        {t.board.archiveStale}
+      </button>
+    );
   }
   if (confirming) {
     return (
@@ -193,8 +226,17 @@ function ArchiveStale({
         <p className="max-w-56 text-muted-foreground">{tasks.map((task) => task.key).join("、")}</p>
         {error !== null ? <p role="alert" className="text-destructive">{error}</p> : null}
         <div className="flex justify-end gap-1">
-          <button type="button" disabled={saving} className="rounded px-2 py-1" onClick={() => setConfirming(false)}>{t.board.cancel}</button>
-          <button type="button" disabled={saving} className="rounded bg-destructive/15 px-2 py-1 text-destructive" onClick={() => void archive()}>{saving ? t.board.archiving : t.board.confirmArchive}</button>
+          <button type="button" disabled={saving} className="rounded px-2 py-1" onClick={() => setConfirming(false)}>
+            {t.board.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            className="rounded bg-destructive/15 px-2 py-1 text-destructive"
+            onClick={() => void archive()}
+          >
+            {saving ? t.board.archiving : t.board.confirmArchive}
+          </button>
         </div>
       </div>
     );
@@ -202,7 +244,14 @@ function ArchiveStale({
   return (
     <div className="flex items-center gap-2">
       {error !== null ? <span role="alert" className="text-xs text-destructive">{error}</span> : null}
-      <button type="button" disabled={tasks.length === 0} className="rounded border border-input px-2 py-1 text-xs hover:bg-accent disabled:opacity-50" onClick={() => setConfirming(true)}>{t.board.archiveStale}</button>
+      <button
+        type="button"
+        disabled={tasks.length === 0}
+        className="rounded border border-input px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
+        onClick={() => setConfirming(true)}
+      >
+        {t.board.archiveStale}
+      </button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveTaskState, type DerivedThread } from "./derive.js";
+import { type DerivedThread, deriveTaskState } from "./derive.js";
 
 const idle: DerivedThread = { status: "idle" };
 
@@ -43,12 +43,14 @@ describe("deriveTaskState", () => {
   });
 
   it("prioritizes running threads over pull requests", () => {
-    expect(deriveTaskState({
-      status: "in_progress",
-      threads: [{ status: "running" }],
-      pullRequests: [{ number: 1, state: "open", checks: "pending" }],
-      next: "continue",
-    }).group).toBe("running");
+    expect(
+      deriveTaskState({
+        status: "in_progress",
+        threads: [{ status: "running" }],
+        pullRequests: [{ number: 1, state: "open", checks: "pending" }],
+        next: "continue",
+      }).group,
+    ).toBe("running");
   });
 
   it("waits on CI for an open PR with pending checks", () => {

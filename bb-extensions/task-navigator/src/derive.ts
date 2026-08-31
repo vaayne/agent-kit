@@ -24,8 +24,18 @@ export interface DeriveTaskInput {
 
 /** Why a task sits where it sits. A code, not a sentence: the UI renders it in the user's language. */
 export const REASON_CODES = [
-  "ended", "notStarted", "noThreads", "asking", "error", "running",
-  "ciPending", "ciFailed", "reviewPassing", "review", "stalled", "waitingAgent",
+  "ended",
+  "notStarted",
+  "noThreads",
+  "asking",
+  "error",
+  "running",
+  "ciPending",
+  "ciFailed",
+  "reviewPassing",
+  "review",
+  "stalled",
+  "waitingAgent",
 ] as const;
 export type ReasonCode = (typeof REASON_CODES)[number];
 

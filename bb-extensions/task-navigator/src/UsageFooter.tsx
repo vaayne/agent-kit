@@ -4,11 +4,11 @@ import type { taskNavigatorRpc } from "./server.js";
 import {
   describeUsageBody,
   formatUsageReset,
+  usageBarTone,
   type UsageLimitsResult,
+  usagePlanLabel,
   type UsageProvider,
   type UsageProviderConfig,
-  usageBarTone,
-  usagePlanLabel,
   usageSummary,
   type UsageWindow,
   usageWindowValue,
@@ -124,7 +124,10 @@ function WindowRow({ window }: { window: UsageWindow }) {
         <span className="shrink-0 tabular-nums text-muted-foreground">{usageWindowValue(window)}</span>
       </div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-sidebar-accent">
-        <div className={`h-full rounded-full ${toneBarClass(window.usedPercent)}`} style={{ width: `${window.usedPercent}%` }} />
+        <div
+          className={`h-full rounded-full ${toneBarClass(window.usedPercent)}`}
+          style={{ width: `${window.usedPercent}%` }}
+        />
       </div>
       {reset ? <p className="text-2xs text-muted-foreground">{reset}</p> : null}
     </div>
@@ -133,16 +136,22 @@ function WindowRow({ window }: { window: UsageWindow }) {
 
 function toneBarClass(usedPercent: number): string {
   switch (usageBarTone(usedPercent)) {
-    case "warning": return "bg-warning";
-    case "destructive": return "bg-destructive";
-    case "muted": return "bg-muted-foreground";
+    case "warning":
+      return "bg-warning";
+    case "destructive":
+      return "bg-destructive";
+    case "muted":
+      return "bg-muted-foreground";
   }
 }
 
 function toneTextClass(usedPercent: number): string {
   switch (usageBarTone(usedPercent)) {
-    case "warning": return "text-warning";
-    case "destructive": return "text-destructive";
-    case "muted": return "";
+    case "warning":
+      return "text-warning";
+    case "destructive":
+      return "text-destructive";
+    case "muted":
+      return "";
   }
 }

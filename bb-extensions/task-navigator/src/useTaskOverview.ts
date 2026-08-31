@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   experimental_useSidebarThreadActions as useSidebarThreadActions,
   useBbNavigate,
   useRealtime,
   useRpc,
 } from "@get-bb/plugin-sdk/app";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Overview, taskNavigatorRpc } from "./server.js";
 import { resolveLanguage, STRINGS, type Strings } from "./strings.js";
 

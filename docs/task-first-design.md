@@ -12,16 +12,16 @@
 不是为了"追踪更全"，是为了把大脑里不该放的东西搬出来。ADHD 的几个硬约束，
 每一条都对应今天工作流里一个真实的痛点：
 
-| 约束 | 今天的症状 | 设计必须做到 |
-| --- | --- | --- |
-| 工作记忆小，存不住"还有什么没完" | 643 个线程只有 74 个 task；进度靠翻侧栏回忆 | 意图落盘在线程之前，不依赖记忆 |
-| 视野外即不存在 | 31/74 个 task 卡在 in_review，没人关 | 需要你的事主动浮上来，不需要你的事主动消失 |
-| 再入成本高，被打断后回不来 | 打开一个线程要读半屏才知道到哪了 | 任何 task 十秒内回答"在哪、下一步是什么" |
-| 启动摩擦，成本高就不开始 | 建 task 比直接开线程多两步，于是绕过 | "我要做 X"一步产生 task 和首个线程 |
-| 时间盲 | 看不出一件事已经三天没动 | 显示"多久没动"，不显示绝对时间 |
-| 决策疲劳 | 二十个 in_review 摆在一起，不知道先看哪个 | 屏幕任何时候只给一个明确的下一个动作 |
-| 超专注需要保护 | 子线程完成的通知打断当前事 | 通知聚合到 task，不弹，回来再看 |
-| 需要完成感 | done 是一个没人触发的手工动作 | done 自动到达，且有可见的收尾 |
+| 约束                             | 今天的症状                                  | 设计必须做到                               |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------ |
+| 工作记忆小，存不住"还有什么没完" | 643 个线程只有 74 个 task；进度靠翻侧栏回忆 | 意图落盘在线程之前，不依赖记忆             |
+| 视野外即不存在                   | 31/74 个 task 卡在 in_review，没人关        | 需要你的事主动浮上来，不需要你的事主动消失 |
+| 再入成本高，被打断后回不来       | 打开一个线程要读半屏才知道到哪了            | 任何 task 十秒内回答"在哪、下一步是什么"   |
+| 启动摩擦，成本高就不开始         | 建 task 比直接开线程多两步，于是绕过        | "我要做 X"一步产生 task 和首个线程         |
+| 时间盲                           | 看不出一件事已经三天没动                    | 显示"多久没动"，不显示绝对时间             |
+| 决策疲劳                         | 二十个 in_review 摆在一起，不知道先看哪个   | 屏幕任何时候只给一个明确的下一个动作       |
+| 超专注需要保护                   | 子线程完成的通知打断当前事                  | 通知聚合到 task，不弹，回来再看            |
+| 需要完成感                       | done 是一个没人触发的手工动作               | done 自动到达，且有可见的收尾              |
 
 判断标准：每一条设计决策都能回指到上表的一行。指不到的，砍掉。
 
@@ -60,17 +60,17 @@
 
 ## 3. 状态：从事实推导，手填只做覆盖
 
-| 事实 | 推导状态 | waitingOn |
-| --- | --- | --- |
-| 没有任何线程，status 是 backlog / todo | `backlog`（未开始，不进"轮到你"） | you |
-| 没有任何线程，status 却是 in_progress / in_review | `stalled` | **you**（没有线程记录，写 next 或关掉） |
-| 任一线程 running | `in_progress` | agent |
-| 任一线程 waiting-for-input 或 error | `in_progress` | **you** |
-| 线程全停，PR 打开，CI 在跑 | `in_review` | ci |
-| 线程全停，PR 打开，CI 完成 | `in_review` | **you** |
-| 线程全停，没有 PR，`next` 为空 | `in_review` | **you**（要么关掉，要么写 next） |
-| PR 合并 | `done` | nobody |
-| 手动 cancel / 手动 done | 覆盖，冻结推导 | nobody |
+| 事实                                              | 推导状态                          | waitingOn                               |
+| ------------------------------------------------- | --------------------------------- | --------------------------------------- |
+| 没有任何线程，status 是 backlog / todo            | `backlog`（未开始，不进"轮到你"） | you                                     |
+| 没有任何线程，status 却是 in_progress / in_review | `stalled`                         | **you**（没有线程记录，写 next 或关掉） |
+| 任一线程 running                                  | `in_progress`                     | agent                                   |
+| 任一线程 waiting-for-input 或 error               | `in_progress`                     | **you**                                 |
+| 线程全停，PR 打开，CI 在跑                        | `in_review`                       | ci                                      |
+| 线程全停，PR 打开，CI 完成                        | `in_review`                       | **you**                                 |
+| 线程全停，没有 PR，`next` 为空                    | `in_review`                       | **you**（要么关掉，要么写 next）        |
+| PR 合并                                           | `done`                            | nobody                                  |
+| 手动 cancel / 手动 done                           | 覆盖，冻结推导                    | nobody                                  |
 
 规则：状态永远可以从线程和 PR 重算出来；手动只保留 `canceled` 和强制 `done`
 两个覆盖。原因回指第 1 节第二行：手填状态一定会漂。
@@ -185,12 +185,12 @@
 
 ## 6. 假设验证结果
 
-| 假设 | 结果 | 影响 |
-| --- | --- | --- |
-| dispatch 子线程自动进 task | **否**。绑定不传递 | 由本 plugin 用 `thread.created` + parent 链补上 |
-| 跨 plugin 读 tasks 数据 | **可以**。server 侧 `bb.sdk.plugins.callRpc`；tasks 暴露 `listTasks / getTask / listTaskThreads / taskThreadsAttach / taskThreadsDetach / delegate` | 不需要自己维护绑定表，状态推导在本 plugin server 侧做 |
-| 线程数据含 waiting-for-input 和 PR | 是，navigator 已在用 `hasPendingInteraction` 和 `environments.pullRequest` | 直接复用 |
-| 能否给子线程自动注入 task 上下文 | **可以**。`agents.configure` 拿到 `parentThreadId` | 约定层缩到"结束前更新 next"一条 |
+| 假设                               | 结果                                                                                                                                                | 影响                                                  |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| dispatch 子线程自动进 task         | **否**。绑定不传递                                                                                                                                  | 由本 plugin 用 `thread.created` + parent 链补上       |
+| 跨 plugin 读 tasks 数据            | **可以**。server 侧 `bb.sdk.plugins.callRpc`；tasks 暴露 `listTasks / getTask / listTaskThreads / taskThreadsAttach / taskThreadsDetach / delegate` | 不需要自己维护绑定表，状态推导在本 plugin server 侧做 |
+| 线程数据含 waiting-for-input 和 PR | 是，navigator 已在用 `hasPendingInteraction` 和 `environments.pullRequest`                                                                          | 直接复用                                              |
+| 能否给子线程自动注入 task 上下文   | **可以**。`agents.configure` 拿到 `parentThreadId`                                                                                                  | 约定层缩到"结束前更新 next"一条                       |
 
 仍未验证、但风险低：另一个 plugin 调 tasks 的 `callRpc` 是否有权限限制；
 `agents.configure` 的注入和 tasks 自带 skill 是否会重复。都是动手第一天能知道的事。
