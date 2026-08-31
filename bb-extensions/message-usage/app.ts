@@ -15,11 +15,11 @@ const ROW_SELECTOR = "[data-timeline-row-id]";
 const COLUMN_SELECTOR = "[data-message-column=\"\"]";
 
 interface TokenBreakdown {
-  inputTokens: number;
+  /** Non-cached input tokens (provider convention already normalized server-side). */
+  freshInputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
   reasoningOutputTokens: number;
-  totalTokens: number;
 }
 
 interface UsageReport {
@@ -85,8 +85,8 @@ function buildBadgeText(report: UsageReport): string {
   const model = formatModel(report.model);
   if (model) parts.push(model);
   if (report.last) {
-    const { inputTokens, cachedInputTokens, outputTokens } = report.last;
-    const totalInput = freshPlusCached(inputTokens, cachedInputTokens);
+    const { freshInputTokens, cachedInputTokens, outputTokens } = report.last;
+    const totalInput = freshInputTokens + cachedInputTokens;
     parts.push(`↑${formatTokens(totalInput)}`);
     if (cachedInputTokens > 0 && totalInput > 0) {
       const cachePct = Math.round((cachedInputTokens / totalInput) * 100);
@@ -99,14 +99,11 @@ function buildBadgeText(report: UsageReport): string {
   }
   const cost = formatCost(report.estimatedCostUsd, report.costIsEstimate);
   if (cost) parts.push(cost);
-  if (report.total) parts.push(`Σ${formatTokens(report.total.totalTokens)}`);
+  if (report.total) {
+    const t = report.total;
+    parts.push(`Σ${formatTokens(t.freshInputTokens + t.cachedInputTokens + t.outputTokens)}`);
+  }
   return parts.join(" · ");
-}
-
-function freshPlusCached(inputTokens: number, cached: number): number {
-  // bb reports inputTokens excluding cached ones for codex but including for
-  // claude-code; taking max(fresh, 0) keeps the display sane for both.
-  return Math.max(0, inputTokens - cached) + cached;
 }
 
 function buildBadge(report: UsageReport): HTMLElement {
@@ -116,9 +113,8 @@ function buildBadge(report: UsageReport): HTMLElement {
   badge.textContent = buildBadgeText(report);
   badge.title = report.last
     ? [
-      `input ${report.last.inputTokens} (cached ${report.last.cachedInputTokens})`,
+      `input ${report.last.freshInputTokens + report.last.cachedInputTokens} (cached ${report.last.cachedInputTokens})`,
       `output ${report.last.outputTokens} (reasoning ${report.last.reasoningOutputTokens})`,
-      `thread total ${report.total?.totalTokens ?? "?"} tokens`,
     ].join("\n")
     : "No usage reported yet";
   return badge;

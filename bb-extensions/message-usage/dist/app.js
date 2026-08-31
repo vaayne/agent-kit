@@ -1,41 +1,41 @@
-var g = globalThis.__bbPluginRuntime;
-if (g == null || g.pluginSdkApp == null) {
+var h = globalThis.__bbPluginRuntime;
+if (h == null || h.pluginSdkApp == null) {
   throw new Error(
     "Cannot load \"@get-bb/plugin-sdk/app\": this bundle must be loaded by the BB app, which provides the shared plugin runtime (globalThis.__bbPluginRuntime).",
   );
 }
-var p = g.pluginSdkApp,
-  M = "default" in p ? p.default : p,
+var p = h.pluginSdkApp,
+  A = "default" in p ? p.default : p,
   {
     Markdown: L,
-    ThreadChat: U,
-    UrlLink: B,
+    ThreadChat: M,
+    UrlLink: U,
     definePluginApp: T,
-    experimental_Diff: O,
-    experimental_FileLink: F,
-    experimental_NewThreadComposer: j,
-    experimental_PermissionModePicker: N,
-    experimental_ProviderModelPicker: D,
-    experimental_SourceCode: H,
-    experimental_useAppPanel: z,
-    experimental_useFixedTabTarget: W,
-    experimental_useProviders: q,
-    experimental_useSidebarThreadActions: G,
-    experimental_useSidebarThreadPullRequest: V,
-    experimental_useSidebarThreadSplit: Z,
-    experimental_useSidebarThreads: J,
-    useBbContext: K,
-    useBbNavigate: Q,
-    useComposer: X,
-    useComposerView: Y,
-    useRealtime: ee,
-    useRealtimeConnectionState: te,
-    useRpc: ne,
-    useSettings: oe,
+    experimental_Diff: B,
+    experimental_FileLink: O,
+    experimental_NewThreadComposer: F,
+    experimental_PermissionModePicker: j,
+    experimental_ProviderModelPicker: N,
+    experimental_SourceCode: D,
+    experimental_useAppPanel: H,
+    experimental_useFixedTabTarget: z,
+    experimental_useProviders: W,
+    experimental_useSidebarThreadActions: q,
+    experimental_useSidebarThreadPullRequest: G,
+    experimental_useSidebarThreadSplit: V,
+    experimental_useSidebarThreads: Z,
+    useBbContext: J,
+    useBbNavigate: K,
+    useComposer: Q,
+    useComposerView: X,
+    useRealtime: Y,
+    useRealtimeConnectionState: ee,
+    useRpc: te,
+    useSettings: ne,
   } = p;
-var S = "message-usage", v = "message-usage-badge";
-var R = "[data-message-column=\"\"]";
-async function C(e) {
+var S = "message-usage", $ = "message-usage-badge";
+var v = "[data-message-column=\"\"]";
+async function R(e) {
   try {
     let t = await fetch(`/api/v1/plugins/${encodeURIComponent(S)}/rpc/getUsage`, {
         method: "POST",
@@ -48,7 +48,7 @@ async function C(e) {
     return null;
   }
 }
-function h(e) {
+function g(e) {
   return e >= 1e6
     ? `${(e / 1e6).toFixed(2)}M`
     : e >= 1e4
@@ -57,106 +57,106 @@ function h(e) {
     ? `${(e / 1e3).toFixed(1)}k`
     : String(e);
 }
-function P(e, t) {
+function C(e, t) {
   if (e === null) return null;
   let n = e >= .1 ? `$${e.toFixed(2)}` : e >= .01 ? `$${e.toFixed(3)}` : `$${e.toFixed(4)}`;
   return t ? `~${n}` : n;
 }
-function I(e) {
+function P(e) {
   if (!e) return null;
   let t = e.split("/").pop() ?? e, n = t.split("@")[0] ?? t;
   return n.length > 28 ? `${n.slice(0, 27)}\u2026` : n;
 }
 function y(e) {
-  let t = [], n = I(e.model);
+  let t = [], n = P(e.model);
   if (n && t.push(n), e.last) {
-    let { inputTokens: a, cachedInputTokens: l, outputTokens: r } = e.last, d = E(a, l);
-    if (t.push(`\u2191${h(d)}`), l > 0 && d > 0) {
+    let { freshInputTokens: s, cachedInputTokens: l, outputTokens: a } = e.last, d = s + l;
+    if (t.push(`\u2191${g(d)}`), l > 0 && d > 0) {
       let u = Math.round(l / d * 100);
       t.push(`cache ${u}%`);
     }
-    t.push(`\u2193${h(r)}`), e.outputTokensPerSecond !== null && t.push(`${e.outputTokensPerSecond} tok/s`);
+    t.push(`\u2193${g(a)}`), e.outputTokensPerSecond !== null && t.push(`${e.outputTokensPerSecond} tok/s`);
   }
-  let s = P(e.estimatedCostUsd, e.costIsEstimate);
-  return s && t.push(s), e.total && t.push(`\u03A3${h(e.total.totalTokens)}`), t.join(" \xB7 ");
-}
-function E(e, t) {
-  return Math.max(0, e - t) + t;
+  let r = C(e.estimatedCostUsd, e.costIsEstimate);
+  if (r && t.push(r), e.total) {
+    let s = e.total;
+    t.push(`\u03A3${g(s.freshInputTokens + s.cachedInputTokens + s.outputTokens)}`);
+  }
+  return t.join(" \xB7 ");
 }
 function k(e) {
   let t = document.createElement("div");
-  return t.className = v,
+  return t.className = $,
     t.setAttribute("data-message-usage-badge", ""),
     t.textContent = y(e),
     t.title = e.last
       ? [
-        `input ${e.last.inputTokens} (cached ${e.last.cachedInputTokens})`,
+        `input ${e.last.freshInputTokens + e.last.cachedInputTokens} (cached ${e.last.cachedInputTokens})`,
         `output ${e.last.outputTokens} (reasoning ${e.last.reasoningOutputTokens})`,
-        `thread total ${e.total?.totalTokens ?? "?"} tokens`,
       ].join(`
 `)
       : "No usage reported yet",
     t;
 }
-function A(e) {
+function E(e) {
   let t = [e.pathname, e.hash.startsWith("#") ? e.hash.slice(1) : e.hash];
   for (let n of t) {
-    let s = n.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
+    let r = n.match(/^\/threads\/(thr_[A-Za-z0-9]+)/);
+    if (r) return r[1];
+    let s = n.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
     if (s) return s[1];
-    let a = n.match(/^\/projects\/[^/]+\/threads\/(thr_[A-Za-z0-9]+)/);
-    if (a) return a[1];
   }
   return null;
 }
-var ue = T(e => {
+var le = T(e => {
   e.contentScripts.register({
     id: "message-usage-badge",
     mount({ signal: t }) {
       let n = null,
-        s = null,
-        a = !1,
+        r = null,
+        s = !1,
         l = 0,
-        r = () => {
-          n?.remove(), n = null, s = null;
+        a = () => {
+          n?.remove(), n = null, r = null;
         },
         d = o => {
           let i = o.messageRowId;
           if (!i) {
-            r();
+            a();
             return;
           }
           let c = document.querySelector(
-            `[data-timeline-row-id="${i.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"] ${R}`,
+            `[data-timeline-row-id="${i.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"] ${v}`,
           );
           if (!c) {
-            r();
+            a();
             return;
           }
-          if (n && s === i) {
+          if (n && r === i) {
             let m = k(o);
             n.textContent !== m.textContent && (n.replaceWith(m), n = m);
             return;
           }
-          r(), n = k(o), s = i, c.appendChild(n);
+          a(), n = k(o), r = i, c.appendChild(n);
         },
         u = async () => {
-          if (a) return;
-          let o = A(window.location);
+          if (s) return;
+          let o = E(window.location);
           if (!o) {
-            r();
+            a();
             return;
           }
-          a = !0;
+          s = !0;
           try {
-            let i = await C(o);
+            let i = await R(o);
             if (t.aborted) return;
             if (!i) {
-              r();
+              a();
               return;
             }
             d(i);
           } finally {
-            a = !1;
+            s = !1;
           }
         },
         x = () => {
@@ -175,18 +175,18 @@ var ue = T(e => {
           u();
         }, 2e3),
         b = window.location.pathname,
-        $ = window.setInterval(() => {
+        I = window.setInterval(() => {
           if (window.location.pathname !== b) {
-            b = window.location.pathname, r(), u();
+            b = window.location.pathname, a(), u();
             return;
           }
         }, 300);
       u();
       let w = () => {
-        f.disconnect(), window.clearInterval(_), window.clearInterval($), r();
+        f.disconnect(), window.clearInterval(_), window.clearInterval(I), a();
       };
       return t.addEventListener("abort", w, { once: !0 }), w;
     },
   });
 });
-export { ue as default };
+export { le as default };
