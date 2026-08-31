@@ -83,14 +83,29 @@ export async function fetchLatestAssistantRow(
   bb: Bb,
   threadId: string,
 ): Promise<LatestAssistantRow | null> {
-  const timeline = await bb.sdk.threads.timeline({ threadId });
-  for (let i = timeline.rows.length - 1; i >= 0; i--) {
-    const row = timeline.rows[i]!;
-    if (row.kind === "conversation" && row.role === "assistant") {
-      return { rowId: row.id, turnId: row.turnId };
+  // The outline lists every conversation row thread-wide without pagination,
+  // unlike `timeline` whose latest page excludes messages from older segments
+  // while the current turn is still streaming. Fall back to the timeline for
+  // providers/surfaces where the outline is unavailable.
+  try {
+    const outline = await bb.sdk.threads.conversationOutline({ threadId });
+    for (let i = outline.items.length - 1; i >= 0; i--) {
+      const item = outline.items[i]!;
+      if (item.role === "assistant") {
+        return { rowId: item.id, turnId: null };
+      }
     }
+    return null;
+  } catch {
+    const timeline = await bb.sdk.threads.timeline({ threadId });
+    for (let i = timeline.rows.length - 1; i >= 0; i--) {
+      const row = timeline.rows[i]!;
+      if (row.kind === "conversation" && row.role === "assistant") {
+        return { rowId: row.id, turnId: row.turnId };
+      }
+    }
+    return null;
   }
-  return null;
 }
 
 export async function fetchLastCompletedTurn(
