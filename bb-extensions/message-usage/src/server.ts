@@ -110,7 +110,7 @@ export default function plugin(bb: BbPluginApi) {
       // Model provenance: accepted turn id -> the originating client request
       // -> its recorded execution options. Missing links degrade to null.
       const accepted = usageEvent.turnId
-        ? await fetchAcceptedTurnRequest(bb, threadId, usageEvent.turnId)
+        ? await fetchAcceptedTurnRequest(bb, threadId, usageEvent.turnId, usageEvent.seq)
         : null;
       const model = accepted?.model ?? null;
 

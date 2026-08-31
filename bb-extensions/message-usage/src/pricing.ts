@@ -15,6 +15,12 @@ export interface ModelPricing {
 }
 
 const PRICING_TABLE: Record<string, ModelPricing> = {
+  // Anthropic — Fable tier (flagship, e.g. claude-fable-5)
+  "claude-fable": {
+    inputPerMTok: 15,
+    cachedInputPerMTok: 1.5,
+    outputPerMTok: 75,
+  },
   // Anthropic — Sonnet 4.5 / 4 class pricing
   "claude-sonnet-4": {
     inputPerMTok: 3,

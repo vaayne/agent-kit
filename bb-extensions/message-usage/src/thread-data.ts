@@ -16,6 +16,7 @@ export interface TokenUsageBreakdown {
 
 export interface LatestUsageEvent {
   turnId: string | null;
+  seq: number;
   tokenUsage: {
     total: TokenUsageBreakdown | null;
     last: TokenUsageBreakdown | null;
@@ -72,6 +73,7 @@ export async function fetchLatestUsageEvent(
   const turnId = row.scope.kind === "turn" ? row.scope.turnId : null;
   return {
     turnId,
+    seq: row.seq,
     tokenUsage: {
       total: data.tokenUsage?.total ?? null,
       last: data.tokenUsage?.last ?? null,
@@ -149,6 +151,7 @@ export async function fetchAcceptedTurnRequest(
   bb: Bb,
   threadId: string,
   turnId: string,
+  beforeSeq: number,
 ): Promise<{ model: string | null } | null> {
   // Find the turn's accepted input event to recover its client request id.
   const acceptedRows = await bb.sdk.threads.events.list({
@@ -160,12 +163,31 @@ export async function fetchAcceptedTurnRequest(
   const accepted = acceptedRows.find(
     (row) => row.scope.kind === "turn" && row.scope.turnId === turnId,
   );
-  if (!accepted) return null;
-  const clientRequestId = (accepted.data as { clientRequestId?: string })
-    .clientRequestId;
-  if (!clientRequestId) return null;
+  if (accepted) {
+    const clientRequestId = (accepted.data as { clientRequestId?: string })
+      .clientRequestId;
+    if (clientRequestId) {
+      // The matching outbound request records the resolved execution options.
+      const requestedRows = await bb.sdk.threads.events.list({
+        threadId,
+        types: eventTypes("clientTurnRequested") as never,
+        order: "desc",
+        limit: "20",
+      });
+      for (const row of requestedRows) {
+        const data = row.data as {
+          requestId?: string;
+          execution?: { model?: string };
+        };
+        if (data.requestId === clientRequestId) {
+          return { model: data.execution?.model ?? null };
+        }
+      }
+    }
+  }
 
-  // The matching outbound request records the resolved execution options.
+  // Steered/plugin-initiated turns may never carry an accepted event. Fall
+  // back to the newest outbound request recorded before the usage event.
   const requestedRows = await bb.sdk.threads.events.list({
     threadId,
     types: eventTypes("clientTurnRequested") as never,
@@ -173,13 +195,9 @@ export async function fetchAcceptedTurnRequest(
     limit: "20",
   });
   for (const row of requestedRows) {
-    const data = row.data as {
-      requestId?: string;
-      execution?: { model?: string };
-    };
-    if (data.requestId === clientRequestId) {
-      return { model: data.execution?.model ?? null };
-    }
+    if (row.seq >= beforeSeq) continue;
+    const data = row.data as { execution?: { model?: string } };
+    return { model: data.execution?.model ?? null };
   }
   return null;
 }
