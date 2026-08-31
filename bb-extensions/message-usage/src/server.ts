@@ -2,7 +2,7 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { normalizeBreakdown } from "./normalize.js";
-import { estimateCostUsd, type ModelPricing, parseModelPricing } from "./pricing.js";
+import { estimateCostUsd, fallbackPricing, lookupPricing, type ModelPricing } from "./pricing.js";
 import {
   fetchAcceptedTurnRequest,
   fetchLastCompletedTurn,
@@ -119,13 +119,15 @@ export default function plugin(bb: BbPluginApi) {
       const last = normalizeBreakdown(usageEvent.tokenUsage.last);
       const total = normalizeBreakdown(usageEvent.tokenUsage.total);
 
+      // Pricing: models.dev catalog first, built-in fallback table last.
+      // The fallback is a placeholder, so its results are flagged with "~".
       let pricing: ModelPricing | null = model
-        ? parseModelPricing(model)
+        ? await lookupPricing(bb, model)
         : null;
       let costIsEstimate = false;
       if (!pricing) {
-        pricing = parseModelPricing("default");
-        costIsEstimate = pricing !== null;
+        pricing = fallbackPricing();
+        costIsEstimate = true;
       }
       const estimatedCostUsd = pricing
         ? estimateCostUsd(pricing, {

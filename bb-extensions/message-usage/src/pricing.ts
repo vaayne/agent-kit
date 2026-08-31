@@ -1,66 +1,167 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 
-/**
- * Per-million-token USD prices. Edit freely — costs are estimates for a
- * badge, not a bill. Model matching is a longest-prefix scan on lowercase
- * names, so "claude-opus-4-1" and vendor-prefixed ids both resolve.
- */
 export interface ModelPricing {
   /** USD per 1M fresh (non-cached) input tokens. */
   inputPerMTok: number;
-  /** USD per 1M cached input tokens (read price). */
+  /** USD per 1M cached input tokens (cache-read price). */
   cachedInputPerMTok: number;
   /** USD per 1M output tokens. */
   outputPerMTok: number;
 }
 
-const PRICING_TABLE: Record<string, ModelPricing> = {
-  // Anthropic — Fable tier (flagship, e.g. claude-fable-5)
-  "claude-fable": {
-    inputPerMTok: 15,
-    cachedInputPerMTok: 1.5,
-    outputPerMTok: 75,
-  },
-  // Anthropic — Sonnet 4.5 / 4 class pricing
-  "claude-sonnet-4": {
-    inputPerMTok: 3,
-    cachedInputPerMTok: 0.3,
-    outputPerMTok: 15,
-  },
-  // Anthropic — Opus 4.1 / 4 class pricing
-  "claude-opus-4": {
-    inputPerMTok: 15,
-    cachedInputPerMTok: 1.5,
-    outputPerMTok: 75,
-  },
-  // Anthropic — Haiku 4.5 / 4 class pricing
-  "claude-haiku-4": {
-    inputPerMTok: 1,
-    cachedInputPerMTok: 0.1,
-    outputPerMTok: 5,
-  },
-  // OpenAI GPT-5.5 family
-  "gpt-5.5": { inputPerMTok: 1.25, cachedInputPerMTok: 0.125, outputPerMTok: 10 },
-  "gpt-5.6": { inputPerMTok: 1.25, cachedInputPerMTok: 0.125, outputPerMTok: 10 },
-  "gpt-5": { inputPerMTok: 1.25, cachedInputPerMTok: 0.125, outputPerMTok: 10 },
-  // GLM
-  "glm-5": { inputPerMTok: 0.6, cachedInputPerMTok: 0.11, outputPerMTok: 2.2 },
-  "glm-4": { inputPerMTok: 0.6, cachedInputPerMTok: 0.11, outputPerMTok: 2.2 },
-  // Fallback when a model cannot be matched; flagged to the user.
-  default: { inputPerMTok: 1, cachedInputPerMTok: 0.1, outputPerMTok: 5 },
+interface ModelsDevCost {
+  input?: number;
+  output?: number;
+  cache_read?: number;
+  cache_write?: number;
+}
+
+interface ModelsDevModel {
+  cost?: ModelsDevCost | null;
+}
+
+interface ModelsDevProvider {
+  models?: Record<string, ModelsDevModel>;
+}
+
+const CATALOG_URL = "https://models.dev/api.json";
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Canonical models.dev provider per model-name family. Aggregators list the
+ * same model id at resale prices; the canonical provider's number is the
+ * vendor's own list price, so prefer it when present.
+ */
+const FAMILY_PROVIDERS: readonly { prefix: string; provider: string }[] = [
+  { prefix: "claude", provider: "anthropic" },
+  { prefix: "gpt", provider: "openai" },
+  { prefix: "o1", provider: "openai" },
+  { prefix: "o3", provider: "openai" },
+  { prefix: "o4", provider: "openai" },
+  { prefix: "glm", provider: "zai" },
+  { prefix: "gemini", provider: "google" },
+  { prefix: "deepseek", provider: "deepseek" },
+  { prefix: "kimi", provider: "moonshotai" },
+  { prefix: "qwen", provider: "qwen" },
+];
+
+function canonicalProviderFor(modelId: string): string | null {
+  const lowered = modelId.toLowerCase();
+  for (const { prefix, provider } of FAMILY_PROVIDERS) {
+    if (lowered.startsWith(prefix)) return provider;
+  }
+  return null;
+}
+
+/**
+ * Last-resort table for when models.dev is unreachable and nothing is
+ * cached. Prices are order-of-magnitude placeholders, flagged as estimates
+ * by the caller.
+ */
+const FALLBACK_PRICING: ModelPricing = {
+  inputPerMTok: 1,
+  cachedInputPerMTok: 0.1,
+  outputPerMTok: 5,
 };
 
-const SORTED_PREFIXES = Object.keys(PRICING_TABLE)
-  .filter((key) => key !== "default")
-  .sort((a, b) => b.length - a.length);
+/** "openai-codex/gpt-5.6-sol" or "cpa/gpt-5.6-terra@x" -> "gpt-5.6-sol". */
+export function normalizeModelId(model: string): string {
+  const withoutVendor = model.split("/").pop() ?? model;
+  return (withoutVendor.split("@")[0] ?? withoutVendor).toLowerCase();
+}
 
-export function parseModelPricing(model: string): ModelPricing | null {
-  const lowered = model.toLowerCase();
-  for (const prefix of SORTED_PREFIXES) {
-    if (lowered.includes(prefix)) return PRICING_TABLE[prefix]!;
+interface CatalogCache {
+  providers: Record<string, ModelsDevProvider> | null;
+  fetchedAt: number;
+  /** In-flight fetch dedup. */
+  pending: Promise<void> | null;
+}
+
+const cache: CatalogCache = { providers: null, fetchedAt: 0, pending: null };
+
+async function fetchCatalog(bb: BbPluginApi): Promise<void> {
+  try {
+    const response = await fetch(CATALOG_URL, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = (await response.json()) as Record<string, ModelsDevProvider>;
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      throw new Error("unexpected catalog shape");
+    }
+    cache.providers = body;
+    cache.fetchedAt = Date.now();
+  } catch (error) {
+    // Keep any previous catalog; just record why the refresh failed.
+    bb.log.warn(
+      `models.dev refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    cache.pending = null;
   }
-  if (lowered.includes("default")) return PRICING_TABLE.default!;
-  return null;
+}
+
+async function getCatalog(bb: BbPluginApi): Promise<Record<string, ModelsDevProvider> | null> {
+  const fresh = cache.providers !== null && Date.now() - cache.fetchedAt < CATALOG_TTL_MS;
+  if (fresh) return cache.providers;
+  cache.pending ??= fetchCatalog(bb);
+  await cache.pending;
+  return cache.providers;
+}
+
+function costToPricing(cost: ModelsDevCost): ModelPricing | null {
+  const input = cost.input;
+  const output = cost.output;
+  if (typeof input !== "number" || typeof output !== "number") return null;
+  return {
+    inputPerMTok: input,
+    // Absent cache_read defaults to the input price (no discount).
+    cachedInputPerMTok: typeof cost.cache_read === "number" ? cost.cache_read : input,
+    outputPerMTok: output,
+  };
+}
+
+/**
+ * Resolve pricing from the models.dev catalog. Exact model-id match first
+ * (canonical family provider preferred, then any provider carrying a
+ * price); falls back to the longest model-id prefix.
+ */
+export async function lookupPricing(
+  bb: BbPluginApi,
+  model: string,
+): Promise<ModelPricing | null> {
+  const catalog = await getCatalog(bb);
+  if (!catalog) return null;
+  const modelId = normalizeModelId(model);
+  if (!modelId) return null;
+
+  const carriers: { provider: string; pricing: ModelPricing }[] = [];
+  for (const [provider, entry] of Object.entries(catalog)) {
+    const pricing = costToPricing(entry.models?.[modelId]?.cost ?? {});
+    if (pricing) carriers.push({ provider, pricing });
+  }
+  if (carriers.length === 0) {
+    // Prefix fallback: "claude-sonnet-4-5-20250929" -> "claude-sonnet-4-5".
+    let best: { id: string; pricing: ModelPricing; provider: string } | null = null;
+    for (const [provider, entry] of Object.entries(catalog)) {
+      for (const id of Object.keys(entry.models ?? {})) {
+        if (!modelId.startsWith(id) || id.length < 4) continue;
+        const pricing = costToPricing(entry.models?.[id]?.cost ?? {});
+        if (!pricing) continue;
+        if (!best || id.length > best.id.length) best = { id, pricing, provider };
+      }
+    }
+    return best?.pricing ?? null;
+  }
+  const canonical = canonicalProviderFor(modelId);
+  return (
+    carriers.find((carrier) => carrier.provider === canonical)?.pricing
+      ?? carriers[0]!.pricing
+  );
+}
+
+export function fallbackPricing(): ModelPricing {
+  return FALLBACK_PRICING;
 }
 
 export function estimateCostUsd(
