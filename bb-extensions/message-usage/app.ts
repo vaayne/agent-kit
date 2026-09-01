@@ -172,6 +172,7 @@ export default definePluginApp((app) => {
         if (badge && badgeRowId === rowId) {
           const next = buildBadge(report);
           if (badge.textContent !== next.textContent) {
+            if (badge.hasAttribute("data-docked")) next.setAttribute("data-docked", "");
             badge.replaceWith(next);
             badge = next;
           }
@@ -180,12 +181,13 @@ export default definePluginApp((app) => {
         removeBadge();
         badge = buildBadge(report);
         badgeRowId = rowId;
-        // Preferred spot: inside the message action bar's icon row, hugging
-        // the right edge (ml-auto). The row is a flex container rendered
-        // inside a relative slot under the message column.
+        // Preferred spot: the message action bar's icon row (a shrink-wrapped
+        // absolute flex row under the message column). data-docked switches
+        // the badge to the row's show-on-hover behavior.
         const actionRow = host.querySelector<HTMLElement>(
           ":scope > div.relative > div.absolute",
         );
+        if (actionRow) badge.setAttribute("data-docked", "");
         (actionRow ?? host).appendChild(badge);
       };
 
