@@ -24,6 +24,8 @@ interface TokenBreakdown {
 
 interface UsageReport {
   last: TokenBreakdown | null;
+  /** False when `last` only covers the newest model call (cold read). */
+  lastIsTurnSum: boolean;
   total: TokenBreakdown | null;
   outputTokensPerSecond: number | null;
   model: string | null;
@@ -115,6 +117,7 @@ function buildBadge(report: UsageReport): HTMLElement {
     ? [
       `input ${report.last.freshInputTokens + report.last.cachedInputTokens} (cached ${report.last.cachedInputTokens})`,
       `output ${report.last.outputTokens} (reasoning ${report.last.reasoningOutputTokens})`,
+      report.lastIsTurnSum ? "per-turn sum" : "latest model call only",
     ].join("\n")
     : "No usage reported yet";
   return badge;
@@ -177,7 +180,13 @@ export default definePluginApp((app) => {
         removeBadge();
         badge = buildBadge(report);
         badgeRowId = rowId;
-        host.appendChild(badge);
+        // Preferred spot: inside the message action bar's icon row, hugging
+        // the right edge (ml-auto). The row is a flex container rendered
+        // inside a relative slot under the message column.
+        const actionRow = host.querySelector<HTMLElement>(
+          ":scope > div.relative > div.absolute",
+        );
+        (actionRow ?? host).appendChild(badge);
       };
 
       const refresh = async () => {

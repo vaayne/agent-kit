@@ -2,8 +2,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25em;
-  margin-top: 0.25rem;
-  padding: 0.1rem 0.45rem;
+  /* Right-aligned inside the action bar's icon row. */
+  margin-left: auto;
+  margin-right: 4px;
+  height: 20px;
+  padding: 0 0.45rem;
   border-radius: 0.375rem;
   border: 1px solid var(--border);
   background: var(--secondary);
@@ -13,7 +16,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+  max-width: 60%;
   user-select: none;
   pointer-events: auto;
+}
+
+/* Fallback host (message column) keeps the old stacked layout. */
+:not(div.relative) > .message-usage-badge {
+  margin-top: 0.25rem;
+  margin-left: 0;
 }

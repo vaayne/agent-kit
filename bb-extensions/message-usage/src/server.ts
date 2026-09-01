@@ -3,6 +3,7 @@ import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { normalizeBreakdown } from "./normalize.js";
 import { estimateCostUsd, fallbackPricing, lookupPricing, type ModelPricing } from "./pricing.js";
+import { TurnUsageTracker } from "./turn-usage.js";
 import {
   fetchAcceptedTurnRequest,
   fetchLastCompletedTurn,
@@ -27,8 +28,10 @@ const normalizedBreakdownSchema = z.object({
  * includes cached tokens regardless of the provider's reporting convention.
  */
 const usageReportSchema = z.object({
-  /** Per-request token counts of the latest completed model call. */
+  /** Per-turn token consumption (sum across the turn's model calls). */
   last: normalizedBreakdownSchema.nullable(),
+  /** Whether `last` is a true per-turn sum (false = newest call only). */
+  lastIsTurnSum: z.boolean(),
   /** Cumulative thread totals reported alongside the latest call. */
   total: normalizedBreakdownSchema.nullable(),
   /** Tokens per second derived from the last turn's wall-clock span. */
@@ -67,6 +70,7 @@ function computeTokensPerSecond(
 }
 
 export default function plugin(bb: BbPluginApi) {
+  const turnTracker = new TurnUsageTracker();
   bb.rpc.register(messageUsageRpc, {
     async getUsage({ threadId }) {
       // Unknown or deleted threads report "no data" rather than erroring —
@@ -86,6 +90,7 @@ export default function plugin(bb: BbPluginApi) {
         );
         return {
           last: null,
+          lastIsTurnSum: false,
           total: null,
           outputTokensPerSecond: null,
           model: null,
@@ -98,6 +103,7 @@ export default function plugin(bb: BbPluginApi) {
       if (!usageEvent) {
         return {
           last: null,
+          lastIsTurnSum: false,
           total: null,
           outputTokensPerSecond: null,
           model: null,
@@ -115,9 +121,12 @@ export default function plugin(bb: BbPluginApi) {
       const model = accepted?.model ?? null;
 
       // Provider conventions disagree on whether inputTokens includes cached
-      // tokens; normalize here so the frontend never guesses.
-      const last = normalizeBreakdown(usageEvent.tokenUsage.last);
+      // tokens; normalize here so the frontend never guesses. The tracker
+      // diffs cumulative totals across turn boundaries so `perTurn` sums
+      // every model call in the turn, not just the newest one.
+      const { perTurn, last } = turnTracker.observe(threadId, usageEvent);
       const total = normalizeBreakdown(usageEvent.tokenUsage.total);
+      const turnUsage = perTurn ?? last;
 
       // Pricing: models.dev catalog first, built-in fallback table last.
       // The fallback is a placeholder, so its results are flagged with "~".
@@ -131,17 +140,18 @@ export default function plugin(bb: BbPluginApi) {
       }
       const estimatedCostUsd = pricing
         ? estimateCostUsd(pricing, {
-          inputTokens: last.freshInputTokens,
-          cachedInputTokens: last.cachedInputTokens,
-          outputTokens: last.outputTokens,
+          inputTokens: turnUsage.freshInputTokens,
+          cachedInputTokens: turnUsage.cachedInputTokens,
+          outputTokens: turnUsage.outputTokens,
         })
         : null;
 
       return {
-        last,
+        last: turnUsage,
+        lastIsTurnSum: perTurn?.isSum ?? false,
         total,
         outputTokensPerSecond: computeTokensPerSecond(
-          last.outputTokens,
+          turnUsage.outputTokens,
           lastTurn?.durationMs ?? null,
         ),
         model,
