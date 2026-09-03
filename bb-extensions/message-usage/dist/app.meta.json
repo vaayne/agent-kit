@@ -1,11 +1,11 @@
 {
   "sdkMajor": 0,
-  "sdkVersion": "0.4.21",
+  "sdkVersion": "0.4.34",
   "artifactFormatVersion": 1,
   "pluginId": "message-usage",
   "pluginVersion": "0.1.0",
   "builtWith": {
-    "bbVersion": "0.40.0",
-    "pluginSdkVersion": "0.4.21"
+    "bbVersion": "0.41.0",
+    "pluginSdkVersion": "0.4.34"
   }
 }

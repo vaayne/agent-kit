@@ -13,4 +13,5 @@ herdrdev/herdr herdr@v0.8.0
 nyblnet/bento bento-slides
 tailscale/tailscale-skill tailscale
 cathrynlavery/diagram-design diagram-design
-s1dashu/ip-as-logo-skill ip-as-logo
+s1dashu/ip-as-logo-skill .
+JetBrains/go-modern-guidelines use-modern-go
