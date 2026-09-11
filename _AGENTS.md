@@ -23,6 +23,17 @@ Work in this order:
 - **GitHub**: prefer `gh` CLI for GitHub work, including reading code and documentation.
 - **Isolated workspaces**: only for risky, long-running, conflict-prone, or explicitly isolated work; otherwise use the current checkout (an existing task-specific clone or worktree is fine). On APFS prefer a COW clone, an independent checkout sharing unchanged disk blocks: `cp -Rc <source-dir> ~/.agents/worktrees/<repo>/<task-name>`, then `rm -rf <dest>/.git/worktrees` to drop stale worktree metadata; refuse to fall back to a plain copy if the clone fails, and briefly state why and where before creating one. Never clone a clone or reuse another task's workspace; search nmem for `COW clone` gotchas.
 
+## Codex delegation
+
+These instructions apply only when running in Codex.
+
+- Delegate on demand when a concrete, bounded subtask can run independently alongside useful parent work. Handle simple or tightly coupled tasks locally. Use the fewest agents needed; do not spawn every role by default.
+- The root orchestrator uses `gpt-6-astra` with `medium` reasoning to scope work, make decisions, integrate results, and verify the outcome. Respect an explicit user choice for the current session.
+- Use `explorer` with `gpt-5.6-luna` / `max` for bounded codebase investigation, `researcher` with `gpt-5.6-luna` / `max` for focused lookups, and `worker` with `gpt-5.6-sol` / `high` for implementation and appropriate tests. Give each agent a specific question or deliverable; give workers non-overlapping file ownership.
+- After integration and appropriate verification, use an independent `reviewer` with `gpt-6-astra` / `xhigh` only when requested or when substantial unresolved risk remains, such as security, data loss, concurrency, or a difficult cross-file invariant. Routine changes do not need this step.
+- Prefer the configured named agent when the spawn tool supports it. Otherwise pass the role's exact `model` and `reasoning_effort` explicitly and include its scope in the task. Use `fork_turns="none"` with a self-contained brief, or a bounded positive number of turns when needed. Full-history forks inherit the parent model and effort, so do not use them for a different model or effort.
+- The parent owns integration and final verification. Treat agent summaries as evidence to check, and avoid repeating successful checks without a new change, failure, or unresolved concern. Child agents should not delegate further unless the parent explicitly requests it.
+
 <!-- output-style:start -->
 
 ## Output style
