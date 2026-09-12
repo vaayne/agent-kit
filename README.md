@@ -18,22 +18,14 @@ mise run sync:extensions  # Pi extensions → ~/.pi/agent/extensions symlinks
 
 ## Development workflow skills
 
-The core of the kit is a development lifecycle where every step is an independently invocable skill, and `spec-dev` is the thin orchestrator over them:
-
-```
-scout → grill → blueprint → mason → code-review → teach
-探地形    拷问     画图纸      施工      审计         内化
-```
+The kit's workflow skills each stand alone — pick the one that fits the moment:
 
 | Skill           | Role                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **scout**       | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic                    |
 | **grill**       | Stress-test an idea through structured interrogation — a decision tree worked frontier-first, in rounds                       |
-| **blueprint**   | Write a decision-first `plan.md` — decisions with tradeoffs, phased tasks with acceptance blocks                              |
-| **mason**       | Execute a `plan.md` phase by phase: catch up → implement → verify → commit → handoff                                          |
 | **code-review** | Evidence-based code review; use independent reviewers and report bundles when depth or risk warrants                          |
 | **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                                   |
-| **spec-dev**    | The orchestrator: sequence, authorization boundaries, and skip rules over the skills above                                    |
 | **refine-code** | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
 | **handoff**     | Transfer context to a fresh focused session                                                                                   |
 

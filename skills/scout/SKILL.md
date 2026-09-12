@@ -36,7 +36,7 @@ Before picking a technique, collect the user's starting point — experience wit
 - **Brainstorm + prototypes** — criteria they'd only recognize on sight. Show several genuinely different directions with fake data before wiring anything up (HTML artifact for anything visual). Also works for scope: brainstorm interventions from cheapest to most ambitious and let them react.
 - **Interview** — one question at a time, prioritizing questions whose answers would change the architecture. The `grill` skill is the heavy-duty version.
 - **References** — when pointing beats describing. Source code is the best reference: read the implementation they like (any language) and reimplement its semantics, not its surface.
-- **Decision-first plan** — order the plan by what the user is most likely to tweak: data models, type interfaces, user-facing flows on top; mechanical refactors at the bottom. The `blueprint` skill owns this; `spec-dev` for the full gated workflow.
+- **Decision-first plan** — order the plan by what the user is most likely to tweak: data models, type interfaces, user-facing flows on top; mechanical refactors at the bottom.
 
 ## During implementation
 

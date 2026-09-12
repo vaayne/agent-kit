@@ -180,7 +180,7 @@
 
 1. 线程结束前更新 task 的 `next`（写"无"也算），并写一条结论 comment。
    这是"线程死了 task 还活着"的唯一人工环节，其余都自动。
-2. spec-dev 的 plan.md 挂为 task attachment；mason 每个 phase 完成写一条 comment。
+2. 计划文档挂为 task attachment；逐阶段完成时写一条 comment。
 3. 根线程从 4.4 的入口或 `bb tasks dispatch` 起。随手开的线程进 Unfiled，事后提升。
 
 ## 6. 假设验证结果
