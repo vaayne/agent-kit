@@ -31,9 +31,9 @@ scout → grill → blueprint → mason → code-review → teach
 | **grill**       | Stress-test an idea through structured interrogation — a decision tree worked frontier-first, in rounds                       |
 | **blueprint**   | Write a decision-first `plan.md` — decisions with tradeoffs, phased tasks with acceptance blocks                              |
 | **mason**       | Execute a `plan.md` phase by phase: catch up → implement → verify → commit → handoff                                          |
-| **code-review** | Multi-perspective adversarial review with verifier subagents and near-zero false positives                                    |
+| **code-review** | Evidence-based code review; use independent reviewers and report bundles when depth or risk warrants                          |
 | **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                                   |
-| **spec-dev**    | The orchestrator: sequence, review gates, and skip rules over the skills above                                                |
+| **spec-dev**    | The orchestrator: sequence, authorization boundaries, and skip rules over the skills above                                    |
 | **refine-code** | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
 | **handoff**     | Transfer context to a fresh focused session                                                                                   |
 

@@ -1,17 +1,22 @@
 ---
 name: devin-cli
-description: >
-  Delegate an implementation task to the Devin CLI as an external process.
-  Codex only: use when the Codex parent assigns implementation work to Devin.
-  Not for review-only, explanation, or search tasks.
+description: Delegate implementation to Devin when a Codex parent assigns it. Route through bb inside bb, or the direct CLI outside bb. Not for review, explanation, or search.
 ---
 
-# Devin CLI delegation (Codex only)
+# Devin CLI delegation
 
 If you are already running inside Devin, do the delegated work yourself; never
 launch Devin recursively.
 
-## Dispatch
+## In bb
+
+Use bb orchestration, not the CLI below: spawn a child thread on the Devin
+provider with `bb thread spawn` and the task brief described under Dispatch.
+Follow bb orchestration rules for provider selection and permissions — Devin
+keeps its configured default model, use `--permission-mode full` where the
+platform allows, and do not apply Codex-specific flags to a Devin thread.
+
+## Dispatch (outside bb)
 
 From the assigned workspace, run:
 
@@ -31,16 +36,17 @@ the brief.
 
 ## Manage
 
-Track the CLI process handle with bounded waits. It is an external process, not
-a native Codex subagent; native subagent concurrency limits do not apply. For
-parallel implementation runs, assign disjoint file ownership.
+Track the CLI process or bb thread handle with bounded waits. It is an
+external worker, not a native subagent; native subagent concurrency limits do
+not apply. For parallel implementation runs, assign disjoint file ownership.
 
 ## Recover
 
 On interruption or partial failure, inspect the actual diff before retrying.
-Resume the specific session with `--resume <session-id>` when appropriate; do
-not blindly `--continue` or start duplicate work. Report failures; never
-silently fall back to Sol or another implementer.
+Inside bb, resume the existing child with bb thread commands. Outside bb,
+resume the specific CLI session with `--resume <session-id>` when appropriate;
+do not blindly `--continue` or start duplicate work. Report failures; never
+silently fall back to another implementer.
 
 ## Verify
 

@@ -21,4 +21,4 @@ Break the work into phases; give every phase an **Acceptance** block defining "d
 
 Inline reviews use the `> quote` + `**Review (name):**` pattern; resolve with `**Resolved:**` and update the plan text above. Mid-impl questions use `**Question (name):**` / `**Answer:**`. Both in [references/review-patterns.md](references/review-patterns.md).
 
-To execute a finished plan phase by phase, use the `mason` skill; for the full gated workflow around both, `spec-dev`.
+To execute a finished plan phase by phase, use the `mason` skill; for the end-to-end workflow around both, `spec-dev`.

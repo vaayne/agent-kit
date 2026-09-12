@@ -1,12 +1,6 @@
 ---
 name: humanizer
-description: |
-  Remove AI writing patterns from prose and make drafts sound like a specific
-  human wrote them. Use when drafting, editing, rewriting, reviewing, or cleaning
-  copy, essays, docs, posts, emails, UI copy, bios, reports, or any text that
-  feels generic, polished-but-dead, promotional, formulaic, or AI-generated.
-  Combines comprehensive AI-writing pattern detection with a strict stop-slop
-  final pass for direct, specific, human prose.
+description: Polish existing prose, remove AI writing patterns, or match a specified voice when requested. Use for draft revision or writing audits, not ordinary technical answers.
 ---
 
 # Humanizer
@@ -20,7 +14,7 @@ smoothness that makes text feel generated.
 
 1. **Classify the task**
    - If the user asks to humanize, de-AI, or make text sound natural, rewrite the text.
-   - If the user asks for a review or AI-writing audit, return a concise issue list and fixes.
+   - If the user asks for a review or AI-writing audit, report the problems instead of rewriting.
    - If the user provides a file path, read the file and either rewrite or edit it as requested.
    - If the user provides a writing sample, calibrate to that voice before rewriting the target text.
 
@@ -41,24 +35,19 @@ smoothness that makes text feel generated.
 
 ## Output format
 
-Default output:
+Default: deliver the rewrite only — no commentary, no preamble, no issue list.
+
+When the user asks for a review or AI-writing audit instead of a rewrite,
+report the problems:
 
 ```md
 ## AI tells
 
-- [the 3-6 most important problems]
-
-## Rewrite
-
-[final rewrite]
-
-## Notes
-
-- [optional: fact risks, voice choices, preservation/removal rationale]
+- [the most important problems, each with a suggested fix]
 ```
 
-If the user asks for final-only output, direct file edits, or no explanation, skip
-the commentary and provide only the result.
+Add brief notes only when they change a decision the user must make —
+suspicious facts, voice choices, or source meaning you had to interpret.
 
 ## Voice calibration
 

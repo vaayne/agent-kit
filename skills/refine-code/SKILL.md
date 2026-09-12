@@ -1,6 +1,6 @@
 ---
 name: refine-code
-description: "Improve existing code at any scale — from cleaning up a single function to restructuring an entire module hierarchy to proving what can safely be deleted. Use this skill whenever the user wants to simplify code, refactor for readability, find architectural improvements, consolidate tightly-coupled modules, deepen shallow abstractions, reduce complexity, clean up after a feature implementation, make a codebase more testable and navigable, or remove dead surface, duplicate state, speculative generality, and over-engineering with real consumer evidence. Triggers on phrases like 'simplify this', 'clean up', 'refactor', 'improve architecture', 'make this cleaner', 'find refactoring opportunities', 'reduce complexity', 'find deletion candidates', 'reclaim code entropy', or 代码化简、熵回收、删代码、清理冗余、去除过度设计."
+description: Simplify or refactor existing code, improve architecture, or identify safe deletions. Use for requested code cleanup, complexity reduction, or refactoring assessments.
 ---
 
 # Refine Code

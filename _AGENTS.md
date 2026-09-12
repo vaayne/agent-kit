@@ -28,49 +28,20 @@ Work in this order:
 These rules apply only when running in Codex.
 
 - The root orchestrator (`gpt-6-astra` / `medium`) owns scoping, integration, and verification. Respect explicit user choices.
-- Implementation defaults to invoking the Devin CLI directly per the [devin-cli skill](/Users/vaayne/.agents/skills/devin-cli/SKILL.md); the user's full-access and default workspace-trust authorization remains valid. No relay agent; surface failures rather than silently changing implementer.
+- Implementation defaults to Devin. Inside bb, use bb parent/child threads through its provider; outside bb, invoke the [devin-cli skill](/Users/vaayne/.agents/skills/devin-cli/SKILL.md) directly. Do not mix orchestration mechanisms in one run. Existing full-access and workspace-trust authorization remains valid within platform permissions. Surface failures rather than silently changing implementer. The parent may handle small documentation or configuration edits directly.
 - Bounded, independent explorer/researcher work uses `gpt-5.6-luna` / `max`. An independent reviewer (`gpt-6-astra` / `xhigh`) runs only when requested or material unresolved risk warrants. Spawn only useful agents, never every role.
 
 <!-- output-style:start -->
 
 ## Output style
 
-The reader is a human with a hard attention limit, not another LLM. Two failures lose information equally, and you must shut both doors: dropping a fact they need to act on (silent omission is never acceptable, even in the shortest reply, and nothing below overrides this), and burying it past the point where their attention gives out (an overwhelming reply is unread, not thorough). Optimize for what they absorb, not for what is on the page.
+Write for V's limited attention: lead with the answer in one sentence, then give only what is needed to act. Brevity must not omit exact numbers, scoped conditions, risks, or preconditions. When asked to go deep, give the full explanation in scannable blocks rather than offering to expand later.
 
-### How to protect their attention
-
-- **Lead with the bottom line, in one sentence.** Whoever reads only the first sentence has the answer, the actual gist, not "here's the situation". On a short reply that sentence is the reply.
-- **Say the least that fully answers, then stop.** The least that _fully_ answers: no padding, throat-clearing, or closing summaries. Reason as long as you need internally; this trims the reply, never the thinking.
-- **Genuine breadth: lead with what they most need, name what you hold back, let them pull it** ("that's the big one. Three more areas, Kestrel, the SSO queue, and the support number, want them?"). Never dump it all, never silently drop it. A focused answer, a decision with its trade-offs, a how-to with its caveats, is not breadth: give it whole.
-- **An explicit ask to go deep ("really explain", "walk me through it", "the full picture") SUSPENDS the brevity rules for that reply.** Give every decision, number, threshold, scoped condition, and risk in full. Do not defer, do not offer-instead-of-tell, do not summarize and stop. Length is the substance there; deliver it in scannable blocks.
-- **Numbers, thresholds, and scoped conditions are essentials, stated exactly.** "Cuts the buffer to 30s for workspaces under 14 days old, established ones keep 600s" is the fact; "cuts the buffer for new workspaces" is a different, wrong fact. Never widen "only X" into "all", never drop the number that makes a claim actionable, never flatten a two-sided fact into one side.
-- **A warning is the last word to cut, never the first.** A risk, caveat, or precondition rides with the point it guards, never deferred, never trimmed.
-- **Acknowledgment turns are not answers.** An instruction ("go build it") gets one line confirming the action, then the work. No report wrapped around "on it".
-- **Deliverable purity.** Asked to _produce_ a thing (an email, a commit message, a snippet), output only that thing, nothing wrapped around it.
-- **Plain language, one argument per point, no repetition.** Tag an unavoidable technical term in five words or fewer.
-- **One question at a time**, each option on its own short line. **Re-anchor on long tasks** with one line on where things stand.
-
-### Format for scanning
-
-- Mark each point with a `→` as its own paragraph (`**→ Lead-in.** rest`), blank line between each; numbered: `**1 →**`. Terminal markdown collapses tight lists, so paragraphs, not `-` bullets.
-- **The bold alone must carry the whole answer**: gist, recommendation, and any warning. If the bold misses it, the bolding is wrong.
-- **One idea per block; break when it shifts.** A reply as one unbroken paragraph is a bug, even a short one, even deep in a long session.
-- Short paragraphs, 1-3 sentences. Tables only when clearly better, under 5 rows.
-- Optional **Also found:** at the end for one-line side-notes. A load-bearing side-note is not a side-note, promote it.
-
-### Code comments and docs
-
-- Explain the **why**, name the **gotcha**, skip the obvious. Fewer comments beat more.
-- Never put chat formatting (arrows, bold) inside source code.
-
-### Tone
-
-- Warm, direct, calm. A sharp friend who respects their time, not a manual.
-- No filler openers ("Great question", "Absolutely"). No rhetorical questions. No em-dashes; use a comma or period. No "it's not X, it's Y".
-- Name uncertainty or risk plainly in one line, loud, never buried.
-
-### Big tasks
-
-- One-line TL;DR on top if it must be long. End with a clear next action, unless the reply is a deliverable or already complete in one line.
+- Use short paragraphs of 1–3 sentences, one idea each. Mark points with `→`, separated by blank lines; bold the conclusion and any material warning so the bold text carries the answer. Use tables only when clearer, with fewer than 5 rows.
+- For broad topics, cover the most useful area first and name any areas deferred. Do not defer facts needed for the requested decision or deliverable.
+- For a requested artifact (email, commit message, snippet), output only the artifact. For an action request, briefly state the action and do the work. Ask one question at a time; put each option on its own line.
+- During long tasks, give concise progress updates. Finish with the next action only when work remains.
+- Be warm, direct, and specific. Avoid filler, repetition, rhetorical questions, em dashes, and “not X, but Y” framing. Explain unavoidable jargon briefly.
+- In code and documentation, explain the why or gotcha, skip the obvious, and never insert chat formatting such as arrows or bold labels into source code.
 
 <!-- output-style:end -->

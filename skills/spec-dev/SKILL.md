@@ -1,17 +1,13 @@
 ---
 name: spec-dev
-description: >
-  Plan-first development workflow — the orchestrator over the lifecycle skills:
-  grill the idea, write one plan.md, implement it phase by phase. Use when the
-  user wants the full disciplined loop for a feature or change: "spec-dev",
-  "plan this out and build it", "let's think this through then implement", or
-  disciplined, reviewed code changes end to end. For a single step alone, use
-  that step's skill directly (grill, blueprint, mason).
+description: Plan and build a feature end to end when the user requests the full workflow. For a single planning or implementation step, use blueprint or mason; ordinary small fixes do not need this workflow.
 ---
 
 # Spec-dev
 
 An orchestrator, not an implementation: each step is its own independently invocable skill; this skill owns only the sequence, the gates, and the skip rules. The one artifact threading through is `plan.md` (location and format owned by `blueprint`).
+
+Ordinary small changes do not need this loop unless the user explicitly requests it.
 
 ## The line
 
@@ -19,7 +15,7 @@ An orchestrator, not an implementation: each step is its own independently invoc
 | -------- | ----------- | ------------------------------------------------- |
 | 1. Grill | `grill`     | Approach already clear: small fixes, obvious work |
 | 2. Plan  | `blueprint` | Never — the plan is the contract                  |
-| 3. Build | `mason`     | Never — phase-by-phase, one commit per phase      |
+| 3. Build | `mason`     | Plan-only request; otherwise one commit per phase |
 
 Read each step's `SKILL.md` when entering it; the details live there, not here.
 
@@ -27,12 +23,11 @@ Optional bookends, one command away: unfamiliar territory → run `scout` before
 
 ## Gates
 
-Pause for user approval at exactly two points:
+Don't pause by default. If the user authorized the loop end to end, run grill → plan → build without re-asking — existing authorization stays valid.
 
-1. **After grilling, before the plan.** "Here's what I understand — should I write the plan?"
-2. **After the plan, before building.** "Here's the plan — should I start?"
+Ask only when a decision is still open and material: major scope choices, safety impact, or hard-to-reverse steps. Finish authorized preparation first so the user reviews a concrete result.
 
-Within implementation, don't gate every phase; mason escalates on surprises and major rework on its own.
+A plan-only request ("write a plan", "plan this out") stops after `plan.md` — deliver it and wait; it does not authorize building. Within implementation, don't gate every phase; mason escalates on surprises and major rework on its own.
 
 ## Threading rules
 
