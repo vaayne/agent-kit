@@ -28,21 +28,66 @@ export function openSeverityCounts(review) {
   );
 }
 
+export function unresolvedItems(review) {
+  return Array.isArray(review?.unresolved) ? review.unresolved : [];
+}
+
+// { complete, recorded, limitations } — recorded=false for bundles that predate
+// the verification field; absence must not read as a pass.
+export function verificationState(review) {
+  const verification = review?.verification;
+  if (!verification || typeof verification !== "object") {
+    return { complete: false, recorded: false, limitations: [] };
+  }
+  const rawLimits = verification.limitations ?? verification.notes;
+  const limitations = Array.isArray(rawLimits) ? rawLimits : rawLimits ? [rawLimits] : [];
+  return { complete: verification.complete === true, recorded: true, limitations };
+}
+
+// ship-it requires zero open findings (confirmed medium/low defects still
+// count — they are real issues, not style notes), zero unresolved doubts, and
+// verification explicitly recorded as complete.
 export function inferVerdict(review) {
-  const counts = openSeverityCounts(review);
-  if (counts.critical > 1) return "rethink";
-  if (counts.critical > 0 || counts.high > 0) return "fix-and-ship";
-  return "ship-it";
+  if (openSeverityCounts(review).critical > 1) return "rethink";
+  if (openFindings(review).length > 0) return "fix-and-ship";
+  if (unresolvedItems(review).length > 0) return "needs-review";
+  return verificationState(review).complete ? "ship-it" : "needs-review";
+}
+
+// A stored verdict is a claim, not ground truth: an explicit ship-it never
+// outranks open findings, unresolved doubts, or missing verification.
+// Non-pass verdicts are the reviewer's call and stay as recorded.
+export function effectiveVerdict(review) {
+  const stored = review?.verdict;
+  if (stored && stored !== "ship" && stored !== "ship-it") return stored;
+  return inferVerdict(review);
 }
 
 export function summarizeAssessment(review) {
   const active = openFindings(review);
   const counts = openSeverityCounts(review);
+  const parts = [
+    active.length === 0
+      ? "No open findings remain."
+      : `${active.length} open finding${active.length === 1 ? "" : "s"}: `
+        + `${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low.`,
+  ];
 
-  if (active.length === 0) return "No open findings remain.";
-  return `${active.length} open finding${
-    active.length === 1 ? "" : "s"
-  }: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low.`;
+  const unresolved = unresolvedItems(review).length;
+  if (unresolved > 0) {
+    parts.push(`${unresolved} unresolved doubt${unresolved === 1 ? "" : "s"} still need verification.`);
+  }
+
+  const verification = verificationState(review);
+  if (!verification.complete) {
+    parts.push(
+      verification.recorded
+        ? "Verification incomplete — see limitations."
+        : "Verification not recorded; treat conclusions as unverified.",
+    );
+  }
+
+  return parts.join(" ");
 }
 
 export function validateTransition(currentStatus, nextStatus) {

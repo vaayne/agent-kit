@@ -2,7 +2,15 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inferVerdict, isOpenStatus, openSeverityCounts, severities, severityOrder } from "./review-lib.mjs";
+import {
+  effectiveVerdict,
+  isOpenStatus,
+  openSeverityCounts,
+  severities,
+  severityOrder,
+  unresolvedItems,
+  verificationState,
+} from "./review-lib.mjs";
 
 const [inputPath, outputDir] = process.argv.slice(2);
 
@@ -127,14 +135,17 @@ function renderFindingCard(finding, { sideQuest = false } = {}) {
 const findings = Array.isArray(review.findings) ? review.findings : [];
 const sideQuests = Array.isArray(review.side_quests) ? review.side_quests : [];
 const dismissed = Array.isArray(review.dismissed) ? review.dismissed : [];
+const unresolved = unresolvedItems(review);
+const verification = verificationState(review);
 const openFindings = findings.filter((finding) => isOpenStatus(finding.status));
 const closedFindings = findings.filter((finding) => !isOpenStatus(finding.status));
 const counts = openSeverityCounts(review);
 
 function verdictInfo() {
-  const verdict = review.verdict ?? inferVerdict(review);
+  const verdict = effectiveVerdict(review);
   if (["ship", "ship-it"].includes(verdict)) return { className: "ship", icon: "✓", title: "Ship it" };
   if (verdict === "rethink") return { className: "rethink", icon: "✕", title: "Rethink" };
+  if (verdict === "needs-review") return { className: "fix", icon: "?", title: "Needs review" };
   return { className: "fix", icon: "⚠", title: "Fix and ship" };
 }
 
@@ -195,16 +206,77 @@ function renderOverview() {
       </div>`;
 }
 
+// Compact card for unresolved doubts and dismissed entries — reuses the
+// finding card styles; no new UI.
+function renderNoteCard(item, { tag } = {}) {
+  const severity = slug(item.severity || "medium");
+  const file = item.file
+    ? `${item.file}${item.line_start ? `:${item.line_start}` : ""}`
+    : "unknown";
+  const body = [
+    item.reason ?? item.description ?? item.doubt,
+    item.evidence ? `Evidence: ${item.evidence}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return `
+        <details class="finding" data-severity="${severity}">
+          <summary>
+            <span class="finding-chevron">▸</span>
+            <span class="pill ${severity}">${escapeHtml(severity.toUpperCase())}</span>
+            <span class="finding-title">${escapeHtml(item.title ?? "Untitled")}</span>
+            ${tag ? `<span class="tag">${escapeHtml(tag)}</span>` : ""}
+            <span class="file-ref">${escapeHtml(file)}</span>
+          </summary>
+          <div class="finding-body">
+            <div class="finding-description"><p>${markdownish(body)}</p></div>
+          </div>
+        </details>`;
+}
+
+function renderVerificationNote() {
+  if (verification.complete && verification.limitations.length === 0) return "";
+  const status = verification.complete ? "complete" : verification.recorded ? "incomplete" : "not recorded";
+  const caveat = verification.complete ? "" : " — treat conclusions accordingly";
+  const limits = verification.limitations.length ? ` Limits: ${verification.limitations.join("; ")}.` : "";
+  return `<div class="assessment">${escapeHtml(`Verification ${status}${caveat}.${limits}`)}</div>`;
+}
+
+function renderUnresolvedHtml() {
+  if (unresolved.length === 0) return "";
+  return `
+      <div class="findings">
+        <div class="section-title">Unresolved Doubts</div>
+        <div class="side-quest-label">Neither confirmed nor refuted — they block a ship verdict</div>
+        ${unresolved.map((item) => renderNoteCard(item)).join("\n")}
+      </div>`;
+}
+
+function renderDismissedHtml() {
+  if (dismissed.length === 0) return "";
+  return `
+      <div class="findings side-quest">
+        <div class="section-title">Dismissed in Verification</div>
+        <div class="side-quest-label">Refuted — kept for audit, not actionable</div>
+        ${dismissed.map((item) => renderNoteCard(item, { tag: "refuted" })).join("\n")}
+      </div>`;
+}
+
 function renderReportHtml() {
   const stats = review.stats ?? {};
   const verdict = verdictInfo();
-  const assessment = review.assessment ?? "Review completed. See findings below for actionable issues.";
+  const assessment = review.assessment ?? review.auto_assessment
+    ?? "Review completed. See findings below for actionable issues.";
   const generatedDate = review.updated_at ?? review.generated_at ?? new Date().toISOString();
   const branch = review.branch ?? "unknown";
   const title = `Code Review — ${branch}`;
   const findingsHtml = findings.length
     ? findings.toSorted(sortFindings).map((finding) => renderFindingCard(finding)).join("\n")
-    : `<div class="assessment">No findings. Clean bill of health.</div>`;
+    : `<div class="assessment">${
+      effectiveVerdict(review) === "ship-it"
+        ? "No findings."
+        : "No confirmed findings — see unresolved doubts or verification gaps below."
+    }</div>`;
   const sideQuestsHtml = sideQuests.length
     ? `
       <div class="findings side-quest">
@@ -239,6 +311,7 @@ function renderReportHtml() {
   }</span>
         </div>
         <div class="assessment">${markdownish(assessment)}</div>
+        ${renderVerificationNote()}
       </header>
 
       ${renderOverview()}
@@ -258,7 +331,11 @@ function renderReportHtml() {
         ${findingsHtml}
       </div>
 
+      ${renderUnresolvedHtml()}
+
       ${sideQuestsHtml}
+
+      ${renderDismissedHtml()}
     </div>`;
 
   return template
@@ -268,6 +345,14 @@ function renderReportHtml() {
       /<script type="application\/json" id="review-data">[\s\S]*?<\/script>/,
       `<script type="application/json" id="review-data">${safeJsonForScript(review)}</script>`,
     );
+}
+
+// Free-text fields must not inject raw HTML into Markdown output.
+function mdText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function renderFindingSummary(finding) {
@@ -319,11 +404,16 @@ function renderSummaryMarkdown() {
     `- Project: ${review.project ?? "unknown"}`,
     `- Branch: ${review.branch ?? "unknown"}`,
     `- Base: ${review.base ?? "unknown"}`,
-    `- Verdict: ${titleCase(review.verdict ?? inferVerdict(review))}`,
+    `- Verdict: ${titleCase(effectiveVerdict(review))}`,
+    `- Verification: ${verification.complete ? "complete" : verification.recorded ? "incomplete" : "not recorded"}`,
+    ...(verification.limitations.length
+      ? [`- Verification limits: ${mdText(verification.limitations.join("; "))}`]
+      : []),
+    ...(unresolved.length ? [`- Unresolved doubts: ${unresolved.length}`] : []),
     `- Open findings: ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low`,
     ...(dismissed.length ? [`- Dismissed in verification: ${dismissed.length}`] : []),
     "",
-    review.assessment ?? "",
+    review.assessment ?? review.auto_assessment ?? "",
     "",
   ];
 
@@ -334,6 +424,35 @@ function renderSummaryMarkdown() {
     lines.push("No open findings.");
   } else {
     lines.push(...openFindings.toSorted(sortFindings).map(renderFindingSummary).join("\n\n").split("\n"));
+  }
+
+  if (unresolved.length > 0) {
+    lines.push("", "## Unresolved Doubts", "");
+    lines.push(
+      ...unresolved
+        .map((item) =>
+          [
+            `### ${mdText(item.title ?? "Untitled")}`,
+            `- File: ${mdText(item.file ?? "unknown")}${item.line_start ? `:${item.line_start}` : ""}`,
+            `- Doubt: ${mdText(item.reason ?? item.description ?? "")}`,
+            ...(item.evidence ? [`- Evidence: ${mdText(item.evidence)}`] : []),
+          ].join("\n")
+        )
+        .join("\n\n")
+        .split("\n"),
+    );
+  }
+
+  if (dismissed.length > 0) {
+    lines.push("", "## Dismissed in Verification", "");
+    lines.push(
+      ...dismissed
+        .map((item) =>
+          `- ${mdText(item.title ?? "Untitled")} (${mdText(item.file ?? "unknown")}): ${mdText(item.reason ?? "")}`
+        )
+        .join("\n")
+        .split("\n"),
+    );
   }
 
   if (sideQuests.length > 0) {

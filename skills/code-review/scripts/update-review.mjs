@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inferVerdict, summarizeAssessment, validateTransition } from "./review-lib.mjs";
+import { effectiveVerdict, summarizeAssessment, validateTransition } from "./review-lib.mjs";
 
 const [reviewPath, action, findingId, ...args] = process.argv.slice(2);
 
@@ -74,9 +74,13 @@ if (action === "reopened") {
   if (note) finding.reopen_note = note;
 }
 
-review.verdict = inferVerdict(review);
-review.assessment = summarizeAssessment(review);
-review.verdict_explanation = review.assessment;
+// effectiveVerdict keeps a recorded non-pass verdict as the reviewer's call
+// and recomputes missing or ship-it verdicts against current evidence, so an
+// update can never turn an incomplete review into a pass. assessment and
+// verdict_explanation may hold human-written reasoning, so the computed
+// summary goes to auto_assessment instead of overwriting them.
+review.verdict = effectiveVerdict(review);
+review.auto_assessment = summarizeAssessment(review);
 
 writeFileSync(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
 

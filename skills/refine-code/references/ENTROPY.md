@@ -6,16 +6,16 @@ Treat code entropy as maintenance surface with no current load-bearing reason: e
 
 ## Establish The Contract
 
-1. Read repository instructions and the nearest scoped equivalents: `AGENTS.md`, `CONTRIBUTING`, architecture docs, ADRs/RFCs/decision notes, package manifests, and test guidance.
+1. Read applicable repository instructions. Consult manifests, test guidance, and architecture or decision records relevant to the proposed deletion; no full-document checklist is required.
 2. Inspect `git status`; preserve unrelated work. Identify generated, vendored, migration, fixture, and public-package paths before classifying code.
-3. Trace the real runtime flow through entrypoints, configuration, registries, dependency injection, events, queues, persistence, processes/workers, and wire protocols.
+3. Trace the affected runtime paths, including dynamic registration, persistence, and external consumers where relevant to the candidate.
 4. In apply mode, discover the repository's actual narrow and broad verification commands and run a proportional baseline when feasible. A red baseline limits what later checks can prove; record it instead of claiming a regression.
 
 Do not simplify away validation at trust boundaries, authorization, security controls, accessibility basics, data-loss prevention, durable-data compatibility, or cleanup that establishes resource quiescence.
 
 ## Survey For Entropy
 
-Start with large or central production surfaces, not only obvious unused symbols. Use repository-native tools first: `rg --files`, `rg`, compiler/linter output, dependency manifests, and `git log`. Run installed dead-code or dependency tools when useful, but treat every result as a lead.
+Start within the requested scope; for a broad audit, prioritize surfaces with substantial maintenance cost. Use repository-native tools first: `rg --files`, `rg`, compiler/linter output, dependency manifests, and `git log`. Run installed dead-code or dependency tools when useful, but treat every result as a lead.
 
 Look for these candidate classes:
 
@@ -73,7 +73,7 @@ verify: smallest decisive check; estimated net reduction
 2. Delete the obsolete contract end to end: declaration, implementations, branches, tests that exist only for the removed behavior, exports, config, docs, examples, snapshots, generated inventories, and dependency entries.
 3. Preserve tests of the surviving observable contract. Tests are evidence, not an untouchable specification and not disposable merely to improve the line count.
 4. Collapse mirrored state onto the load-bearing representation. Do not replace two truths with a synchronization wrapper.
-5. Prefer deletion, then standard library/native features, then already-installed dependencies. Add a dependency only when it removes more implementation and dedicated testing burden than its glue and supply-chain cost add.
+5. Prefer deletion, then standard library/native features, then already-installed dependencies. A new dependency requires the repository or user approval prescribed for dependency changes; prepare its concrete benefit and cost before escalating.
 6. Avoid compatibility shims when there is no compatibility obligation. When one exists, keep the path or design an explicit migration instead of silently deleting it.
 7. Keep batches reviewable and reversible. Never discard unrelated user changes.
 

@@ -37,15 +37,15 @@ Use normal review unless the request or a concrete risk warrants deeper review. 
 
 The diff is a claim, not evidence — a hunk hides the five lines above it. Before reporting a finding:
 
-1. Read the **full current content** of the changed file, not just the hunks.
+1. Read the **current content** of the changed file, not just the hunks — the whole file when reasonable; for large files, the changed regions plus enough context to verify the claim. Check the revision the diff actually targets (working tree for uncommitted changes, branch tip for a PR).
 2. Trace the callers and callees of any changed symbol being flagged (`rg` / `ast-grep`) and confirm the problematic path is actually reachable.
 3. Check related tests for the behavior believed unverified.
 
 Confidence is operational, not vibes:
 
 - `high` — verified against the actual code; a concrete triggering input or sequence can be stated.
-- `medium` — the logic holds but one link is unconfirmed (e.g. a caller path could not be verified).
-- `low` — plausible pattern match, unverified.
+- `medium` — the defect and reachable path are established, but its frequency or full impact is uncertain.
+- `low` — unverified suspicion; report it as an unresolved doubt, not a confirmed finding.
 
 Report each finding in this format:
 
@@ -57,14 +57,16 @@ Report each finding in this format:
     - **Suggestion**: Concrete fix or approach.
     - **Confidence**: high | medium | low
 
-A finding with no trigger scenario in **Evidence** is `low` at best, or not a finding. Architecture findings need a concrete harm scenario ("next time someone does X they must also change Y", or "caller A already works around this at file:line"), not an aesthetic preference.
+A claim without an established trigger belongs in unresolved doubts when the missing evidence is actionable; otherwise omit the speculation. Architecture findings need a concrete harm scenario ("next time someone does X they must also change Y", or "caller A already works around this at file:line"), not an aesthetic preference.
 
 Severity:
 
 - **Critical** — data loss, security vulnerability, crash in production path
 - **High** — incorrect behavior users will hit, silent data corruption
 - **Medium** — edge case bugs, maintainability issues that will cause future bugs
-- **Low** — style, naming, minor improvements
+- **Low** — minor defects with limited blast radius
+
+Pure style or naming cleanup is `refine-code` territory — at most a side note, not a finding. And no findings is not proof of adequate verification: if parts of the scope went unchecked, say so, and report suspected issues you could neither confirm nor refute as unresolved doubts rather than findings or silence.
 
 ## References and scripts
 

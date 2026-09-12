@@ -5,143 +5,40 @@ description: Simplify or refactor existing code, improve architecture, or identi
 
 # Refine Code
 
-Improve existing code without changing what it does — only how it's organized, how readable it is, how deep its abstractions run, and how much of it needs to exist at all.
+Reduce the effort needed to understand and maintain existing code while preserving its observable behavior and supported contracts. Rank improvements by cognitive load removed, not lines deleted.
 
-This skill operates in three modes, chosen automatically based on what the user asks for:
+## Scope and authorization
 
-- **Code mode** — sharpen specific files or recent changes for clarity, consistency, and maintainability
-- **Architecture mode** — find structural friction across modules and propose deepening opportunities
-- **Entropy mode** — prove which surfaces have no load-bearing reason to exist, then delete them
+Apply the user's intent to every mode:
 
-If the user's request is scoped to specific files or recent changes, use Code mode. If they're asking about module boundaries, coupling, testability, or codebase-wide structure, use Architecture mode. If they're asking what can be removed — dead surface, duplicate state, unused config, abandoned features, over-engineering — use Entropy mode. If several apply (e.g., "clean up this area and think about whether the abstraction is right"), run them in order: Code, Architecture, Entropy.
+- Assess, audit, find, review, or report: inspect and propose; do not edit code, docs, or configuration.
+- Refactor, simplify, apply, clean up, or delete: implement the requested changes and verify them. Do not stop at suggestions or ask again merely because a change crosses files.
+- Continue within existing authorization. Ask only for an unresolved choice that materially changes scope, safety, supported behavior, or a hard-to-reverse decision. Prepare the concrete alternatives first.
 
-If a Code mode analysis reveals that the real problem is structural (e.g., a function is messy because it's doing three unrelated things that belong in different modules), say so and offer to switch to Architecture mode for that piece.
+Use the files, revisions, and boundaries the user named. For recent work, inspect Git status and the relevant staged, unstaged, committed, and untracked changes. Preserve unrelated work. Read applicable repository instructions; consult neighboring code and decision records only where they explain the change in question.
 
----
+## Choose the relevant guidance
 
-## Code Mode
+- **Code:** local readability, types, and organization. Use the guidance below.
+- **Architecture:** coupling, module responsibilities, or testability. Read [references/ARCHITECTURE.md](references/ARCHITECTURE.md).
+- **Entropy:** dead code, duplicate state, unused configuration, or safe deletions. Read [references/ENTROPY.md](references/ENTROPY.md) for consumer and compatibility checks.
 
-Refinement means making existing code clearer — not adding new capabilities. Don't suggest new error handling, new features, debug commands, or logging unless the user asked for them. The goal is to reduce what a reader must hold in their head to understand the code.
+Combine only the guidance the task needs; there is no mandatory mode sequence. If local friction has a structural cause, explain it and address it within scope. A broader redesign requires a separate decision only when it exceeds the request.
 
-### The core question
+## Code
 
-For every function, type, variable, or abstraction in scope, ask: **"Does this earn its complexity?"**
+Use these questions where they expose a concrete improvement:
 
-- **The deletion test** — imagine deleting this abstraction. If the callers get simpler, it was a pass-through adding indirection without value. If complexity reappears across N call sites, it was earning its keep.
-- **The reader test** — if a new team member read this code top-to-bottom, where would they get confused? Where would they need to jump to another file to understand what's happening? Those are your improvement targets.
-- **The type test** — are types telling the truth? A `Record<string, unknown>` that's always `{name: string, age: number}` forces every consumer to narrow manually. Types that lie create casts; casts hide bugs.
+- **Deletion:** if the abstraction vanished, would complexity disappear or move into callers? Keep it when it hides needed knowledge, ownership, or policy.
+- **Reading:** where must a maintainer keep scattered facts in mind? Bring related logic together or name a meaningful intermediate value.
+- **Types:** do types accurately represent runtime values? Narrow only with evidence from producers and consumers; static types alone do not prove external input or persisted data safe.
 
-### What earns a suggestion
+Prefer changes that simplify actual callers: accurate types that eliminate casts, cohesive logic, clearer names, and proved redundant branches. Do not add features, fallback behavior, logging, or speculative extension points as part of cleanup. Preserve validation at trust boundaries and existing compatibility obligations.
 
-Rank suggestions by how much cognitive load they remove, not by how many lines they save. A renamed variable that prevents misreading is worth more than a 10-line deduplication that adds an abstraction.
+For assessment, give the strongest candidates with locations, concrete friction, proposed change, and risk. Use a before/after example when it helps assess the benefit; no fixed table or snippet quota. For implementation, make the changes and report the resulting behavior and verification.
 
-Good suggestions:
+## Verification and handoff
 
-- Narrowing a type so downstream code drops casts and guards
-- Extracting a local variable to name a repeated sub-expression (clarity, not DRY)
-- Consolidating scattered related logic that forces a reader to jump between files
-- Removing dead code, unreachable branches, or redundant fallbacks
-- Simplifying defensive patterns that guard against impossible states (e.g., `globalThis.process?.env` in a file that imports `node:fs`)
+Verify the surviving contract with checks proportional to the change and repository requirements. Retain meaningful coverage; a simpler implementation does not by itself justify deleting tests. Once checks pass, repeat them only for new changes or unresolved risk.
 
-Not refinement (don't suggest these unless asked):
-
-- Adding error handling, retry logic, or fallback behavior
-- Adding debug commands, logging, or observability
-- Adding feature parity with sibling modules ("the other provider has X")
-- Adding comments that restate what the code does
-
-### Process
-
-1. **Scope** — identify what's in scope (files the user named, or recent changes via `git diff`)
-2. **Context** — read CLAUDE.md and neighboring files to understand project conventions. Compare against sibling modules when they exist (e.g., if cleaning up `provider-a/index.ts`, read `provider-b/index.ts` for style)
-3. **Analyze** — apply the deletion test, reader test, and type test. Note each finding with the file path and line range
-4. **Prioritize** — rank findings by cognitive-load reduction. Group into a summary table with impact (high/medium/low) and risk (none/low)
-5. **Present** — show concrete before/after snippets for each suggestion. If a suggestion touches types, show how downstream code simplifies as a result
-
----
-
-## Architecture Mode
-
-Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is leverage for callers and locality for maintainers.
-
-### Vocabulary
-
-Use these terms consistently in every suggestion. Don't substitute "component," "service," "API," or "boundary." Full definitions in [references/LANGUAGE.md](references/LANGUAGE.md).
-
-| Term          | Meaning                                                                            |
-| ------------- | ---------------------------------------------------------------------------------- |
-| **Module**    | Anything with an interface and an implementation (function, class, package, slice) |
-| **Interface** | Everything a caller must know: types, invariants, error modes, ordering, config    |
-| **Depth**     | Leverage at the interface — lots of behaviour behind a small interface             |
-| **Seam**      | Where an interface lives; where behaviour can be altered without editing in place  |
-| **Adapter**   | A concrete thing satisfying an interface at a seam                                 |
-| **Leverage**  | What callers get from depth                                                        |
-| **Locality**  | What maintainers get from depth: change and bugs concentrate in one place          |
-
-Key principles:
-
-- **Deletion test**: imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
-- **The interface is the test surface.** Callers and tests cross the same seam.
-- **One adapter = hypothetical seam. Two adapters = real seam.** Don't introduce a seam unless something actually varies across it.
-
-### Process
-
-#### 1. Explore
-
-If the project has a domain glossary (CONTEXT.md) or ADRs, read them first — they tell you what terms mean and which past decisions are intentional. If they don't exist, that's fine — most repos don't. Proceed from the code itself.
-
-Use the Agent tool with `subagent_type=Explore` to walk the codebase. Note where you experience friction:
-
-- Where does understanding one concept require bouncing between many small modules?
-- Where are modules **shallow** — interface nearly as complex as the implementation?
-- Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no **locality**)?
-- Where do tightly-coupled modules leak across their seams?
-- Which parts are untested, or hard to test through their current interface?
-
-Apply the **deletion test** to anything you suspect is shallow.
-
-#### 2. Present candidates
-
-Present a numbered list of deepening opportunities. For each:
-
-- **Files** — which files/modules are involved
-- **Problem** — why the current structure causes friction
-- **Solution** — plain English description of what would change
-- **Benefits** — in terms of locality and leverage, and how tests improve
-
-Use [references/LANGUAGE.md](references/LANGUAGE.md) vocabulary for the architecture. If the project has a CONTEXT.md, use its domain terms too.
-
-**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when friction is real enough to warrant revisiting. Mark it clearly. (Skip this if the project has no ADRs.)
-
-Also note modules you examined and found to be **healthy** — a brief "X earns its keep because Y" verdict helps the user understand what you considered, not just what you flagged.
-
-Do NOT propose interfaces yet. Ask: "Which of these would you like to explore?"
-
-#### 3. Grilling loop
-
-Once the user picks a candidate, walk the design with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
-
-As decisions crystallize:
-
-- **User rejects a candidate with a load-bearing reason?** Offer to record it (as an ADR or a comment in the code) so future reviews don't re-suggest it.
-- **Want to explore alternative interfaces?** See [references/INTERFACE-DESIGN.md](references/INTERFACE-DESIGN.md).
-- If the project has a CONTEXT.md and you've introduced or sharpened a domain term, update it inline.
-
-For dependency handling and testing strategy during deepening, see [references/DEEPENING.md](references/DEEPENING.md).
-
----
-
-## Entropy Mode
-
-Delete what has no current load-bearing reason to exist. Code and Architecture mode reshape code; this mode removes it, so the bar is evidence, not suspicion.
-
-Core rule: a scanner produces candidates; only consumer, ownership, history, and verification evidence justifies deletion. Prefer a few proved cuts over a long speculative list. **Finding nothing safe to remove is a valid result.**
-
-Two sub-modes, taken from the user's verb:
-
-- "audit", "find", "review", "report" → inspect only, return ranked candidates, do not edit
-- "apply", "remove", "clean up", "delete" → implement the safest requested cuts and verify them
-
-Removing a reachable user capability, supported public API, persisted format, or compatibility path is a product decision, not cleanup. Surface the tradeoff before changing it.
-
-Read [references/ENTROPY.md](references/ENTROPY.md) before starting: it carries the nine candidate classes, the prove-or-reject protocol, the evidence record format, and the validation gates. Do not run this mode from memory — the whole value is in the disqualifying checks.
+Use project terminology. Delegation is optional for useful independent work; follow the host's orchestration rules, using bb child threads inside bb. Findings of reproducible defects can be reported separately, but a cleanup request does not authorize unrelated behavior fixes. Use code-review when defect or regression review is requested or warranted, not as a compulsory second pass.

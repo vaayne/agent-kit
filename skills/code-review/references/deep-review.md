@@ -41,18 +41,20 @@ Choose lenses that fit the diff. A good default set:
 
 Four lenses is a starting point, not a quota — one agent may cover several lenses on a small diff, and a large or risky diff may warrant more agents or split batches.
 
+Findings are defects and risks. Pure style or naming cleanup belongs to `refine-code`, not this report — mention it at most as a side note.
+
 ## Consolidation and debate
 
 After the reviewers return:
 
 1. **Deduplicate** — merge findings that describe the same issue from different angles.
-2. **Adversarially verify** — do not judge the findings yourself: you consolidated them, which biases you toward them, and you haven't read the code as deeply as the reviewers. Spawn fresh verifier agents in parallel (batch findings by file or area; verifiers are never the reviewers who reported them). Each verifier gets its findings' claims and evidence and one job: **refute them against the actual code** — is the path reachable, is the triggering input possible, does a caller or an existing check already handle it? Each verifier returns `confirmed | refuted | uncertain` per finding, with code-level evidence.
+2. **Verify** — judge each finding against the actual code yourself first: is the path reachable, is the trigger possible, does a caller or an existing check already handle it? Your call stands when the evidence is clear either way. Spawn a fresh verifier agent only when a claim is contested or the stakes warrant an independent check — critical/high severity, security-sensitive paths, or findings you cannot settle from the code. A verifier gets the claim and evidence and returns `confirmed | refuted | uncertain` with code-level evidence.
 3. **Apply verdicts** — the goal is near-zero false positives; better to miss a minor issue than cry wolf:
    - `confirmed` → keep.
    - `refuted` → record under `dismissed` with the refutation as the reason. Never silently drop.
-   - `uncertain` → dismiss, unless severity is critical or high — then keep it, downgrade confidence to `low`, and state the unresolved doubt in the description.
+   - `uncertain` → record under `unresolved` with the open doubt and whatever evidence exists. Unresolved entries are neither findings nor dismissals, and they block `ship-it` until someone settles them.
 
-   Cross-agent corroboration is **not** independent evidence — reviewers share the same blind spots. Only verifier evidence counts.
+   Reviewer corroboration is not proof — the reviewers share the same blind spots. Contested claims get settled against the code, not by counting votes.
 4. **Side quests** — pre-existing bugs in unchanged code adjacent to the diff get listed separately; valuable, but they don't block the PR.
 5. **Compose the PR overview** — a short reviewer-facing orientation written into `review.json.overview`, grounded in the diff and the debated findings; do not speculate. Cover:
    - `purpose` — what problem this PR solves and why it exists.
@@ -83,7 +85,10 @@ Never use a direct write over an existing `review.json` without preserving prior
 
 Write these files:
 
-- `review.json` — canonical machine-readable current-state snapshot, including `overview` and `dismissed` entries.
+- `review.json` — canonical machine-readable current-state snapshot, including `overview`, `unresolved`, `dismissed`, and `verification` entries.
+
+Record verification honestly: `verification.complete` is `true` only when the checks this review scope needs have all run; non-blocking scope limits go under `limitations`, blocking doubts go under `unresolved`. `ship-it` requires complete verification, zero open findings, and zero unresolved doubts — no findings alone is not proof the review was thorough.
+
 - `events.jsonl` — append-only audit log for review creation, finding additions, status changes, and report renders.
 - `report.html` — human-readable report rendered from `review.json`.
 - `summary.md` — compact Markdown summary rendered from `review.json` for chat, PR comments, and handoff.
@@ -142,6 +147,7 @@ When rerunning review for the same branch, update the existing bundle instead of
    - Set status to `stale`, or leave it open with a verification note if unsure.
    - Append `finding.stale` when marking stale.
 4. Do not delete old findings during normal updates. Preserve review history through statuses and `events.jsonl`.
+5. Match new doubts against `unresolved` semantically like `dismissed` — a still-open doubt stays, a settled one becomes a finding or a `dismissed` entry. Preserve `unresolved` and `verification` across updates; a rerun may upgrade `verification.complete` only when the missing checks were actually done this time.
 
 ## Report details
 
@@ -159,4 +165,4 @@ Localization: write the report in the user's language. All human-facing text —
 ## Edge cases
 
 - **Large diffs (>500 lines)** — split the diff by file or directory and have each reviewer work in batches. Summarize cross-file concerns separately.
-- **No findings** — write a valid bundle with an empty `findings` array and a ship-it verdict. Don't manufacture issues to fill the report.
+- **No findings** — write a valid bundle with an empty `findings` array. `ship-it` only when `verification.complete` is true and no doubts are unresolved; otherwise verdict `needs-review` and state what went unchecked. Don't manufacture issues to fill the report.

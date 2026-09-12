@@ -31,7 +31,23 @@ If a bundle already contains `review.json`, preserve it. Merge reruns by finding
   "generated_at": "2026-06-01T12:00:00.000Z",
   "updated_at": "2026-06-01T12:00:00.000Z",
   "verdict": "fix-and-ship",
-  "assessment": "One-sentence summary of the review outcome.",
+  "assessment": "Human-written summary; preserved by tooling.",
+  "auto_assessment": "Computed summary refreshed by update-review.mjs.",
+  "verification": {
+    "complete": false,
+    "limitations": ["Payment webhook path could not be exercised locally."]
+  },
+  "unresolved": [
+    {
+      "fingerprint": "correctness|src/queue.ts|double-enqueue|retry-path",
+      "category": "correctness",
+      "file": "src/queue.ts",
+      "severity": "high",
+      "title": "Possible double enqueue on retry",
+      "reason": "Retry path could not be traced end to end; neither confirmed nor refuted.",
+      "recorded_at": "2026-06-01T12:00:00.000Z"
+    }
+  ],
   "stats": {
     "commits": 3,
     "files_changed": 8,
@@ -104,6 +120,18 @@ A reviewer-facing orientation written by the main agent during consolidation, re
 
 Ground every claim in the diff and findings. Tie medium/high risk to concrete findings where possible.
 
+## `verification`
+
+`{ complete: boolean, limitations: string[] }` records whether the checks this review scope needs have all run. `complete` is `true` only when every necessary check for the reviewed scope was done. `limitations` describes non-blocking scope limits — what was out of scope or only partially exercised; blocking doubts belong in `unresolved`, not here. Older bundles without this field must not default to a pass — renderers and tools treat missing verification as `needs-review`. Status updates via `update-review.mjs` never touch `verification`: marking a finding fixed cannot turn an incomplete verification into a pass.
+
+## `unresolved`
+
+Claims that survived verification without a verdict — neither confirmed nor refuted. Stored separately from `findings` (confirmed) and `dismissed` (refuted): `fingerprint`, `category`, `file`, optional `severity`, `title`, `reason` (the open doubt), optional `evidence`, `recorded_at`. Never silently dropped. On rerun, match new doubts against `unresolved` semantically like `dismissed`; a settled doubt becomes a finding or a `dismissed` entry.
+
+## `verdict`
+
+`ship-it | fix-and-ship | rethink | needs-review`. `ship-it` requires `verification.complete === true`, zero open findings, and zero `unresolved` entries — no findings alone is not proof the review was thorough. A stored `ship-it` never outranks open findings, unresolved doubts, or missing verification; tools recompute against current data. Other stored verdicts are the reviewer's call and stay as recorded, including during finding updates; revisit them explicitly after their rationale is resolved. Findings marked `accepted-risk` do not count as open, but accepting risk still requires the relevant authorization.
+
 ## Finding requirements
 
 Every finding must include:
@@ -117,7 +145,7 @@ Every finding must include:
 - `line_start`
 - `line_end`
 - `status`: `open | fixed | reopened | accepted-risk | false-positive | stale`
-- `confidence`: `high | medium | low` — operational, not vibes: `high` = verified against the actual code with a concrete trigger; `medium` = logic holds but one link unconfirmed; `low` = plausible pattern match, unverified
+- `confidence`: `high | medium | low` — operational, not vibes: `high` = verified against the actual code with a concrete trigger; `medium` = defect and reachable path established but frequency or full impact uncertain; `low` = legacy/unverified claim, use `unresolved` for new unverified claims
 - `reviewers`
 - `description`
 - `evidence`: concrete trigger — the input, state, or call sequence that provokes the problem, and the code path it takes
