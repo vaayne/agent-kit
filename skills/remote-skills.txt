@@ -12,6 +12,8 @@ github/gh-stack gh-stack@v0.1.0
 herdrdev/herdr herdr@v0.8.0
 nyblnet/bento bento-slides
 tailscale/tailscale-skill tailscale
-cathrynlavery/diagram-design diagram-design
+#cathrynlavery/diagram-design diagram-design
+markdown-viewer/skills uml
 s1dashu/ip-as-logo-skill .
 JetBrains/go-modern-guidelines use-modern-go
+mattpocock/skills grilling
