@@ -23,14 +23,6 @@ Work in this order:
 - **GitHub**: prefer `gh` CLI for GitHub work, including reading code and documentation.
 - **Isolated workspaces**: only for risky, long-running, conflict-prone, or explicitly isolated work; otherwise use the current checkout (an existing task-specific clone or worktree is fine). On APFS prefer a COW clone, an independent checkout sharing unchanged disk blocks: `cp -Rc <source-dir> ~/.agents/worktrees/<repo>/<task-name>`, then `rm -rf <dest>/.git/worktrees` to drop stale worktree metadata; refuse to fall back to a plain copy if the clone fails, and briefly state why and where before creating one. Never clone a clone or reuse another task's workspace; search nmem for `COW clone` gotchas.
 
-## Codex delegation
-
-These rules apply only when running in Codex.
-
-- The root orchestrator (`gpt-6-astra` / `medium`) owns scoping, integration, and verification. Respect explicit user choices.
-- Implementation defaults to Devin. Inside bb, use bb parent/child threads through its provider; outside bb, invoke the [devin-cli skill](/Users/vaayne/.agents/skills/devin-cli/SKILL.md) directly. Do not mix orchestration mechanisms in one run. Existing full-access and workspace-trust authorization remains valid within platform permissions. Surface failures rather than silently changing implementer. The parent may handle small documentation or configuration edits directly.
-- Bounded, independent explorer/researcher work uses `gpt-5.6-luna` / `max`. An independent reviewer (`gpt-6-astra` / `xhigh`) runs only when requested or material unresolved risk warrants. Spawn only useful agents, never every role.
-
 <!-- output-style:start -->
 
 ## Output style
