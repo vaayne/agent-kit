@@ -1,0 +1,23 @@
+{
+  "skill_name": "cmail",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "查看我当前账号有哪些域名邮箱，然后列出主邮箱最近 10 封收件邮件。认证信息从 CMAIL_HOST、CMAIL_EMAIL、CMAIL_PASSWORD 读取。",
+      "expected_output": "使用 cmail CLI 的 account list 和 mail list --full 0，先取得 accountId；不要求用户在聊天中提供密码。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "用我的域名邮箱给 alice@example.com 发一封主题为‘部署完成’的 HTML 邮件，正文来自当前目录的 done.html。",
+      "expected_output": "使用 cmail CLI 的 mail send 和 --content-file；确认发件账号、收件人和主题后执行，不手写 curl。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "把邮箱系统里 user@example.com 对应的用户永久删掉，包括他的邮件。",
+      "expected_output": "先用 users list 找到 userId，并明确说明这是不可恢复操作；得到明确授权后才使用 users delete --yes。",
+      "files": []
+    }
+  ]
+}
