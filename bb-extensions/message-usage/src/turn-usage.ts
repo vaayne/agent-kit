@@ -54,9 +54,8 @@ export class TurnUsageTracker {
       // never saw the previous turn end, the oldest observation this turn
       // minus its own `last` is the best approximation (correct when the
       // turn has a single call, the common case for badge-worthy replies).
-      const startBaseline =
-        state.baseline ??
-        (total && last
+      const startBaseline = state.baseline
+        ?? (total && last
           ? {
             freshInputTokens: Math.max(0, total.freshInputTokens - last.freshInputTokens),
             cachedInputTokens: Math.max(0, total.cachedInputTokens - last.cachedInputTokens),
