@@ -1,4 +1,5 @@
-import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, getAgentDir, type ProviderConfig } from "@earendil-works/pi-coding-agent";
+import { execSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -6,10 +7,14 @@ import { join } from "node:path";
 /**
  * Registers API providers from generic-provider.json.
  *
- * The file owns provider credentials, endpoints, model discovery, filtering,
- * and metadata overrides. OpenAI APIs use `{baseUrl}/models`; Anthropic
- * Messages uses `{baseUrl}/v1/models`. Model IDs determine availability;
- * models.dev supplies canonical pricing and limits before local overrides.
+ * The file owns provider credentials, endpoints, headers, compatibility flags,
+ * model discovery, filtering, and metadata overrides. OpenAI APIs use
+ * `{baseUrl}/models`; Anthropic Messages uses `{baseUrl}/v1/models`. Model IDs
+ * determine availability; models.dev supplies canonical pricing and limits
+ * before local overrides.
+ *
+ * `headers` apply to both discovery and inference requests; `compat` is merged
+ * under each discovered model (per-model overrides still win).
  */
 const DEFAULT_API = "openai-responses";
 const SUPPORTED_APIS = [
@@ -69,6 +74,8 @@ type GenericProviderConfig = {
   providers: ConfiguredProvider[];
 };
 
+type RefreshContext = Parameters<NonNullable<ProviderConfig["refreshModels"]>>[0];
+
 type ModelCache = {
   providerId: string;
   api: SupportedApi;
@@ -82,6 +89,8 @@ type ConfiguredProvider = {
   baseUrl: string;
   apiKey: string;
   api: SupportedApi;
+  headers?: Record<string, string>;
+  compat?: Record<string, unknown>;
   rules?: ProviderModelRules;
 };
 
@@ -207,6 +216,21 @@ function stringArray(value: unknown, field: string): string[] | undefined {
   return value;
 }
 
+/** Values may be literals, `$ENV` references, or `!command`; pi resolves them. */
+function stringRecord(value: unknown, field: string): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value) || !Object.values(value).every((entry) => typeof entry === "string" && entry.length > 0)) {
+    throw new Error(`${CONFIG_FILE}: ${field} must be an object of non-empty strings`);
+  }
+  return Object.keys(value).length > 0 ? (value as Record<string, string>) : undefined;
+}
+
+function optionalRecord(value: unknown, field: string): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: ${field} must be an object`);
+  return Object.keys(value).length > 0 ? value : undefined;
+}
+
 function parseProviderModelRules(providerId: string, value: unknown): ProviderModelRules | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) throw new Error(`${CONFIG_FILE}: ${providerId}.models must be an object`);
@@ -234,6 +258,8 @@ function parseConfiguredProvider(id: string, value: unknown): ConfiguredProvider
     baseUrl: baseUrl.replace(/\/+$/, ""),
     apiKey,
     api: parseApi(id, stringValue(value.api)),
+    headers: stringRecord(value.headers, `${id}.headers`),
+    compat: optionalRecord(value.compat, `${id}.compat`),
     rules: parseProviderModelRules(id, value.models),
   };
 }
@@ -437,11 +463,20 @@ async function writeModelCache(
   );
 }
 
+function applyProviderCompat(
+  models: ProviderModelConfig[],
+  compat: Record<string, unknown> | undefined,
+): ProviderModelConfig[] {
+  if (compat === undefined) return models;
+  return models.map((model) => ({ ...model, compat: { ...compat, ...model.compat } }));
+}
+
 async function fetchGatewayModels(
   providerId: string,
   baseUrl: string,
   api: SupportedApi,
   apiKey: string,
+  providerHeaders: Record<string, string> | undefined,
   signal?: AbortSignal,
 ): Promise<GatewayModel[]> {
   const isAnthropic = api === "anthropic-messages";
@@ -449,7 +484,7 @@ async function fetchGatewayModels(
   const headers: Record<string, string> = isAnthropic
     ? { "x-api-key": apiKey, "anthropic-version": "2023-06-01" }
     : { authorization: `Bearer ${apiKey}` };
-  const response = await fetch(modelsUrl, { headers, signal });
+  const response = await fetch(modelsUrl, { headers: { ...headers, ...providerHeaders }, signal });
   if (!response.ok) {
     throw new Error(`Failed to fetch ${providerId} models: ${response.status} ${response.statusText}`);
   }
@@ -491,10 +526,11 @@ async function fetchModels(
   baseUrl: string,
   api: SupportedApi,
   apiKey: string,
+  providerHeaders: Record<string, string> | undefined,
   signal?: AbortSignal,
 ): Promise<ProviderModelConfig[]> {
   const [gatewayResult, catalogResult] = await Promise.allSettled([
-    fetchGatewayModels(providerId, baseUrl, api, apiKey, signal),
+    fetchGatewayModels(providerId, baseUrl, api, apiKey, providerHeaders, signal),
     getModelsDevCatalog(),
   ]);
   if (gatewayResult.status === "rejected") throw gatewayResult.reason;
@@ -511,12 +547,12 @@ async function fetchModels(
 }
 
 async function getModels(
-  providerId: string,
-  baseUrl: string,
-  api: SupportedApi,
-  apiKey: string,
-  options: { force?: boolean; signal?: AbortSignal } = {},
+  provider: ConfiguredProvider,
+  options: { force?: boolean; signal?: AbortSignal; credential?: RefreshContext["credential"] } = {},
 ): Promise<ProviderModelConfig[]> {
+  const { id: providerId, baseUrl, api } = provider;
+  const apiKey = discoveryApiKey(provider, options.credential);
+  const headers = resolveHeaderValues(provider.headers, providerId);
   const cache = await readModelCache(providerId, api);
   const matchingCache = cache?.baseUrl === baseUrl ? cache : undefined;
   if (!options.force && matchingCache && Date.now() - matchingCache.fetchedAt < MODEL_CACHE_TTL_MS) {
@@ -524,7 +560,7 @@ async function getModels(
   }
 
   try {
-    const models = await fetchModels(providerId, baseUrl, api, apiKey, options.signal);
+    const models = await fetchModels(providerId, baseUrl, api, apiKey, headers, options.signal);
     await writeModelCache(providerId, baseUrl, api, models);
     return models;
   } catch (error) {
@@ -533,27 +569,158 @@ async function getModels(
   }
 }
 
+/** Last known list without touching the network; empty when nothing is cached. */
+async function readCachedModels(provider: ConfiguredProvider): Promise<ProviderModelConfig[]> {
+  const cache = await readModelCache(provider.id, provider.api);
+  return cache?.baseUrl === provider.baseUrl ? cache.models : [];
+}
+
+/** Discovery + rules + provider-level compat defaults, in that order. */
+function applyProvider(
+  provider: ConfiguredProvider,
+  models: ProviderModelConfig[],
+): ProviderModelConfig[] {
+  return applyProviderCompat(applyModelRules(models, provider.rules), provider.compat);
+}
+
+/**
+ * pi resolves `apiKey` (including `!command`) and hands the credential to the
+ * refresh phase; discovery must use that key, not the raw config value.
+ */
+function credentialApiKey(credential: RefreshContext["credential"]): string | undefined {
+  return credential?.type === "api_key" ? credential.key : undefined;
+}
+
+// Discovery runs outside pi's request path, so config values must be resolved
+// here too. Mirrors pi's semantics: `!command` (cached), `$ENV` / `${ENV}`
+// interpolation, `$` and `$!` escapes, otherwise a literal.
+const commandResultCache = new Map<string, string | undefined>();
+
+function resolveTemplate(config: string, env: Record<string, string | undefined>): string | undefined {
+  let resolved = "";
+  let index = 0;
+  while (index < config.length) {
+    const dollar = config.indexOf("$", index);
+    if (dollar < 0) {
+      resolved += config.slice(index);
+      break;
+    }
+    resolved += config.slice(index, dollar);
+    const next = config[dollar + 1];
+    if (next === "$" || next === "!") {
+      resolved += next;
+      index = dollar + 2;
+      continue;
+    }
+    const name = next === "{"
+      ? (() => {
+        const end = config.indexOf("}", dollar + 2);
+        return end < 0 ? undefined : { name: config.slice(dollar + 2, end), next: end + 1 };
+      })()
+      : (() => {
+        const match = config.slice(dollar + 1).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+        return match ? { name: match[0], next: dollar + 1 + match[0].length } : undefined;
+      })();
+    if (name === undefined) {
+      resolved += "$";
+      index = dollar + 1;
+      continue;
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name.name)) {
+      resolved += config.slice(dollar, name.next);
+      index = name.next;
+      continue;
+    }
+    const value = env[name.name];
+    if (value === undefined) return undefined;
+    resolved += value;
+    index = name.next;
+  }
+  return resolved;
+}
+
+function resolveConfigValue(config: string): string | undefined {
+  if (!config.startsWith("!")) return resolveTemplate(config, process.env);
+
+  const cached = commandResultCache.get(config);
+  if (cached !== undefined || commandResultCache.has(config)) return cached;
+  let value: string | undefined;
+  try {
+    value = execSync(config.slice(1), {
+      encoding: "utf-8",
+      timeout: 10_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim() || undefined;
+  } catch {
+    value = undefined;
+  }
+  commandResultCache.set(config, value);
+  return value;
+}
+
+function discoveryApiKey(
+  provider: ConfiguredProvider,
+  credential: RefreshContext["credential"],
+): string {
+  const resolved = credentialApiKey(credential) ?? resolveConfigValue(provider.apiKey);
+  if (!resolved) {
+    throw new Error(
+      `${CONFIG_FILE}: failed to resolve API key for provider "${provider.id}" (${provider.apiKey})`,
+    );
+  }
+  return resolved;
+}
+
+function resolveHeaderValues(
+  headers: Record<string, string> | undefined,
+  providerId: string,
+): Record<string, string> | undefined {
+  if (headers === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => {
+      const resolved = resolveConfigValue(value);
+      if (resolved === undefined) {
+        throw new Error(`${CONFIG_FILE}: failed to resolve header "${key}" for provider "${providerId}"`);
+      }
+      return [key, resolved];
+    }),
+  );
+}
+
 export default async function genericProvider(pi: ExtensionAPI) {
   const { providers } = await readGenericProviderConfig();
 
   for (const provider of providers) {
-    const rules = provider.rules;
-    let models = applyModelRules(
-      await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey),
-      rules,
-    );
+    // pi's refresh phase does not run on every entry point (e.g. `pi
+    // --list-models`), so discovery happens here too; a cached snapshot keeps
+    // the provider usable when the gateway is unreachable.
+    let models: ProviderModelConfig[];
+    try {
+      models = applyProvider(provider, await getModels(provider));
+    } catch (error) {
+      models = applyProvider(provider, await readCachedModels(provider));
+      console.error(
+        `generic-provider: ${provider.id} discovery failed, using ${models.length} cached models: `
+          + (error instanceof Error ? error.message : String(error)),
+      );
+    }
 
     pi.registerProvider(provider.id, {
       baseUrl: provider.baseUrl,
       apiKey: provider.apiKey,
       api: provider.api,
+      headers: provider.headers,
       models,
       // Returning the last known list keeps the offline phase from blanking the catalog.
-      async refreshModels({ allowNetwork, force, signal }) {
-        if (allowNetwork) {
-          models = applyModelRules(
-            await getModels(provider.id, provider.baseUrl, provider.api, provider.apiKey, { force, signal }),
-            rules,
+      async refreshModels(context) {
+        if (context.allowNetwork) {
+          models = applyProvider(
+            provider,
+            await getModels(provider, {
+              force: context.force,
+              signal: context.signal,
+              credential: context.credential,
+            }),
           );
         }
         return models;
