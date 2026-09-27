@@ -129,13 +129,13 @@ if [[ -f "$REMOTE_SKILL_REGISTRY" ]]; then
   sync_remote_skills
 fi
 
-# Link agent frameworks that use the shared skill directory.
-for dir in ~/.claude/skills ~/.pi/skills ~/.codex/skills; do
-  if [[ -d "$dir" ]] && [[ ! -L "$dir" ]]; then
-    rm -rf "$dir"
-  fi
-done
-ln -sfn ~/.agents/skills ~/.claude/skills
+# Codex and Pi discover the shared directory directly; only Claude needs a link.
+claude_skills="$HOME/.claude/skills"
+if [[ -e "$claude_skills" && ! -L "$claude_skills" ]]; then
+  echo "Refusing to replace existing path: $claude_skills" >&2
+  exit 1
+fi
+ln -sfn "$SHARED_SKILL_DIR" "$claude_skills"
 
 cd "$ROOT_DIR"
 mise run format
