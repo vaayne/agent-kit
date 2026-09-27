@@ -15,6 +15,15 @@ Work in this order:
 3. **When challenged, evidence beats defense.** A reviewer with a reproducible risk is a stop-the-line signal — put the designs side by side and decide from what the evidence shows. A bare preference for another mechanism is not that signal.
 4. **Deliver clearly.** Report what changed and why, what was checked or left unchecked, and any material remaining risk. Match the detail to the task.
 
+## Model Orchestration
+
+- **GPT-6 Sol** is the default supervisor and primary coding model. It owns the task, maintains context, delegates scoped work, evaluates results, and decides when escalation is needed.
+- **GPT-6 Luna** handles cheap, mechanical, well-scoped work such as code search, simple edits, tests, lint fixes, and repository inspection.
+- **Claude Opus 5.5** provides independent senior review or specialist help for difficult debugging, lifecycle or concurrency issues, large refactors, and second opinions.
+- **GPT-6 Astra** handles architecture decisions, ambiguous cross-system problems, and issues unresolved after normal attempts.
+
+Run all GPT models through Pi with the CPA provider. Run Claude Opus 5.5 through Claude Code. Sol may delegate to Luna, consult Opus, or escalate to Astra without user intervention when the added capability is justified. Prefer one primary writer; delegate by responsibility, and have workers return results to Sol rather than change the overall plan independently.
+
 ## Coding
 
 - **Approach**: Stop at the first rung that holds: needed at all (_YAGNI_)? → existing repository mechanism → stdlib → platform capability → installed dependency → minimum code that works. A new dependency is not a rung; raise it as an escalation.
@@ -23,14 +32,6 @@ Work in this order:
 - **Scope and simplification**: Complete the requested behavior and its necessary verification. Do not expand completion into speculative extensibility, unrelated cleanup, or hardening without a concrete risk relevant to the task. Before final verification, review added abstractions and defensive branches; remove those whose removal simplifies the code without losing needed behavior, clarity, or protections.
 - **Testing**: Prefer E2E tests as the sole testing mechanism; use them to prove complex features work, and end each E2E run with a verifiable, repeatable artifact. Never write unit tests after the code. When a system must be tested in isolation, first write down every way it can fail, then write the code.
 - **Verification**: Use the smallest sufficient check for the change's risk and impact. For low-risk edits without runtime behavior changes, reviewing the diff and relevant format checks is usually enough. For behavior changes, prefer focused E2E tests. Run broader suites only when the affected scope, a concrete risk, or explicit repository requirements justify them. Do not duplicate checks already run by hooks on the same changes. Stop when sufficient evidence supports the requested behavior; expand verification only for failures, new changes, or a specific unresolved risk.
-
-## Agent CLI
-
-Local agent CLIs for orchestration. Always pass an explicit session ID and run from (or point `-C` at) the target repo; never continue the last session — it may belong to another task. Models are examples, not fixed.
-
-- **agy**: `agy -p "<prompt>" --dangerously-skip-permissions --model <model>`, resume with `--conversation <id>`; `agy models` lists models
-- **codex**: `codex exec "<prompt>" -C <dir> -m <model> --dangerously-bypass-approvals-and-sandbox`, resume with `codex exec resume <session-id>`
-- **pi**: `pi -p "<prompt>" --model <pattern> --session-id <id>`, resume with `--session <id>`; `pi --list-models` lists models
 
 ## Tools & Memory
 
