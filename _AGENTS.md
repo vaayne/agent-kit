@@ -15,15 +15,6 @@ Work in this order:
 3. **When challenged, evidence beats defense.** A reviewer with a reproducible risk is a stop-the-line signal — put the designs side by side and decide from what the evidence shows. A bare preference for another mechanism is not that signal.
 4. **Deliver clearly.** Report what changed and why, what was checked or left unchecked, and any material remaining risk. Match the detail to the task.
 
-## Model Orchestration
-
-- **GPT-6 Sol** is the default supervisor and primary coding model. It owns the task, maintains context, delegates scoped work, evaluates results, and decides when escalation is needed.
-- **GPT-6 Luna** handles cheap, mechanical, well-scoped work such as code search, simple edits, tests, lint fixes, and repository inspection.
-- **Claude Opus 5.5** provides independent senior review or specialist help for difficult debugging, lifecycle or concurrency issues, large refactors, and second opinions.
-- **GPT-6 Astra** handles architecture decisions, ambiguous cross-system problems, and issues unresolved after normal attempts.
-
-Run all GPT models through Pi with the CPA provider. Run Claude Opus 5.5 through Claude Code. Sol may delegate to Luna, consult Opus, or escalate to Astra without user intervention when the added capability is justified. Prefer one primary writer; delegate by responsibility, and have workers return results to Sol rather than change the overall plan independently.
-
 ## Coding
 
 - **Approach**: Stop at the first rung that holds: needed at all (_YAGNI_)? → existing repository mechanism → stdlib → platform capability → installed dependency → minimum code that works. A new dependency is not a rung; raise it as an escalation.
