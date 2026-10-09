@@ -1,19 +1,35 @@
 #!/usr/bin/env bash
-#MISE description="Link local skills and install remote skills to ~/.agents/skills"
+#MISE description="Sync local and remote skills to the BB server"
 
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/../../.." && pwd)
 SKILL_SOURCE_DIR="$ROOT_DIR/skills"
-SHARED_SKILL_DIR="${SHARED_SKILL_DIR:-$HOME/.agents/skills}"
+if [[ $# -gt 1 ]]; then
+  echo "Usage: mise run sync:skills -- [ssh-host:]<bb-data-dir>/skills/" >&2
+  exit 2
+fi
+BB_TARGET="${1:-${BB_SKILLS_TARGET:-}}"
+if [[ -z "$BB_TARGET" ]]; then
+  echo "Set BB_SKILLS_TARGET to [ssh-host:]<bb-data-dir>/skills/, or pass the target." >&2
+  exit 2
+fi
+case "$BB_TARGET" in
+  */skills/) ;;
+  *) echo "BB skills target must end with /skills/: $BB_TARGET" >&2; exit 2 ;;
+esac
+
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit/bb-skills"
+REMOTE_SKILL_DIR="$CACHE_DIR/remote"
 REMOTE_SKILL_REGISTRY="$SKILL_SOURCE_DIR/remote-skills.txt"
+declare -a repos=() skills=() versions=()
 
 sync_remote_skills() {
-  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit"
+  local cache_dir="$CACHE_DIR"
   local stamp="$cache_dir/remote-skills.sha256"
   local registry_hash mode repo skill_spec extra skill version
   local index target log failed
-  local -a repos=() skills=() versions=() pids=()
+  local -a pids=()
 
   mkdir -p "$cache_dir"
   registry_hash=$(shasum -a 256 "$REMOTE_SKILL_REGISTRY" | awk '{print $1}')
@@ -22,7 +38,7 @@ sync_remote_skills() {
     mode=install
   fi
 
-  while read -r repo skill_spec extra; do
+  while read -r repo skill_spec extra || [[ -n "${repo:-}" ]]; do
     case "$repo" in
       "" | \#*) continue ;;
     esac
@@ -43,6 +59,23 @@ sync_remote_skills() {
       fi
     fi
 
+    case "${skill##*/}" in
+      "" | . | .. | *[!a-z0-9-]*)
+        echo "Invalid skill directory name: $skill" >&2
+        return 1
+        ;;
+    esac
+    if [[ -e "$SKILL_SOURCE_DIR/${skill##*/}" ]]; then
+      echo "Local and remote skill names collide: $skill" >&2
+      return 1
+    fi
+    for target in "${skills[@]+"${skills[@]}"}"; do
+      if [[ "${target##*/}" == "${skill##*/}" ]]; then
+        echo "Remote skill names collide: $skill" >&2
+        return 1
+      fi
+    done
+
     repos+=("$repo")
     skills+=("$skill")
     versions+=("$version")
@@ -58,7 +91,7 @@ sync_remote_skills() {
     repo=${repos[$index]}
     skill=${skills[$index]}
     version=${versions[$index]}
-    target="$SHARED_SKILL_DIR/${skill##*/}"
+    target="$REMOTE_SKILL_DIR/${skill##*/}"
     log="$tmp_dir/$index.log"
 
     (
@@ -67,15 +100,15 @@ sync_remote_skills() {
           echo "Pinned skill already installed: $repo $skill@$version"
         else
           echo "Checking skill: $repo $skill"
-          gh skill update "$skill" --all --dir "$SHARED_SKILL_DIR"
+          gh skill update "$skill" --all --dir "$REMOTE_SKILL_DIR"
         fi
       elif [[ -n "$version" ]]; then
         echo "Installing pinned skill: $repo $skill@$version"
         gh skill install "$repo" "$skill" \
-          --pin "$version" --dir "$SHARED_SKILL_DIR" --force
+          --pin "$version" --dir "$REMOTE_SKILL_DIR" --force
       else
         echo "Installing skill: $repo $skill"
-        gh skill install "$repo" "$skill" --dir "$SHARED_SKILL_DIR" --force
+        gh skill install "$repo" "$skill" --dir "$REMOTE_SKILL_DIR" --force
       fi
     ) >"$log" 2>&1 &
     pids+=("$!")
@@ -101,42 +134,26 @@ sync_remote_skills() {
   echo "Remote skills synced"
 }
 
-mkdir -p "$SHARED_SKILL_DIR"
-
-# Remove links for local skills that no longer exist in this repo.
-for target in "$SHARED_SKILL_DIR"/*; do
-  [[ -L "$target" ]] || continue
-  case $(readlink "$target") in
-    "$SKILL_SOURCE_DIR"/*)
-      [[ -e $(readlink "$target") ]] || rm -f "$target"
-      ;;
-  esac
-done
-
-# Link each local skill individually so remote skills can coexist.
-for source in "$SKILL_SOURCE_DIR"/*; do
-  [[ -d "$source" ]] || continue
-  target="$SHARED_SKILL_DIR/$(basename "$source")"
-  if [[ -d "$target" ]] && [[ ! -L "$target" ]]; then
-    rm -rf "$target"
-  else
-    rm -f "$target"
-  fi
-  ln -s "$source" "$target"
-done
+mkdir -p "$REMOTE_SKILL_DIR"
 
 if [[ -f "$REMOTE_SKILL_REGISTRY" ]]; then
   sync_remote_skills
 fi
 
-# Codex and Pi discover the shared directory directly; only Claude needs a link.
-claude_skills="$HOME/.claude/skills"
-if [[ -e "$claude_skills" && ! -L "$claude_skills" ]]; then
-  echo "Refusing to replace existing path: $claude_skills" >&2
-  exit 1
-fi
-ln -sfn "$SHARED_SKILL_DIR" "$claude_skills"
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+mkdir "$stage/skills"
+rsync -a --exclude=remote-skills.txt "$SKILL_SOURCE_DIR/" "$stage/skills/"
+for skill in "${skills[@]+"${skills[@]}"}"; do
+  source="$REMOTE_SKILL_DIR/${skill##*/}"
+  if [[ ! -f "$source/SKILL.md" ]]; then
+    echo "Remote skill is missing SKILL.md: $source" >&2
+    exit 1
+  fi
+  rsync -a "$source/" "$stage/skills/${skill##*/}/"
+done
 
-cd "$ROOT_DIR"
-mise run format
-echo "Linked local skills and installed remote skills in $SHARED_SKILL_DIR"
+backup_dir="../skill-backups/agent-kit-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+rsync -a --checksum --delay-updates --backup --backup-dir="$backup_dir" \
+  "$stage/skills/" "$BB_TARGET"
+echo "Synced local and remote Agent Kit skills to $BB_TARGET"

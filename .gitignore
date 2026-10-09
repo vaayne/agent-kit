@@ -4,3 +4,5 @@
 *.log
 
 node_modules/
+__pycache__/
+.mise.local.toml

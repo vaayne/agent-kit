@@ -1,0 +1,29 @@
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"
+model_verbosity = "low"
+model_auto_compact_token_limit = 260000
+model_auto_compact_token_limit_scope = "total"
+
+# 当前推荐的自动化权限组合
+approval_policy = "on-request"
+approvals_reviewer = "user"
+sandbox_mode = "workspace-write"
+
+# notify = ["turn-ended"]
+
+[agents]
+enabled = true
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "max"
+max_concurrent_threads_per_session = 8
+
+[shell_environment_policy]
+inherit = "core"
+
+[features]
+hooks = true
+memories = false
+remote_compaction_v2 = true
+
+[features.context_management]
+experimental_mode = true

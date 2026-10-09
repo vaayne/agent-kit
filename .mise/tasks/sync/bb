@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Sync local and remote skills to BB (alias for sync:skills)"
+
+set -euo pipefail
+
+ROOT_DIR=$(cd "$(dirname "$0")/../../.." && pwd)
+cd "$ROOT_DIR"
+exec mise run sync:skills -- "$@"

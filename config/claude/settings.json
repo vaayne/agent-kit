@@ -1,0 +1,48 @@
+{
+  "cleanupPeriodDays": 365,
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000",
+    "CLAUDE_CODE_NO_FLICKER": "1"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": [
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "DesignSync",
+      "NotebookEdit",
+      "SendMessage",
+      "PushNotification",
+      "ReportFindings",
+      "ScheduleWakeup",
+      "AskUserQuestion",
+      "CronCreate",
+      "CronDelete",
+      "CronList"
+    ],
+    "defaultMode": "auto"
+  },
+  "disableClaudeAiConnectors": true,
+  "disableBundledSkills": true,
+  "hooks": {},
+  "disableWorkflows": true,
+  "disableArtifact": true,
+  "model": "opus",
+  "advisorModel": "fable",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "effortLevel": "medium",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "autoMemoryEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "editorMode": "normal",
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": false
+}

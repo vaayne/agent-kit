@@ -1,14 +1,21 @@
 [tools]
 dprint = "latest"
 gh = "latest"
+python = "3.12"
 
 [tasks.format]
 description = "Format code using dprint"
 run = "dprint fmt"
 
 [tasks.sync]
-description = "Sync components to various local agent frameworks"
-depends = ["sync:skills", "sync:agents"]
+description = "Sync local agent configuration and instructions, then skills to BB"
+run = """
+set -e
+mise run format
+mise run sync:config
+mise run sync:agents
+mise run sync:skills
+"""
 
 [tasks."sync:agents"]
 description = "Sync _AGENTS.md to all agent frameworks"

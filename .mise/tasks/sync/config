@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Check, back up, and copy Claude Code and Codex configuration"
+set -euo pipefail
+
+ROOT_DIR=$(cd "$(dirname "$0")/../../.." && pwd)
+exec "$(mise which python3)" "$ROOT_DIR/scripts/sync_config.py" "$@"
