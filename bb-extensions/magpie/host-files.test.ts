@@ -52,33 +52,24 @@ test("first install can be removed without adding prior selection keys", async (
   assert.deepEqual(JSON.parse(await readFile(join(root, "agent/settings.json"), "utf8")), {});
 });
 
-test("rename migrates the managed extension and keeps the original restore state", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "magpie-migrate-"));
+test("install refuses an unmanaged Magpie extension and preserves other extensions", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "magpie-unmanaged-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const agent = join(root, "agent");
   const data = join(root, "plugin");
-  await mkdir(join(agent, "extensions/bb-magpie"), { recursive: true });
-  await mkdir(data);
-  const before = { defaultProvider: "original", defaultModel: "prior" };
-  const written = { defaultProvider: "bb-magpie", defaultModel: "group/test", enabledModels: ["bb-magpie/group/test"] };
-  await writeFile(join(data, "pi-install.json"), JSON.stringify({ before, written, modelCount: 1 }));
-  await writeFile(join(agent, "settings.json"), JSON.stringify({ ...written, theme: "kept" }));
-  await writeFile(join(agent, "extensions/bb-magpie/index.js"), "legacy extension");
+  const extension = join(agent, "extensions/magpie/index.js");
+  const otherExtension = join(agent, "extensions/custom.js");
+  await mkdir(join(agent, "extensions/magpie"), { recursive: true });
+  await writeFile(extension, "user extension");
+  await writeFile(otherExtension, "other extension");
   const files = hostFiles(agent, data);
   const catalog = parseMagpieConfig({ providers: { magpie: { models: [{ id: "group/test" }] } } }, {});
-  await mkdir(join(agent, "extensions/magpie"));
-  await writeFile(join(agent, "extensions/magpie/index.js"), "user extension");
   await assert.rejects(files.install(catalog), /already exists/);
-  assert.equal(await readFile(join(agent, "extensions/magpie/index.js"), "utf8"), "user extension");
-  await rm(join(agent, "extensions/magpie/index.js"));
+  assert.equal(await readFile(extension, "utf8"), "user extension");
+  assert.equal((await files.inspect()).installed, false);
+  await rm(extension);
   await files.install(catalog);
   await files.install(catalog);
-  const settings = JSON.parse(await readFile(join(agent, "settings.json"), "utf8"));
-  assert.equal(settings.defaultProvider, "magpie");
-  assert.deepEqual(settings.enabledModels, ["magpie/group/test"]);
-  assert.equal(settings.theme, "kept");
-  assert.match(await readFile(join(agent, "extensions/magpie/index.js"), "utf8"), /registerProvider\("magpie"/);
-  await assert.rejects(readFile(join(agent, "extensions/bb-magpie/index.js")), { code: "ENOENT" });
   await files.remove();
-  assert.deepEqual(JSON.parse(await readFile(join(agent, "settings.json"), "utf8")), { ...before, theme: "kept" });
+  assert.equal(await readFile(otherExtension, "utf8"), "other extension");
 });

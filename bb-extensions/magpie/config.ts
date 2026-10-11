@@ -114,7 +114,7 @@ export function parseMagpieConfig(models: unknown, settings: unknown): Catalog {
   }));
   const selected = settingsSchema.safeParse(settings);
   const defaultModel = selected.success
-      && ["magpie", "bb-magpie"].includes(selected.data.defaultProvider ?? "")
+      && selected.data.defaultProvider === "magpie"
       && sanitizedModels.some((model) => model.id === selected.data.defaultModel)
     ? selected.data.defaultModel!
     : sanitizedModels[0]!.id;

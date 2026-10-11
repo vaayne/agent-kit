@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-magpie",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "private": true,
   "engines": {
@@ -28,5 +28,6 @@
     "@get-bb/plugin-sdk": "0.6.37",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "license": "MIT"
 }

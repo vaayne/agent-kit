@@ -27,7 +27,7 @@ export default async function plugin(bb: BbPluginApi) {
     piAgentDir: {
       type: "string",
       label: "Magpie Pi config directory",
-      default: join(homedir(), ".pi", "agent"),
+      default: process.env.PI_CODING_AGENT_DIR || join(homedir(), ".pi", "agent"),
       description: "Directory on the BB server where Magpie writes Pi models.json and settings.json.",
     },
     codexRouting: { type: "boolean", label: "Route native Codex through Magpie", default: false },
@@ -35,8 +35,8 @@ export default async function plugin(bb: BbPluginApi) {
     autoSync: {
       type: "boolean",
       label: "Automatically sync Pi models",
-      default: true,
-      description: "Check every 30 seconds. Refresh the Pi provider when its threads are idle.",
+      default: false,
+      description: "When enabled, sync all persistent machines every 30 seconds. Refresh Pi when its threads are idle.",
     },
     proxySecret: {
       type: "string",
@@ -393,7 +393,7 @@ export default async function plugin(bb: BbPluginApi) {
                 defaultModel: catalog.defaultModel,
                 machines: results,
                 next:
-                  "Automatic sync refreshes the Pi provider when its threads are idle. BB model pickers can cache the previous list for up to 10 minutes.",
+                  "When Pi threads are idle, run bb plugin reload provider-pi, or enable autoSync for automatic refresh.",
               };
             })),
       }),

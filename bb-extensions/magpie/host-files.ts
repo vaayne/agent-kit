@@ -40,7 +40,6 @@ async function atomicWrite(path: string, value: string): Promise<void> {
 export function hostFiles(agentDir: string, dataDir: string) {
   const extensionDir = join(agentDir, "extensions", "magpie");
   const extensionFile = join(extensionDir, "index.js");
-  const legacyExtensionFile = join(agentDir, "extensions", "bb-magpie", "index.js");
   const settingsFile = join(agentDir, "settings.json");
   const stateFile = join(dataDir, "pi-install.json");
   const state = async () => await readObject(stateFile) as State | null;
@@ -51,7 +50,7 @@ export function hostFiles(agentDir: string, dataDir: string) {
     },
     async install(catalog: Catalog) {
       const previous = await state();
-      if (!previous || previous.written.defaultProvider === "bb-magpie") {
+      if (!previous) {
         try {
           await readFile(extensionFile);
           throw new Error(`The extension already exists without a connector backup: ${extensionFile}`);
@@ -78,8 +77,6 @@ export function hostFiles(agentDir: string, dataDir: string) {
       await atomicWrite(stateFile, JSON.stringify(next, null, 2) + "\n");
       await atomicWrite(extensionFile, renderExtension(catalog));
       await atomicWrite(settingsFile, JSON.stringify({ ...settings, ...written }, null, 2) + "\n");
-      // Remove only the former connector file; keep unrelated extension files.
-      if (previous) await rm(legacyExtensionFile, { force: true });
       return result(next);
     },
     async remove() {
