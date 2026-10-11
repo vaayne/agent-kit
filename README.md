@@ -146,9 +146,10 @@ Remote skills installed during sync (see [skills/remote-skills.txt](skills/remot
 
 ## BB extensions
 
-| Extension               | Description                                                   |
-| ----------------------- | ------------------------------------------------------------- |
-| **workspace-navigator** | Browse projects, worktrees, and sessions in a compact sidebar |
+| Extension                                    | Description                                                      |
+| -------------------------------------------- | ---------------------------------------------------------------- |
+| **[magpie](bb-extensions/magpie/README.md)** | Route Pi, Codex, and Claude Code through a shared Magpie gateway |
+| **workspace-navigator**                      | Browse projects, worktrees, and sessions in a compact sidebar    |
 
 Install the Workspace Navigator from this repository with:
 
