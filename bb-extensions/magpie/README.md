@@ -53,6 +53,8 @@ The data includes gateway requests and supported agent session logs. Period boun
 
 The Magpie button in the sidebar footer opens a compact subscription allowance view, like BB's Provider usage. It refreshes every 30 seconds while open.
 
+The page and the footer view follow the browser language: Chinese for `zh` locales, English otherwise. Messages from Magpie and from model sync stay in English.
+
 The page refreshes every 15 seconds after a completed read while visible. Refresh requests another snapshot. The server shares each snapshot for up to 5 seconds, so several open pages do not duplicate requests.
 
 Health and usage use `gatewayUrl` and `gatewayKey`. For subscriptions and provider status, run `magpie web` and set these plugin settings:

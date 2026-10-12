@@ -6,9 +6,9 @@ import {
   useRpc,
 } from "@get-bb/plugin-sdk/app";
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { t } from "./i18n.ts";
 import type { Monitor, monitorRpc, Period, SyncResult } from "./monitor-contract.ts";
 
-type Quota = Extract<Monitor["quotas"], { ok: true }>["data"][number];
 // Same artwork as assets/icon.svg, which the manifest cannot share with app-registered icons.
 const magpiePath =
   "M1.31 3.44L1.17 4.35L1.52 5.40L2.15 6.30L4.66 9.24L4.59 9.31L1.03 5.61L0.89 5.61L0.89 6.58L1.03 7.07L1.31 7.56L2.01 8.26L3.54 9.45L4.73 10.57L4.59 10.64L2.57 8.96L0.89 7.91L0.89 8.47L1.17 9.17L1.94 10.01L4.38 11.62L5.08 12.31L6.06 13.85L7.11 12.94L7.25 13.01L5.57 14.90L4.59 16.58L5.29 16.23L6.69 15.88L6.76 15.95L6.62 16.09L5.71 16.44L5.22 16.93L5.99 17L6.97 17.35L8.02 18.04L9.27 19.09L10.67 19.93L11.86 20.35L12.77 20.49L14.52 20.42L15.91 20L16.89 19.51L17.59 19.02L18.85 17.77L19.69 16.51L20.25 15.32L20.60 14.13L20.74 13.22L20.74 12.03L20.53 10.92L19.62 8.82L19.69 7.84L19.90 7.49L20.32 7.14L20.87 6.86L23.04 6.44L22.83 6.23L21.71 5.75L20.32 5.47L19.41 4.70L18.57 4.28L17.59 4.07L16.19 4.28L15.49 4.63L14.52 5.54L13.12 8.12L11.93 9.38L9 11.41L8.72 11.41L7.74 10.92L6.76 10.01L6.13 9.10L4.80 6.30L3.96 5.12L2.64 3.93L1.87 3.51ZM20.18 13.99L20.18 14.48L19.90 15.53L19.34 16.72L18.78 17.56L17.94 18.46L17.24 19.02L15.49 19.93L14.38 20.21L12.42 20.21L11.79 20.07L10.18 19.37L9.20 18.46L9 18.11L8.93 17.42L9 17.21L9.41 16.79L11.93 15.60L13.96 14.27L15.21 12.94L15.91 11.69L16.19 10.92L16.40 11.06L17.10 12.31L17.80 13.01L18.57 13.50L19.69 13.85L20.04 13.85ZM16.12 9.73L16.19 10.08L15.77 10.85L15.07 11.48L14.03 12.03L11.16 12.94L8.65 13.57L8.23 13.50L9 12.38L10.60 10.78L12 9.87L14.10 9.17L15.42 9.17L15.77 9.31ZM18.01 5.54L18.29 5.40L18.50 5.54L18.50 5.75L18.36 5.89L18.15 5.89L18.01 5.75Z";
@@ -29,71 +29,67 @@ function Notice({ children }: { children: ReactNode }) {
 }
 function syncSummary(result: SyncResult) {
   const pi = result.pi.ok
-    ? `Pi: ${result.pi.machines.length} machines updated${result.pi.refreshed ? ", provider refreshed" : ""}.`
+    ? t.piUpdated(result.pi.machines.length, result.pi.refreshed)
     : "error" in result.pi
     ? `Pi: ${result.pi.error}`
     : `Pi: ${result.pi.machines.filter((entry) => !entry.ok).map((entry) => `${entry.machine}: ${entry.error}`).join("; ")}`;
   const native = result.bb.ok
-    ? `BB pickers: ${result.bb.total} models, ${result.bb.added} added, ${result.bb.removed} removed.`
-    : `BB pickers: ${result.bb.error}`;
+    ? t.pickersUpdated(result.bb.total, result.bb.added, result.bb.removed)
+    : `${t.pickers}: ${result.bb.error}`;
   return `${pi} ${native}`;
 }
 const resetTime = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
 function timeLeft(value: string) {
   const minutes = Math.max(0, Math.round((new Date(value).getTime() - Date.now()) / 60_000));
-  return minutes >= 1440 ? `${Math.floor(minutes / 1440)}d ${Math.floor(minutes % 1440 / 60)}h`
-    : minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+  const { d, h, m } = t.units;
+  return minutes >= 1440 ? `${Math.floor(minutes / 1440)}${d} ${Math.floor(minutes % 1440 / 60)}${h}`
+    : minutes >= 60 ? `${Math.floor(minutes / 60)}${h} ${minutes % 60}${m}` : `${minutes}${m}`;
 }
 function resetLabel(value: string) {
-  return `Resets in ${timeLeft(value)} · ${resetTime.format(new Date(value))}`;
-}
-function QuotaCards({ accounts, className }: { accounts: Quota[]; className: string }) {
-  return (
-    <div className={className}>
-      {accounts.map((account) => (
-        <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
-          <div>
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
-              {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
-            </div>
-            {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
-          </div>
-          {account.windows.map((window) => (
-            <div key={window.name} className="space-y-1">
-              <div className="flex justify-between gap-2 text-xs">
-                <span className="truncate">{window.name}</span>
-                <span className="shrink-0 tabular-nums">{Math.round(window.used)}% used</span>
-              </div>
-              <div
-                className="h-1.5 overflow-hidden rounded-full bg-muted"
-                role="progressbar"
-                aria-label={`${account.name} ${window.name}`}
-                aria-valuenow={window.used}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
-                  style={{ width: `${Math.min(100, window.used)}%` }}
-                />
-              </div>
-              {window.resetsAt ? <p className={muted}>{resetLabel(window.resetsAt)}</p> : null}
-            </div>
-          ))}
-          {!account.windows.length && !account.balance ? <p className={muted}>No allowance data</p> : null}
-        </div>
-      ))}
-    </div>
-  );
+  return t.resetsIn(timeLeft(value), resetTime.format(new Date(value)));
 }
 function Subscriptions({ data }: { data: Monitor }) {
   if (!data.webConfigured) return null;
   if (!data.quotas.ok) return <Notice>{data.quotas.error}</Notice>;
   if (!data.quotas.data.length) return null;
   return (
-    <Panel title="Subscriptions" detail="Allowance used in each window, as Magpie last read it.">
-      <QuotaCards accounts={data.quotas.data} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" />
+    <Panel title={t.subscriptions} detail={t.subscriptionsDetail}>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {data.quotas.data.map((account) => (
+          <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
+            <div>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
+                {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
+              </div>
+              {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
+            </div>
+            {account.windows.map((window) => (
+              <div key={window.name} className="space-y-1">
+                <div className="flex justify-between gap-2 text-xs">
+                  <span className="truncate">{window.name}</span>
+                  <span className="shrink-0 tabular-nums">{t.used(Math.round(window.used))}</span>
+                </div>
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label={`${account.name} ${window.name}`}
+                  aria-valuenow={window.used}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${Math.min(100, window.used)}%` }}
+                  />
+                </div>
+                {window.resetsAt ? <p className={muted}>{resetLabel(window.resetsAt)}</p> : null}
+              </div>
+            ))}
+            {!account.windows.length && !account.balance ? <p className={muted}>{t.noAllowance}</p> : null}
+          </div>
+        ))}
+      </div>
     </Panel>
   );
 }
@@ -101,8 +97,7 @@ function Subscriptions({ data }: { data: Monitor }) {
 const agentProvider: Record<string, string> = { claude: "claude-code", codex: "codex", pi: "pi" };
 // "7 days Sonnet" -> "7d Sonnet", to fit the narrow sidebar row.
 const windowLabel = (name: string) =>
-  name.replace(/^(\d+) (hour|day|week|month)s?\b/, (_, count: string, unit: string) =>
-    `${count}${unit === "month" ? "mo" : unit[0]}`);
+  name.replace(/^(\d+) (hour|day|week|month)s?\b/, (_, count: string, unit: string) => `${count}${t.windowUnits[unit]}`);
 // The sidebar footer shows only allowance, so it polls slower than the full dashboard.
 function SubscriptionUsage() {
   const rpc = useRpc<typeof monitorRpc>();
@@ -122,7 +117,7 @@ function SubscriptionUsage() {
           setError(null);
         }
       } catch {
-        if (alive) setError("Cannot read Magpie subscription usage.");
+        if (alive) setError(t.subscriptionError);
       } finally {
         if (alive) setLoading(false);
       }
@@ -135,13 +130,13 @@ function SubscriptionUsage() {
     };
   }, [rpc, refresh]);
   const message = error ?? (!data
-    ? "Loading subscription usage…"
+    ? t.loadingSubscriptions
     : !data.webConfigured
-    ? "Set the Magpie Web UI origin and key in the plugin settings."
+    ? t.setWebSettings
     : !data.quotas.ok
     ? data.quotas.error
     : !data.quotas.data.length
-    ? "Magpie reports no subscriptions."
+    ? t.noSubscriptions
     : null);
   return (
     <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden text-xs text-foreground">
@@ -152,8 +147,8 @@ function SubscriptionUsage() {
         </span>
         <button
           type="button"
-          aria-label="Refresh subscription usage"
-          title="Refresh"
+          aria-label={t.refreshSubscriptions}
+          title={t.refresh}
           disabled={loading}
           onClick={() => setRefresh((value) => value + 1)}
           className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
@@ -214,7 +209,7 @@ function SubscriptionUsage() {
                   ))}
                   {account.balance ? <p className="col-span-full text-muted-foreground">{account.balance}</p> : null}
                   {!account.windows.length && !account.balance
-                    ? <p className="col-span-full text-muted-foreground">No allowance data</p>
+                    ? <p className="col-span-full text-muted-foreground">{t.noAllowance}</p>
                     : null}
                 </div>
               );
@@ -292,8 +287,11 @@ const palette = ["#0EA5E9", "#F59E0B", "#EC4899", "#8B5CF6", "#14B8A6"];
 const tokens = (totals: Totals) => totals.input + totals.output + totals.cache_read + totals.cache_write;
 const share = (value: number, total: number) => `${total ? (100 * value / total).toFixed(1) : "0.0"}%`;
 const price = (totals: Totals) =>
-  totals.unpriced && !totals.cost ? "Unknown" : `${dollars.format(totals.cost)}${totals.unpriced ? "+" : ""}`;
-const bucketLabel = (usage: Usage, label: string) => usage.bucket === "hour" ? `${label}:00` : label;
+  totals.unpriced && !totals.cost ? t.unknown : `${dollars.format(totals.cost)}${totals.unpriced ? "+" : ""}`;
+// Day buckets start at midnight in the Magpie server time zone; format that calendar date without shifting it.
+const dayLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+const bucketLabel = (usage: Usage, bucket: { label: string; time: string }) =>
+  usage.bucket === "hour" ? `${bucket.label}:00` : dayLabel.format(new Date(`${bucket.time.slice(0, 10)}T00:00:00Z`));
 
 function AgentIcon({ id, className = "size-4" }: { id: string; className?: string }) {
   const providers = experimental_useProviders();
@@ -365,14 +363,14 @@ function Overview({ usage, colors }: { usage: Usage; colors: Record<string, stri
   return (
     <div className="space-y-6">
       <div>
-        <p className={muted}>Estimated cost</p>
+        <p className={muted}>{t.estimatedCost}</p>
         <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
           {dollars.format(usage.cost)}{usage.unpriced ? "*" : ""}
         </p>
         <p className={`${muted} mt-1`}>
           {usage.unpriced
-            ? `* ${exact.format(usage.unpriced)} requests have no known price`
-            : "At model list prices; not an invoice"}
+            ? t.unpriced(exact.format(usage.unpriced))
+            : t.listPrice}
         </p>
       </div>
       <div className="space-y-4">
@@ -385,7 +383,7 @@ function Overview({ usage, colors }: { usage: Usage; colors: Record<string, stri
                   <AgentIcon id={agent.id} />
                   <span className="truncate">{agent.name}</span>
                 </span>
-                <span className="shrink-0 tabular-nums">{number.format(value)} tokens</span>
+                <span className="shrink-0 tabular-nums">{t.tokenCount(number.format(value))}</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
@@ -394,12 +392,12 @@ function Overview({ usage, colors }: { usage: Usage; colors: Record<string, stri
                 />
               </div>
               <p className={`${muted} tabular-nums`}>
-                {share(value, total)} of tokens · {price(agent)} · {exact.format(agent.calls)} requests
+                {t.tokenShare(share(value, total))} · {price(agent)} · {t.requestCount(exact.format(agent.calls))}
               </p>
             </div>
           );
         })}
-        {!usage.agents.length ? <p className={muted}>No requests in this period.</p> : null}
+        {!usage.agents.length ? <p className={muted}>{t.noRequests}</p> : null}
       </div>
     </div>
   );
@@ -423,13 +421,13 @@ function TrendChart({ usage, colors }: { usage: Usage; colors: Record<string, st
   const hovered = hover === null ? null : usage.series[hover];
   return (
     <Panel
-      title={metric === "tokens" ? "Tokens over time" : "Cost over time"}
-      detail={usage.bucket === "hour" ? "Per hour, Magpie server time" : "Per day, Magpie server time"}
+      title={metric === "tokens" ? t.tokensOverTime : t.costOverTime}
+      detail={t.perBucket(usage.bucket)}
       action={
         <Segmented
-          label="Chart metric"
+          label={t.chartMetric}
           value={metric}
-          options={[["tokens", "Tokens"], ["cost", "Cost"]]}
+          options={[["tokens", t.tokens], ["cost", t.cost]]}
           onChange={setMetric}
         />
       }
@@ -458,7 +456,7 @@ function TrendChart({ usage, colors }: { usage: Usage; colors: Record<string, st
             preserveAspectRatio="none"
             className="h-full w-full overflow-visible"
             role="img"
-            aria-label={`${metric === "tokens" ? "Tokens" : "Cost"} per ${usage.bucket} by agent`}
+            aria-label={t.chartLabel(metric, usage.bucket)}
           >
             <defs>
               {agents.map((agent) => (
@@ -522,7 +520,7 @@ function TrendChart({ usage, colors }: { usage: Usage; colors: Record<string, st
                 }`}
                 style={{ left: `${x(hover) / chartWidth * 100}%` }}
               >
-                <p className="mb-1.5 font-medium">{bucketLabel(usage, hovered.label)}</p>
+                <p className="mb-1.5 font-medium">{bucketLabel(usage, hovered)}</p>
                 {agents.map((agent) => (
                   <div key={agent.id} className="flex items-center justify-between gap-4 tabular-nums">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -546,7 +544,7 @@ function TrendChart({ usage, colors }: { usage: Usage; colors: Record<string, st
             }`}
             style={{ left: `${x(i) / chartWidth * 100}%` }}
           >
-            {bucketLabel(usage, usage.series[i].label)}
+            {bucketLabel(usage, usage.series[i])}
           </span>
         ))}
       </div>
@@ -569,30 +567,30 @@ function Stats({ usage }: { usage: Usage }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
-        label="Processed tokens"
+        label={t.processedTokens}
         value={number.format(total)}
-        detail={`${number.format(total / active)} per active ${usage.bucket}`}
+        detail={t.perActive(number.format(total / active), usage.bucket)}
         values={usage.series.map(tokens)}
         color="#0EA5E9"
       />
       <StatCard
-        label="Cached input"
+        label={t.cachedInput}
         value={number.format(usage.cache_read)}
-        detail={`${share(usage.cache_read, input)} of input · ${number.format(usage.cache_write)} writes`}
+        detail={t.cacheDetail(share(usage.cache_read, input), number.format(usage.cache_write))}
         values={usage.series.map((bucket) => bucket.cache_read)}
         color="#F59E0B"
       />
       <StatCard
-        label="Output"
+        label={t.output}
         value={number.format(usage.output)}
-        detail={`Includes ${number.format(usage.reasoning)} reasoning tokens`}
+        detail={t.includesReasoning(number.format(usage.reasoning))}
         values={usage.series.map((bucket) => bucket.output)}
         color="#EC4899"
       />
       <StatCard
-        label="Requests"
+        label={t.requests}
         value={number.format(usage.calls)}
-        detail={`${exact.format(usage.errors)} errors · ${share(usage.errors, usage.calls)}`}
+        detail={`${t.errorCount(exact.format(usage.errors))} · ${share(usage.errors, usage.calls)}`}
         values={usage.series.map((bucket) => bucket.calls)}
         color="#14B8A6"
       />
@@ -608,16 +606,16 @@ function Breakdown({ usage }: { usage: Usage }) {
     : view === "agent"
     ? usage.agents.map((agent) => ({ ...agent, agent: agent.id }))
     : usage.series.filter((bucket) => bucket.calls).reverse()
-      .map((bucket) => ({ ...bucket, id: bucket.time, name: bucketLabel(usage, bucket.label) }));
+      .map((bucket) => ({ ...bucket, id: bucket.time, name: bucketLabel(usage, bucket) }));
   const head = "px-4 py-2.5 font-medium";
   return (
     <Panel
-      title="Breakdown"
+      title={t.breakdown}
       action={
         <Segmented
-          label="Breakdown view"
+          label={t.breakdownView}
           value={view}
-          options={[["model", "Model"], ["agent", "Agent"], ["time", usage.bucket === "hour" ? "Hour" : "Day"]]}
+          options={[["model", t.model], ["agent", t.agent], ["time", t.bucket(usage.bucket)]]}
           onChange={setView}
         />
       }
@@ -626,10 +624,10 @@ function Breakdown({ usage }: { usage: Usage }) {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-xs text-muted-foreground">
             <tr>
-              <th scope="col" className={head}>{view === "model" ? "Model" : view === "agent" ? "Agent" : "Time"}</th>
-              <th scope="col" className={`${head} text-right`}>Requests</th>
-              <th scope="col" className={`${head} text-right`}>Tokens</th>
-              <th scope="col" className={`${head} text-right`}>Cost</th>
+              <th scope="col" className={head}>{view === "model" ? t.model : view === "agent" ? t.agent : t.time}</th>
+              <th scope="col" className={`${head} text-right`}>{t.requests}</th>
+              <th scope="col" className={`${head} text-right`}>{t.tokens}</th>
+              <th scope="col" className={`${head} text-right`}>{t.cost}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -643,22 +641,22 @@ function Breakdown({ usage }: { usage: Usage }) {
                 </td>
                 <td className="px-4 py-3 text-right">
                   {exact.format(row.calls)}
-                  {row.errors ? <p className={muted}>{exact.format(row.errors)} errors</p> : null}
+                  {row.errors ? <p className={muted}>{t.errorCount(exact.format(row.errors))}</p> : null}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {number.format(tokens(row))}
-                  <p className={muted}>{share(tokens(row), total)} of tokens</p>
+                  <p className={muted}>{t.tokenShare(share(tokens(row), total))}</p>
                 </td>
                 <td className="px-4 py-3 text-right">
                   {price(row)}
-                  <p className={muted}>{share(row.cost, usage.cost)} of cost</p>
+                  <p className={muted}>{t.costShare(share(row.cost, usage.cost))}</p>
                 </td>
               </tr>
             ))}
             {!rows.length
               ? (
                 <tr>
-                  <td colSpan={4} className={`${muted} px-4 py-6 text-center`}>No requests in this period.</td>
+                  <td colSpan={4} className={`${muted} px-4 py-6 text-center`}>{t.noRequests}</td>
                 </tr>
               )
               : null}
@@ -683,7 +681,7 @@ function Dashboard() {
     try {
       setSyncResult(syncSummary(await rpc.call("syncModels", {})));
     } catch (cause) {
-      setSyncResult(cause instanceof Error ? cause.message : "Cannot sync Magpie models.");
+      setSyncResult(cause instanceof Error ? cause.message : t.syncFailed);
     } finally {
       setSyncing(false);
     }
@@ -707,7 +705,7 @@ function Dashboard() {
           setError(null);
         }
       } catch {
-        if (alive) setError("Cannot refresh Magpie usage. The values below may be out of date.");
+        if (alive) setError(t.refreshFailed);
       } finally {
         inFlight = false;
         if (alive) {
@@ -747,7 +745,7 @@ function Dashboard() {
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-base font-semibold">
               <MagpieIcon className="size-5" />
-              Magpie usage
+              {t.title}
             </h1>
             <p className={`${muted} mt-1 flex items-center gap-1.5`}>
               <span
@@ -755,26 +753,26 @@ function Dashboard() {
                 aria-hidden="true"
               />
               {!data
-                ? "Connecting…"
+                ? t.connecting
                 : data.health.ok
-                ? `Gateway v${data.health.data.version}${
-                  providers ? ` · ${providers.filter((provider) => provider.ready).length}/${providers.length} providers ready` : ""
-                } · updated ${new Date(data.updatedAt).toLocaleTimeString()}`
-                : "Gateway unavailable"}
+                ? `${t.gateway(data.health.data.version)}${
+                  providers ? ` · ${t.providersReady(providers.filter((provider) => provider.ready).length, providers.length)}` : ""
+                } · ${t.updated(new Date(data.updatedAt).toLocaleTimeString())}`
+                : t.gatewayDown}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Segmented
-              label="Usage period"
+              label={t.usagePeriod}
               value={period}
-              options={[["today", "Today"], ["7d", "7 days"], ["30d", "30 days"]]}
+              options={[["today", t.today], ["7d", t.days7], ["30d", t.days30]]}
               onChange={setPeriod}
             />
             <button
               type="button"
               className={`${control} px-2`}
-              aria-label="Refresh"
-              title="Refresh"
+              aria-label={t.refresh}
+              title={t.refresh}
               disabled={loading}
               onClick={() => setRefresh((value) => value + 1)}
             >
@@ -784,15 +782,15 @@ function Dashboard() {
               type="button"
               className={control}
               disabled={syncing}
-              title="Sync Magpie models to Pi and to the Codex and Claude Code pickers"
+              title={t.syncTitle}
               onClick={() => void sync()}
             >
-              {syncing ? "Syncing…" : "Sync models"}
+              {syncing ? t.syncing : t.syncModels}
             </button>
             {data?.webLink
               ? (
-                <UrlLink href={data.webLink} className={control} title="Accounts, routing and settings">
-                  Open Magpie Web ↗
+                <UrlLink href={data.webLink} className={control} title={t.webTitle}>
+                  {t.openWeb}
                 </UrlLink>
               )
               : null}
@@ -804,9 +802,7 @@ function Dashboard() {
         {data && !data.usage.ok ? <Notice>{data.usage.error}</Notice> : null}
         {data && !data.webConfigured
           ? (
-            <Notice>
-              Set the Web UI origin and Web UI key in Settings → Plugins → Magpie to show subscriptions and provider status.
-            </Notice>
+            <Notice>{t.webNotice}</Notice>
           )
           : null}
         {usage
@@ -820,7 +816,7 @@ function Dashboard() {
             </>
           )
           : !data || data.usage.ok
-          ? <Notice>Loading usage…</Notice>
+          ? <Notice>{t.loadingUsage}</Notice>
           : null}
         {data ? <Subscriptions data={data} /> : null}
         {usage ? <Breakdown usage={usage} /> : null}
@@ -835,7 +831,7 @@ export default definePluginApp((app) => {
   app.experimental_sidebarFooter.register({
     kind: "disclosure",
     id: "subscriptions",
-    label: "Magpie subscription usage",
+    label: t.footerLabel,
     icon: "magpie/logo",
     component: SubscriptionUsage,
   });
