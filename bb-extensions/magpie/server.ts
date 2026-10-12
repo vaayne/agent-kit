@@ -1,10 +1,13 @@
 import { type BbPluginApi, cliCommand, defineCli, type PluginCliResult } from "@get-bb/plugin-sdk";
 import { createHash, randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { copyFile, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type Catalog, parseMagpieConfig } from "./config.ts";
 import { hostContract } from "./contract.ts";
+import { monitorRpc } from "./monitor-contract.ts";
+import { createMonitor } from "./monitor.ts";
+import { customModelEntries, nativeProviderSchema, readNativeModels, replaceMagpieModels } from "./native-models.ts";
 import { renderExtension } from "./pi-extension.ts";
 import { createProxy, gatewayURL, machineToken, routes } from "./proxy.ts";
 
@@ -23,6 +26,20 @@ export default async function plugin(bb: BbPluginApi) {
       secret: true,
       default: "",
       description: "Only needed when the gateway requires a key. Kept on the BB server.",
+    },
+    webUrl: {
+      type: "string",
+      label: "Magpie Web UI origin",
+      default: "",
+      description:
+        "HTTP(S) origin reached by the BB server, such as http://127.0.0.1:3430. Enables monitoring details.",
+    },
+    webKey: {
+      type: "string",
+      label: "Magpie Web UI key",
+      secret: true,
+      default: "",
+      description: "MAGPIE_WEB_KEY from magpie web. Kept on the BB server; never sent to the browser.",
     },
     piAgentDir: {
       type: "string",
@@ -49,6 +66,11 @@ export default async function plugin(bb: BbPluginApi) {
   if (!(await settings.get()).proxySecret) {
     await settings.experimental_set({ proxySecret: randomBytes(32).toString("hex") });
   }
+  const monitor = createMonitor(() => settings.get());
+  bb.onDispose(() => monitor.dispose());
+  bb.rpc.register(monitorRpc, { monitor: ({ period }) => monitor.get(period), syncModels: () => syncModels() });
+  const nativeLifetime = new AbortController();
+  bb.onDispose(() => nativeLifetime.abort());
   const host = bb.hosts.experimental_client({ contract: hostContract });
   const proxy = createProxy({
     settings: () => settings.get(),
@@ -232,20 +254,7 @@ export default async function plugin(bb: BbPluginApi) {
         }
         const failed = results.filter((result) => !result.ok);
         if (failed.length) throw new Error(failed.map((result) => `${result.machine}: ${result.error}`).join("; "));
-        if (!disposed && await bb.storage.kv.get<boolean>("pi-refresh-pending")) {
-          const counts = await Promise.all(
-            (["active", "starting", "pending", "stopping"] as const).map((status) =>
-              bb.sdk.threads.count({ providerId: "pi", status })
-            ),
-          );
-          if (!disposed && counts.every((count) => count.total === 0)) {
-            await bb.sdk.plugins.reload({ pluginId: "provider-pi" });
-            await bb.storage.kv.delete("pi-refresh-pending");
-            bb.log.info(
-              "Refreshed the idle Pi provider. BB model pickers can retain their prior list for up to 10 minutes.",
-            );
-          }
-        }
+        await refreshIdlePi();
         autoError = null;
       });
     } catch (error) {
@@ -255,6 +264,68 @@ export default async function plugin(bb: BbPluginApi) {
     } finally {
       autoRunning = false;
     }
+  }
+  /** Reload provider-pi after a catalog change, but only when no Pi thread is running. */
+  async function refreshIdlePi() {
+    if (disposed || !await bb.storage.kv.get<boolean>("pi-refresh-pending")) return false;
+    const counts = await Promise.all(
+      (["active", "starting", "pending", "stopping"] as const).map((status) =>
+        bb.sdk.threads.count({ providerId: "pi", status })
+      ),
+    );
+    if (disposed || counts.some((count) => count.total > 0)) return false;
+    await bb.sdk.plugins.reload({ pluginId: "provider-pi" });
+    await bb.storage.kv.delete("pi-refresh-pending");
+    bb.log.info("Refreshed the idle Pi provider. BB model pickers can retain their prior list for up to 10 minutes.");
+    return true;
+  }
+  /** Write Magpie models into BB customModels so native Codex and Claude Code pickers list them. */
+  async function syncBbModels() {
+    const config = await settings.get();
+    const entries = (await Promise.all(nativeProviderSchema.options.map(async (provider) =>
+      customModelEntries(provider, await readNativeModels(config, provider, nativeLifetime.signal))
+    ))).flat();
+    const path = join((await bb.sdk.system.config()).dataDir, "config.json");
+    const original = await readFile(path, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return "{}";
+      throw error;
+    });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(original);
+    } catch {
+      throw new Error("BB config.json contains invalid JSON.");
+    }
+    const result = replaceMagpieModels(parsed, entries);
+    const changed = JSON.stringify(result.config) !== JSON.stringify(parsed);
+    if (changed) {
+      if (original !== "{}") await copyFile(path, `${path}.magpie.bak`);
+      const temporary = `${path}.magpie-${process.pid}.tmp`;
+      await writeFile(temporary, JSON.stringify(result.config, null, 2) + "\n", { mode: 0o600 });
+      await rename(temporary, path);
+      await bb.sdk.system.reloadConfig();
+    }
+    return { ok: true as const, added: result.added, removed: result.removed, total: result.total, changed };
+  }
+  /** Manual sync for Pi machines and BB native pickers. One failure does not block the other. */
+  function syncModels(selector?: string) {
+    return serialize(async () => {
+      await gatewayCheck();
+      const [pi, native] = await Promise.allSettled([
+        (async () => {
+          const catalog = await readCatalog();
+          const machines = await installCatalog(catalog, selector);
+          const ok = machines.every((entry) => entry.ok);
+          return { ok, defaultModel: catalog.defaultModel, machines, refreshed: ok && await refreshIdlePi() };
+        })(),
+        syncBbModels(),
+      ]);
+      const result = {
+        pi: pi.status === "fulfilled" ? pi.value : { ok: false as const, error: message(pi.reason) },
+        bb: native.status === "fulfilled" ? native.value : { ok: false as const, error: message(native.reason) },
+      };
+      return { ok: result.pi.ok && result.bb.ok, ...result };
+    });
   }
   const syncTimer = setInterval(() => {
     void automaticSync();
@@ -307,6 +378,16 @@ export default async function plugin(bb: BbPluginApi) {
     root: status,
     commands: {
       status,
+      models: cliCommand({
+        summary: "List Magpie models for Codex or Claude Code, including converted models.",
+        positionals: [{ name: "provider", description: "codex or claude-code.", required: true }],
+        options: { json: jsonOption, "bb-config": { type: "boolean", description: "Print BB customModels entries." } },
+        run: ({ options, positionals }) => run(options.json, async () => {
+          const provider = nativeProviderSchema.parse(positionals.provider === "claude" ? "claude-code" : positionals.provider);
+          const models = await readNativeModels(await settings.get(), provider, nativeLifetime.signal);
+          return options["bb-config"] ? customModelEntries(provider, models) : models;
+        }),
+      }),
       routing: cliCommand({
         summary: "Set the default Magpie route for native Codex or Claude Code on all machines.",
         description:
@@ -380,22 +461,10 @@ export default async function plugin(bb: BbPluginApi) {
           }),
       }),
       sync: cliCommand({
-        summary: "Read Magpie Pi config on the server and set Pi to Magpie on connected machines.",
+        summary: "Sync Magpie models to Pi on connected machines and to the BB Codex and Claude Code pickers.",
+        description: "Pi refreshes now when no Pi thread runs; otherwise autoSync refreshes it later. --machine limits Pi only.",
         options: { json: jsonOption, machine: machineOption },
-        run: ({ options }) =>
-          run(options.json, () =>
-            serialize(async () => {
-              await gatewayCheck();
-              const catalog = await readCatalog();
-              const results = await installCatalog(catalog, options.machine);
-              return {
-                ok: results.every((entry) => entry.ok),
-                defaultModel: catalog.defaultModel,
-                machines: results,
-                next:
-                  "When Pi threads are idle, run bb plugin reload provider-pi, or enable autoSync for automatic refresh.",
-              };
-            })),
+        run: ({ options }) => run(options.json, () => syncModels(options.machine)),
       }),
       remove: cliCommand({
         summary: "Remove the Pi extension and restore the prior Pi selection on connected machines.",

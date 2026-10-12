@@ -1,0 +1,130 @@
+{
+  "data": [
+    {
+      "context_length": 1000000,
+      "context_window": 1000000,
+      "created": 0,
+      "created_at": "2025-01-01T00:00:00Z",
+      "display_name": "DeepSeek V4.1 Flash",
+      "id": "deepseek/deepseek-flash",
+      "magpie_label": "DeepSeek V4.1 Flash \u00b7 DeepSeek",
+      "max_input_tokens": 1000000,
+      "max_output_tokens": 393216,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "native_endpoints": [
+        "/v1/chat/completions",
+        "/v1/responses",
+        "/v1/messages"
+      ],
+      "object": "model",
+      "owned_by": "deepseek",
+      "reasoning": true,
+      "supported_reasoning_levels": [
+        {
+          "effort": "low"
+        },
+        {
+          "effort": "high"
+        },
+        {
+          "effort": "max"
+        }
+      ],
+      "type": "model"
+    },
+    {
+      "context_length": 1000000,
+      "context_window": 1000000,
+      "created": 0,
+      "created_at": "2025-01-01T00:00:00Z",
+      "display_name": "Claude Fable 5.1",
+      "id": "claude/claude-fable-5-1",
+      "magpie_label": "Claude Fable 5.1 \u00b7 Claude Code",
+      "max_input_tokens": 1000000,
+      "max_output_tokens": 128000,
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "object": "model",
+      "owned_by": "claude",
+      "reasoning": true,
+      "supported_reasoning_levels": [
+        {
+          "effort": "low"
+        },
+        {
+          "effort": "medium"
+        },
+        {
+          "effort": "high"
+        },
+        {
+          "effort": "xhigh"
+        },
+        {
+          "effort": "max"
+        }
+      ],
+      "type": "model"
+    },
+    {
+      "context_length": 272000,
+      "context_window": 272000,
+      "created": 0,
+      "created_at": "2025-01-01T00:00:00Z",
+      "display_name": "GPT-6.1-Sol",
+      "id": "codex/gpt-6.1-sol",
+      "magpie_label": "GPT-6.1-Sol \u00b7 Codex",
+      "max_input_tokens": 272000,
+      "max_output_tokens": 128000,
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ]
+      },
+      "native_endpoints": [
+        "/v1/responses"
+      ],
+      "object": "model",
+      "owned_by": "codex",
+      "reasoning": true,
+      "supported_reasoning_levels": [
+        {
+          "effort": "low"
+        },
+        {
+          "effort": "medium"
+        },
+        {
+          "effort": "high"
+        },
+        {
+          "effort": "xhigh"
+        },
+        {
+          "effort": "max"
+        },
+        {
+          "effort": "ultra"
+        }
+      ],
+      "type": "model"
+    }
+  ]
+}

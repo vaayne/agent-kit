@@ -14,6 +14,15 @@ Use `bb magpie` to inspect and configure the connector. Use the separate `magpie
 - `bb magpie check` also validates the Pi model catalog on the BB server.
 - Checks do not send model requests.
 
+## Monitor
+
+Open Magpie in the BB navigation rail for Gateway, Routing, and Usage. Visible pages refresh every 5 seconds; snapshots are shared for up to 5 seconds. Usage offers Today, 7 days, and 30 days, using the Magpie server's time zone. Costs are model-price estimates, not invoices.
+
+- Health and usage read the configured gateway. A restricted gateway key may be refused the global usage summary.
+- Gateway details and routing need `webUrl` and secret `webKey` in plugin settings. `webUrl` is an HTTP(S) origin reached by the BB server. Use the fixed `MAGPIE_WEB_KEY` when available. Never print keys or put them in command arguments.
+- The Web UI must own the gateway for live routing traces. The page reports when another process owns it.
+- Monitoring is read-only. It does not expose Web UI credentials, request bodies, session IDs, or raw upstream errors to the browser.
+
 ## Configure
 
 - `gatewayUrl` is the gateway origin as reached from the BB server. The default is `http://127.0.0.1:3425`.
@@ -25,7 +34,7 @@ Use `bb plugin config magpie set <setting> <value>` for non-secret settings.
 
 ## Pi changes
 
-`bb magpie sync --machine <name-or-id>` installs the managed extension and changes Pi's default provider, default model, and enabled models. Without `--machine`, it selects all connected persistent machines. Select hosts within the user's requested scope.
+`bb magpie sync --machine <name-or-id>` installs the managed extension and changes Pi's default provider, default model, and enabled models. Without `--machine`, it selects all connected persistent machines. Select hosts within the user's requested scope. Sync also replaces the Magpie entries in BB `customModels` for the Codex and Claude Code pickers. `--machine` limits only the Pi part. The Magpie panel's **Sync models** button runs the same sync.
 
 After manual sync, run `bb plugin reload provider-pi` when Pi threads are idle. Start a new Pi session. The generated extension needs BB session environment variables for model requests; it is not a standalone Pi package.
 

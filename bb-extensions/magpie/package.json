@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-magpie",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "private": true,
   "engines": {
@@ -9,12 +9,13 @@
   },
   "bb": {
     "name": "Magpie",
-    "description": "Route BB Pi, Codex and Claude Code agents through one Magpie gateway.",
+    "description": "Route BB agents through Magpie and monitor gateway health, routing, and usage.",
     "branding": {
       "icon": "Bird"
     },
     "server": "./server.ts",
-    "host": "./host.ts"
+    "host": "./host.ts",
+    "app": "./app.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -27,7 +28,9 @@
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.37",
     "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "react": "^19.0.0",
+    "@types/react": "^19.0.0"
   },
   "license": "MIT"
 }

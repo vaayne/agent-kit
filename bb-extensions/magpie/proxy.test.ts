@@ -3,10 +3,19 @@ import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { test, type TestContext } from "node:test";
 import { gunzipSync, gzipSync, zstdCompressSync, zstdDecompressSync } from "node:zlib";
-import { createProxy, gatewayURL, machineToken, routes, tokenHost } from "./proxy.ts";
+import { createProxy, gatewayFailure, gatewayURL, machineToken, routes, tokenHost } from "./proxy.ts";
 
 const secret = "test-only-signing-key";
 const token = machineToken(secret, "host_test");
+
+test("response timeouts remain distinct from connection failures", async () => {
+  for (const code of ["UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "ECONNREFUSED", "UND_ERR_CONNECT_TIMEOUT"]) {
+    const error = new TypeError("fetch failed", { cause: Object.assign(new Error("transport failed"), { code }) });
+    const response = gatewayFailure(error);
+    assert.equal(response.status, code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT" ? 504 : 502);
+    assert.match((await response.json()).error.message, response.status === 504 ? /Timed out/ : /Cannot reach/);
+  }
+});
 
 async function gateway(t: TestContext, handler: (request: IncomingMessage, response: ServerResponse) => void) {
   const server = createServer(handler);
@@ -235,6 +244,63 @@ test("caller abort and plugin disposal terminate active upstream streams", async
       await close;
     });
   }
+});
+
+test("caller abort and disposal close upstream while waiting for headers", { timeout: 5000 }, async (t) => {
+  for (const reason of ["caller", "dispose"]) {
+    await t.test(reason, async (t) => {
+      let accept!: () => void;
+      let close!: () => void;
+      const accepted = new Promise<void>((resolve) => { accept = resolve; });
+      const closed = new Promise<void>((resolve) => { close = resolve; });
+      const url = await gateway(t, (req, res) => {
+        req.resume();
+        res.on("close", close);
+        accept();
+      });
+      const errors: unknown[] = [];
+      const proxy = createProxy({
+        settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
+        enrolled: async () => true,
+        onError: (error) => errors.push(error),
+      });
+      t.after(() => proxy.dispose());
+      const controller = new AbortController();
+      const response = proxy.handle(request({}, controller.signal), "/v1/responses", "codex");
+      await accepted;
+      if (reason === "caller") controller.abort();
+      else proxy.dispose();
+      assert.equal((await response).status, reason === "caller" ? 499 : 503);
+      await closed;
+      assert.deepEqual(errors, []);
+    });
+  }
+});
+
+test("a non-streaming response can wait 75 seconds for headers", {
+  skip: process.env.MAGPIE_LONG_REQUEST_TEST !== "1",
+  timeout: 90_000,
+}, async (t) => {
+  const url = await gateway(t, (req, res) => {
+    req.resume();
+    const timer = setTimeout(() => res.end(JSON.stringify({ model: "test/long", output: [] })), 75_000);
+    res.on("close", () => clearTimeout(timer));
+  });
+  const proxy = createProxy({
+    settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
+    enrolled: async () => true,
+    onError: (error) => { throw error; },
+  });
+  t.after(() => proxy.dispose());
+  const started = performance.now();
+  const response = await proxy.handle(new Request("http://bb.invalid/v1/responses", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: JSON.stringify({ model: "test/long", stream: false }),
+  }), "/v1/responses", "codex");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { model: "test/long", output: [] });
+  assert.ok(performance.now() - started >= 75_000);
 });
 
 test("upstream status and retry delay survive, and redirects never carry the gateway key elsewhere", async (t) => {

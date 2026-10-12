@@ -52,6 +52,16 @@ const requestHeaders = [
 ];
 const responseHeaders = ["content-type", "cache-control", "retry-after", "x-request-id"];
 
+export function gatewayFailure(error: unknown): Response {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    const code = "code" in cause ? cause.code : undefined;
+    if (cause.name === "TimeoutError" || code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT") {
+      return Response.json({ error: { message: "Timed out waiting for the Magpie gateway response." } }, { status: 504 });
+    }
+  }
+  return Response.json({ error: { message: "Cannot reach the Magpie gateway. Run bb magpie check." } }, { status: 502 });
+}
+
 export function createProxy(options: {
   settings: () => Promise<GatewaySettings>;
   enrolled: (hostId: string) => Promise<boolean>;
@@ -93,9 +103,8 @@ export function createProxy(options: {
         active.delete(controller);
         request.signal.removeEventListener("abort", abort);
       };
-      // Limit response-header wait. Long generations remain open until the caller cancels.
-      const timer = setTimeout(() => controller.abort(new Error("Gateway response timed out.")), 60_000);
-      timer.unref();
+      // Compaction can take over a minute before headers arrive. Keep the HTTP
+      // client's timeouts and propagate caller cancellation through the body.
       try {
         const headers = new Headers();
         for (const name of requestHeaders) {
@@ -118,7 +127,6 @@ export function createProxy(options: {
           redirect: "manual",
           signal: controller.signal,
         });
-        clearTimeout(timer);
         const outgoing = new Headers();
         for (const name of responseHeaders) {
           const value = upstream.headers.get(name);
@@ -150,12 +158,11 @@ export function createProxy(options: {
         });
         return new Response(body, { status: upstream.status, headers: outgoing });
       } catch (error) {
-        clearTimeout(timer);
         cleanup();
-        if (!request.signal.aborted && !disposed) options.onError(error);
-        return Response.json({ error: { message: "Cannot reach the Magpie gateway. Run bb magpie check." } }, {
-          status: 502,
-        });
+        if (request.signal.aborted) return new Response(null, { status: 499 });
+        if (disposed) return Response.json({ error: { message: "Magpie connector is stopping." } }, { status: 503 });
+        options.onError(error);
+        return gatewayFailure(error);
       }
     },
   };
