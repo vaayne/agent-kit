@@ -5,7 +5,7 @@ AGENTS.md            # short index; links to rules
 CLAUDE.md -> AGENTS.md
 .agents/
   rules/             # one file per task area
-  skills/            # skills installed with gh skill install
+  skills/            # local skills; upstream skills are ignored (SKILL.md)
 .claude/
   skills -> ../.agents/skills
 mise.toml            # tools and aggregate tasks (tooling.md)
@@ -44,8 +44,9 @@ areas, read each matching rule. Do not load all rule files by default.
 - Selecting checks or completing work: [verification](.agents/rules/verification.md).
 - Production, deployment, releases and paid calls: [operations](.agents/rules/operations.md).
 
-Repository skills live in `.agents/skills/`. Read a skill when a rule links to
-it. If a skill conflicts with a rule, the rule wins.
+Repository skills live in `.agents/skills/`. Run `mise run skills:install` to
+install the upstream skills. Read a skill when a rule links to it. If a skill
+conflicts with a rule, the rule wins.
 ```
 
 Use this layout for new repositories. In an existing repository, keep a

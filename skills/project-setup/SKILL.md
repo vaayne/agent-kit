@@ -73,13 +73,14 @@ leftover configuration.
      Persistent data alone does not require PostgreSQL; a file store or an
      external system of record may own it.
 
-5. **Install skills.** Install each skill from its upstream source with
-   `gh skill install`. Do not copy skill content into this skill or write it
-   from memory. See [skill sources](#skill-sources).
+5. **Install skills.** Add each upstream skill to the `skills:install` task
+   and to `.agents/skills/.gitignore`, then run `mise run skills:install`. Do
+   not copy skill content into this skill or write it from memory. See
+   [skill sources](#skill-sources).
 
 6. **Bootstrap.** Run `mise install`, the locked dependency install
-   (`mise run install`), `mise run hooks:install`, and the browser install for
-   e2e when the repository has one.
+   (`mise run install`), `mise run skills:install`, `mise run hooks:install`,
+   and the browser install for e2e when the repository has one.
 
 7. **Verify.** After an initial setup, run `prek validate-config prek.toml`,
    `mise run format`, and `mise run check`. After an incremental change, run
@@ -93,13 +94,41 @@ not add Fumadocs without public documentation.
 
 ## Skill sources
 
-Install skills at project scope into `.agents/skills/`. Resolve the current
-release when you install, and commit the installed files. `gh skill update`
-uses the source metadata in each `SKILL.md`.
+Skills live in `.agents/skills/` at project scope. There are two kinds:
+
+- **Upstream skills** come from a GitHub repository (see the table). Do not
+  commit them, because they can be large and the upstream owns them. List
+  each one in `.agents/skills/.gitignore`, and install it with the
+  `skills:install` task.
+- **Local skills** exist only in this repository. Commit them.
+
+The task pins each upstream skill to a tag or a commit SHA, so every checkout
+gets the same content. `--force` lets the task run again over an existing
+install. To update a skill, change its pin and run the task again.
 
 ```bash
-gh skill install <owner/repo> <skill> --dir .agents/skills
+#!/bin/bash
+#MISE description="Install the pinned upstream agent skills into .agents/skills"
+set -euo pipefail
+
+# Upstream skills are not committed; .agents/skills/.gitignore lists them.
+# To update one, change its pin here and run this task again.
+install() {
+	gh skill install "$1" "$2" --pin "$3" --dir .agents/skills --force
+}
+
+install tester-army/e2e e2e <tag-or-sha>
 ```
+
+```gitignore
+# Upstream skills. `mise run skills:install` installs them at pinned versions.
+e2e/
+```
+
+When you add a skill, pin the latest release tag. If the repository has no
+release, pin the head commit SHA of the default branch. Do not pin a branch
+name. Review the skill content before you add it to the task. A skill with
+many files installs slowly, because `gh` downloads each file separately.
 
 | Need                     | Repository                       | Skill                     |
 | ------------------------ | -------------------------------- | ------------------------- |
@@ -108,7 +137,7 @@ gh skill install <owner/repo> <skill> --dir .agents/skills
 | End-to-end tests         | `tester-army/e2e`                | `e2e`                     |
 | Go code                  | `JetBrains/go-modern-guidelines` | `use-modern-go`           |
 | Oxlint anti-slop install | `dmmulroy/anti-slop`             | `install-anti-slop`       |
-| shadcn components        | `shadcn/ui`                      | `shadcn`                  |
+| shadcn components        | `shadcn-ui/ui`                   | `shadcn`                  |
 
 `install-anti-slop` is a one-time installer. Run it from its upstream copy
 during setup; do not keep it in the repository unless the team updates

@@ -16,7 +16,7 @@ rings instead of borders, layered low-opacity shadows, a neutral ink ramp, and
 sparing semantic color, in light and dark. shadcn on Base UI supplies the
 components, and Beautiful UI supplies the tokens and the AI-product
 primitives. Use Tailwind CSS v4 through `@tailwindcss/vite`. Install the
-`shadcn` skill from `shadcn/ui`.
+`shadcn` skill from `shadcn-ui/ui`.
 
 ### Setup
 
