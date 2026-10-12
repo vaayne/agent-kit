@@ -277,6 +277,32 @@ test("caller abort and disposal close upstream while waiting for headers", { tim
   }
 });
 
+test("disposal during the enrollment check never sends the request", async (t) => {
+  let contacted = false;
+  const url = await gateway(t, (req, res) => {
+    contacted = true;
+    req.resume();
+    res.end();
+  });
+  let release!: () => void;
+  let checking!: () => void;
+  const checked = new Promise<void>((resolve) => { checking = resolve; });
+  const proxy = createProxy({
+    settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
+    enrolled: () => {
+      checking();
+      return new Promise((resolve) => { release = () => resolve(true); });
+    },
+    onError: (error) => assert.fail(String(error)),
+  });
+  const response = proxy.handle(request(), "/v1/responses", "codex");
+  await checked;
+  proxy.dispose();
+  release();
+  assert.equal((await response).status, 503);
+  assert.equal(contacted, false);
+});
+
 test("a non-streaming response can wait 75 seconds for headers", {
   skip: process.env.MAGPIE_LONG_REQUEST_TEST !== "1",
   timeout: 90_000,

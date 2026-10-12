@@ -30,7 +30,7 @@ export function tokenHost(secret: string, token: string): string | null {
   return actual.length === expected.length && timingSafeEqual(actual, expected) ? match[1] : null;
 }
 
-export interface GatewaySettings {
+interface GatewaySettings {
   gatewayUrl: string;
   gatewayKey: string;
   proxySecret: string;
@@ -62,50 +62,69 @@ export function gatewayFailure(error: unknown): Response {
   return Response.json({ error: { message: "Cannot reach the Magpie gateway. Run bb magpie check." } }, { status: 502 });
 }
 
+/** Read a JSON body of at most `limit` bytes. The caller validates its shape. */
+export async function readJson(
+  response: Response,
+  limit: number,
+  label: string,
+  Failure: new (message: string, options?: ErrorOptions) => Error = Error,
+): Promise<unknown> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Failure(`${label} returned an empty response.`);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) throw new Failure(`${label} response exceeds ${limit / 1024 / 1024} MiB.`);
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch (cause) {
+    throw new Failure(`${label} returned invalid JSON.`, { cause });
+  }
+}
+
+const stopping = () => Response.json({ error: { message: "Magpie connector is stopping." } }, { status: 503 });
+
 export function createProxy(options: {
   settings: () => Promise<GatewaySettings>;
   enrolled: (hostId: string) => Promise<boolean>;
   onError: (error: unknown) => void;
 }) {
-  const active = new Set<AbortController>();
-  let disposed = false;
+  // Aborting the lifetime cancels every request, including one still waiting for settings or enrollment.
+  const lifetime = new AbortController();
   return {
     dispose() {
-      disposed = true;
-      for (const controller of active) controller.abort();
-      active.clear();
+      lifetime.abort();
     },
     async handle(
       request: Request,
       path: typeof routes[number],
       agent: "pi" | "codex" | "claude" = "pi",
     ): Promise<Response> {
-      if (disposed) return Response.json({ error: { message: "Magpie connector is stopping." } }, { status: 503 });
-      const settings = await options.settings();
-      if (!settings.proxySecret) {
-        return Response.json({ error: { message: "Reload the Magpie connector to create its signing key." } }, {
-          status: 503,
-        });
-      }
-      // Codex keeps its own Authorization header. BB sends the proxy token separately.
-      const token = request.headers.get("x-bb-account-pool-token")
-        ?? request.headers.get("authorization")?.replace(/^Bearer /i, "") ?? request.headers.get("x-api-key") ?? "";
-      const hostId = tokenHost(settings.proxySecret, token);
-      if (!hostId || !await options.enrolled(hostId)) {
-        return Response.json({ error: { message: "Invalid Magpie connector token." } }, { status: 401 });
-      }
-      const controller = new AbortController();
-      active.add(controller);
-      const abort = () => controller.abort(request.signal.reason);
-      request.signal.addEventListener("abort", abort, { once: true });
-      if (request.signal.aborted) abort();
-      const cleanup = () => {
-        active.delete(controller);
-        request.signal.removeEventListener("abort", abort);
-      };
-      // Compaction can take over a minute before headers arrive. Keep the HTTP
-      // client's timeouts and propagate caller cancellation through the body.
+      if (lifetime.signal.aborted) return stopping();
+      const signal = AbortSignal.any([lifetime.signal, request.signal]);
       try {
+        const settings = await options.settings();
+        if (!settings.proxySecret) {
+          return Response.json({ error: { message: "Reload the Magpie connector to create its signing key." } }, {
+            status: 503,
+          });
+        }
+        // Codex keeps its own Authorization header. BB sends the proxy token separately.
+        const token = request.headers.get("x-bb-account-pool-token")
+          ?? request.headers.get("authorization")?.replace(/^Bearer /i, "") ?? request.headers.get("x-api-key") ?? "";
+        const hostId = tokenHost(settings.proxySecret, token);
+        if (!hostId || !await options.enrolled(hostId)) {
+          return Response.json({ error: { message: "Invalid Magpie connector token." } }, { status: 401 });
+        }
         const headers = new Headers();
         for (const name of requestHeaders) {
           const value = request.headers.get(name);
@@ -119,48 +138,19 @@ export function createProxy(options: {
         const upstreamURL = new URL(path, gatewayURL(settings.gatewayUrl));
         if (new URL(request.url).searchParams.get("beta") === "true") upstreamURL.searchParams.set("beta", "true");
         // Node fetch needs a repeatable body to return HTTP 401 without a transport error.
-        const requestBody = await request.arrayBuffer();
-        const upstream = await fetch(upstreamURL, {
-          method: "POST",
-          headers,
-          body: requestBody,
-          redirect: "manual",
-          signal: controller.signal,
-        });
+        const body = await request.arrayBuffer();
+        // Compaction can take over a minute before headers arrive, so keep the HTTP client's timeouts.
+        // The signal also ends the streamed body; a caller that cancels the body cancels the upstream read.
+        const upstream = await fetch(upstreamURL, { method: "POST", headers, body, redirect: "manual", signal });
         const outgoing = new Headers();
         for (const name of responseHeaders) {
           const value = upstream.headers.get(name);
           if (value) outgoing.set(name, value);
         }
-        if (!upstream.body) {
-          cleanup();
-          return new Response(null, { status: upstream.status, headers: outgoing });
-        }
-        const reader = upstream.body.getReader();
-        const body = new ReadableStream<Uint8Array>({
-          async pull(target) {
-            try {
-              const { value, done } = await reader.read();
-              if (done) {
-                cleanup();
-                target.close();
-              } else target.enqueue(value);
-            } catch (error) {
-              cleanup();
-              target.error(error);
-            }
-          },
-          async cancel(reason) {
-            controller.abort(reason);
-            cleanup();
-            await reader.cancel(reason).catch(() => {});
-          },
-        });
-        return new Response(body, { status: upstream.status, headers: outgoing });
+        return new Response(upstream.body, { status: upstream.status, headers: outgoing });
       } catch (error) {
-        cleanup();
         if (request.signal.aborted) return new Response(null, { status: 499 });
-        if (disposed) return Response.json({ error: { message: "Magpie connector is stopping." } }, { status: 503 });
+        if (lifetime.signal.aborted) return stopping();
         options.onError(error);
         return gatewayFailure(error);
       }

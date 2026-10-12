@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { gatewayURL } from "./proxy.ts";
+import { gatewayURL, readJson } from "./proxy.ts";
 
 export const nativeProviderSchema = z.enum(["codex", "claude-code"]);
-export type NativeProvider = z.infer<typeof nativeProviderSchema>;
-export type NativeModel = { id: string; name: string; efforts: string[] };
+type NativeProvider = z.infer<typeof nativeProviderSchema>;
+type NativeModel = { id: string; name: string; efforts: string[] };
 
 const catalogSchema = z.object({
   data: z.array(z.object({
@@ -44,28 +44,8 @@ export async function readNativeModels(
     await response.body?.cancel();
     throw new Error(`Magpie model catalog returned HTTP ${response.status}.`);
   }
-  const reader = response.body!.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      // Match the existing catalog limit. Increase only for a larger verified catalog.
-      if (size > 1024 * 1024) throw new Error("Magpie model catalog exceeds 1 MiB.");
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel();
-  }
-  let value: unknown;
-  try {
-    value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    throw new Error("Magpie model catalog is not valid JSON.");
-  }
-  return parseNativeModels(value);
+  // Match the Pi catalog limit. Increase only for a larger verified catalog.
+  return parseNativeModels(await readJson(response, 1024 * 1024, "Magpie model catalog"));
 }
 
 const magpiePrefix = "Magpie · ";

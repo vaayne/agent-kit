@@ -9,7 +9,7 @@
   },
   "bb": {
     "name": "Magpie",
-    "description": "Route BB agents through Magpie and monitor gateway health, routing, and usage.",
+    "description": "Route BB agents through Magpie and monitor usage and subscriptions.",
     "branding": {
       "icon": "./assets/icon.svg"
     },

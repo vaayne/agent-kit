@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -32,10 +32,12 @@ test("sync preserves source config and unrelated preferences; remove restores on
   assert.doesNotMatch(await readFile(join(agent, "extensions/magpie/index.js"), "utf8"), /source-secret/);
   settings.theme = "changed";
   settings.defaultModel = "user-edit";
+  delete settings.enabledModels;
   await writeFile(join(agent, "settings.json"), JSON.stringify(settings));
   await files.remove();
+  // A key the user deleted stays deleted.
   assert.deepEqual(JSON.parse(await readFile(join(agent, "settings.json"), "utf8")), {
-    ...original,
+    defaultProvider: "original",
     theme: "changed",
     defaultModel: "user-edit",
   });
@@ -72,4 +74,23 @@ test("install refuses an unmanaged Magpie extension and preserves other extensio
   await files.install(catalog);
   await files.remove();
   assert.equal(await readFile(otherExtension, "utf8"), "other extension");
+});
+
+test("remove restores the prior selection after a failed update", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "magpie-failed-update-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const agent = join(root, "agent");
+  await mkdir(agent);
+  const original = { defaultProvider: "original", defaultModel: "prior" };
+  await writeFile(join(agent, "settings.json"), JSON.stringify(original));
+  const files = hostFiles(agent, join(root, "plugin"));
+  await files.install(parseMagpieConfig({ providers: { magpie: { models: [{ id: "a" }] } } }, {}));
+  // A read-only extension directory fails the update after the recovery state is saved.
+  const extensionDir = join(agent, "extensions/magpie");
+  await chmod(extensionDir, 0o500);
+  await assert.rejects(files.install(parseMagpieConfig({ providers: { magpie: { models: [{ id: "b" }] } } }, {})));
+  await chmod(extensionDir, 0o700);
+  assert.equal(JSON.parse(await readFile(join(agent, "settings.json"), "utf8")).defaultModel, "a");
+  await files.remove();
+  assert.deepEqual(JSON.parse(await readFile(join(agent, "settings.json"), "utf8")), original);
 });

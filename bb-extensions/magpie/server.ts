@@ -1,10 +1,11 @@
 import { type BbPluginApi, cliCommand, defineCli, type PluginCliResult } from "@get-bb/plugin-sdk";
 import { createHash, randomBytes } from "node:crypto";
-import { copyFile, readFile, rename, writeFile } from "node:fs/promises";
+import { copyFile, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type Catalog, parseMagpieConfig } from "./config.ts";
 import { hostContract } from "./contract.ts";
+import { atomicWrite } from "./host-files.ts";
 import { monitorRpc } from "./monitor-contract.ts";
 import { createMonitor } from "./monitor.ts";
 import { customModelEntries, nativeProviderSchema, readNativeModels, replaceMagpieModels } from "./native-models.ts";
@@ -307,9 +308,7 @@ export default async function plugin(bb: BbPluginApi) {
     const changed = JSON.stringify(result.config) !== JSON.stringify(parsed);
     if (changed) {
       if (original !== "{}") await copyFile(path, `${path}.magpie.bak`);
-      const temporary = `${path}.magpie-${process.pid}.tmp`;
-      await writeFile(temporary, JSON.stringify(result.config, null, 2) + "\n", { mode: 0o600 });
-      await rename(temporary, path);
+      await atomicWrite(path, JSON.stringify(result.config, null, 2) + "\n");
       await bb.sdk.system.reloadConfig();
     }
     return { ok: true as const, added: result.added, removed: result.removed, total: result.total, changed };

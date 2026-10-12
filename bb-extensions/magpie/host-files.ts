@@ -6,7 +6,9 @@ import { renderExtension } from "./pi-extension.ts";
 
 type JsonObject = Record<string, unknown>;
 const managedKeys = ["defaultProvider", "defaultModel", "enabledModels"] as const;
-type State = { before: JsonObject; written: JsonObject; modelCount: number };
+// `pending` is the selection an unfinished install is writing. remove() treats it as owned too,
+// so a failed update cannot make the prior Magpie selection look like a user edit.
+type State = { before: JsonObject; written: JsonObject; pending?: JsonObject; modelCount: number };
 
 async function readObject(path: string): Promise<JsonObject | null> {
   try {
@@ -27,7 +29,7 @@ async function readObject(path: string): Promise<JsonObject | null> {
   }
 }
 
-async function atomicWrite(path: string, value: string): Promise<void> {
+export async function atomicWrite(path: string, value: string): Promise<void> {
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, value, { mode: 0o600, flag: "wx" });
@@ -70,13 +72,15 @@ export function hostFiles(agentDir: string, dataDir: string) {
         defaultModel: catalog.defaultModel,
         enabledModels: catalog.models.map((model) => `magpie/${model.id}`),
       };
-      const next: State = { before, written, modelCount: catalog.models.length };
+      const save = (value: State) => atomicWrite(stateFile, JSON.stringify(value, null, 2) + "\n");
       await mkdir(dataDir, { recursive: true });
       await mkdir(extensionDir, { recursive: true });
       // Save recovery state before changing Pi's selection.
-      await atomicWrite(stateFile, JSON.stringify(next, null, 2) + "\n");
+      await save({ before, written: previous?.written ?? {}, pending: written, modelCount: previous?.modelCount ?? 0 });
       await atomicWrite(extensionFile, renderExtension(catalog));
       await atomicWrite(settingsFile, JSON.stringify({ ...settings, ...written }, null, 2) + "\n");
+      const next: State = { before, written, modelCount: catalog.models.length };
+      await save(next);
       return result(next);
     },
     async remove() {
@@ -85,7 +89,10 @@ export function hostFiles(agentDir: string, dataDir: string) {
       const settings = await readObject(settingsFile) ?? {};
       for (const key of managedKeys) {
         // Keep values the user changed after the last sync.
-        if (JSON.stringify(settings[key]) !== JSON.stringify(previous.written[key])) continue;
+        const value = JSON.stringify(settings[key]);
+        const pending = previous.pending && Object.hasOwn(previous.pending, key)
+          && value === JSON.stringify(previous.pending[key]);
+        if (value !== JSON.stringify(previous.written[key]) && !pending) continue;
         if (Object.hasOwn(previous.before, key)) settings[key] = previous.before[key];
         else delete settings[key];
       }

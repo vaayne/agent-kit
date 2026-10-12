@@ -93,19 +93,15 @@ async function fixture(t: TestContext) {
     const url = new URL(req.url!, "http://fixture");
     requests.push(url.pathname);
     assert.equal(req.headers.authorization, "Bearer test-gateway-key");
-    if (failure === "usage" && url.pathname.includes("usage")) {
-      res.writeHead(403);
+    if (failure.startsWith("usage") && url.pathname.includes("usage")) {
+      res.writeHead(failure === "usage-401" ? 401 : 403);
       res.end("PRIVATE-ERROR");
       return;
     }
+    const body = url.pathname === "/api/hello" ? { name: "magpie", version: "0.1.1190" } : usage(url.searchParams.get("period")!);
+    if (failure === "time" && "series" in body) body.series[0].time = "Oct 11";
     res.setHeader("content-type", "application/json");
-    res.end(
-      JSON.stringify(
-        url.pathname === "/api/hello"
-          ? { name: "magpie", version: "0.1.1190" }
-          : usage(url.searchParams.get("period")!),
-      ),
-    );
+    res.end(JSON.stringify(body));
   });
   const webUrl = await serve(t, (req, res) => {
     const url = new URL(req.url!, "http://fixture");
@@ -121,8 +117,13 @@ async function fixture(t: TestContext) {
       return;
     }
     assert.equal(req.headers.cookie, `magpie_web_3430=${key}`);
+    if (failure === "web-401") {
+      res.writeHead(401);
+      res.end();
+      return;
+    }
     const data = url.pathname === "/api/providers"
-      ? failure === "schema" ? { ...providers, gateway: { running: "yes" } } : providers
+      ? failure === "schema" ? { providers: [{ ready: "yes", off: false }] } : providers
       : quotas;
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(data));
@@ -164,7 +165,7 @@ test("real HTTP login, summary and usage produce a bounded, credential-free snap
   assert.equal(data.usage.data.bucket, "hour");
   assert.deepEqual(data.usage.data.agents.map((agent) => [agent.id, agent.name, agent.reasoning]), [["codex", "Codex", 30]]);
   assert.deepEqual(data.usage.data.series.map((bucket) => bucket.agents), [
-    { codex: { calls: 12, tokens: 820, cost: 0.42 } },
+    { codex: { tokens: 820, cost: 0.42 } },
     {},
   ]);
   assert.ok(!("rows" in data.usage.data) && !("by" in data.usage.data));
@@ -197,6 +198,26 @@ test("schema drift is explicit and limited to the affected section", async (t) =
   const data = await f.monitor.get("today");
   assert.ok(!data.providers.ok && data.health.ok && data.usage.ok && data.quotas.ok);
   assert.match(data.providers.error, /unsupported data format/);
+  f.fail("time");
+  const week = await f.monitor.get("7d");
+  assert.ok(!week.usage.ok && week.providers.ok);
+});
+
+test("a gateway 401 keeps the Web UI session", async (t) => {
+  const f = await fixture(t);
+  f.fail("usage-401");
+  const [today, week] = [await f.monitor.get("today"), await f.monitor.get("7d")];
+  assert.ok(!today.usage.ok && !week.usage.ok && today.providers.ok && week.providers.ok);
+  assert.equal(f.requests.filter((path) => path === "/").length, 1);
+});
+
+test("a Web UI 401 signs in again on the next snapshot", async (t) => {
+  const f = await fixture(t);
+  f.fail("web-401");
+  assert.ok(!(await f.monitor.get("today")).providers.ok);
+  f.fail("");
+  assert.ok((await f.monitor.get("7d")).providers.ok);
+  assert.equal(f.requests.filter((path) => path === "/").length, 2);
 });
 
 test("missing or wrong web credentials preserve gateway monitoring; settings changes clear the cache", async (t) => {
@@ -231,7 +252,6 @@ test("invalid origins cannot return embedded credentials to the browser", async 
   f.configure({ gatewayUrl: "http://PRIVATE-KEY@example.test/?key=PRIVATE-QUERY" });
   let data = await f.monitor.get("today");
   assert.ok(!data.health.ok);
-  assert.equal(data.gatewayUrl, "Invalid gateway origin");
   assert.equal(data.webLink, new URL(data.webLink).origin);
   f.configure({ webLink: "https://PRIVATE-USER:PRIVATE-PASS@magpie.example.test/" });
   data = await f.monitor.get("today");

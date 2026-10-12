@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { type Monitor, type Period, providersSchema, quotasSchema, totalsSchema, usageSchema } from "./monitor-contract.ts";
-import { gatewayURL } from "./proxy.ts";
+import { type Monitor, type Period, providersSchema, quotasSchema, usageSchema } from "./monitor-contract.ts";
+import { gatewayURL, readJson } from "./proxy.ts";
 
 export interface MonitorSettings {
   gatewayUrl: string;
@@ -14,16 +14,13 @@ export interface MonitorSettings {
 function list<T extends z.ZodType>(item: T) {
   return z.array(item).nullable().transform((value) => value ?? []);
 }
-const named = totalsSchema.extend({ id: z.string(), name: z.string() });
+const bucket = usageSchema.shape.series.element;
+const named = usageSchema.shape.agents.element;
 // /v1/magpie/usage/requests covers gateway requests and local agent sessions, with per-agent buckets.
 // It always returns a page of request rows; they are dropped here and never reach the browser.
-const rawUsage = totalsSchema.extend({
-  period: usageSchema.shape.period,
-  bucket: usageSchema.shape.bucket,
-  series: list(totalsSchema.extend({
-    label: z.string(),
-    time: z.string(),
-    by: z.object({ agent: z.record(z.string(), usageSchema.shape.series.element.shape.agents.valueType).nullable() }),
+const rawUsage = usageSchema.omit({ series: true, agents: true, models: true }).extend({
+  series: list(bucket.omit({ agents: true }).extend({
+    by: z.object({ agent: bucket.shape.agents.nullable() }),
   })),
   by: z.object({ agent: list(named), model: list(named) }),
 }).transform(({ series, by, ...usage }) => ({
@@ -35,7 +32,7 @@ const rawUsage = totalsSchema.extend({
 const rawProviders = providersSchema.extend({ providers: list(providersSchema.shape.providers.element) });
 const rawQuotas = list(quotasSchema.element.extend({ windows: list(quotasSchema.element.shape.windows.element) }));
 
-export const parsers = {
+const parsers = {
   health: z.object({ name: z.literal("magpie"), version: z.string() }).transform(({ version }) => ({ version })),
   providers: rawProviders,
   usage: rawUsage,
@@ -43,6 +40,13 @@ export const parsers = {
 };
 
 class MonitorError extends Error {}
+class HttpError extends MonitorError {
+  readonly status: number;
+  constructor(label: string, status: number) {
+    super(`${label} returned HTTP ${status}. Check its address and access key.`);
+    this.status = status;
+  }
+}
 
 export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
   const lifetime = new AbortController();
@@ -61,12 +65,13 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
       throw new MonitorError(`${label} is unreachable or timed out.`, { cause });
     }
   }
-  async function cookie(config: MonitorSettings): Promise<string> {
+  // Not async: callers compare the returned promise with `login` to clear only the session they used.
+  function cookie(config: MonitorSettings): Promise<string> {
     if (!config.webUrl || !config.webKey) {
-      throw new MonitorError("Set the Magpie Web UI origin and Web UI key in the plugin settings.");
+      return Promise.reject(new MonitorError("Set the Magpie Web UI origin and Web UI key in the plugin settings."));
     }
     if (!login) {
-      login = (async () => {
+      const pending = (async () => {
         const url = gatewayURL(config.webUrl);
         url.searchParams.set("k", config.webKey);
         const response = await request(url, {}, "Magpie Web UI");
@@ -79,9 +84,10 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
         if (!value) throw new MonitorError("Web UI login did not return a Magpie session cookie.");
         return value;
       })();
+      login = pending;
       // A rejected login is retried on the next snapshot.
-      void login.catch(() => {
-        login = undefined;
+      void pending.catch(() => {
+        if (login === pending) login = undefined;
       });
     }
     return login;
@@ -90,31 +96,10 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
     const response = await request(new URL(path, gatewayURL(origin)), headers, label);
     if (!response.ok) {
       await response.body?.cancel();
-      if (response.status === 401) login = undefined;
-      throw new MonitorError(`${label} returned HTTP ${response.status}. Check its address and access key.`);
+      throw new HttpError(label, response.status);
     }
     // Bound source responses before parsing; raise the cap only for a larger verified catalog.
-    const reader = response.body?.getReader();
-    if (!reader) throw new MonitorError(`${label} returned an empty response.`);
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > 4 * 1024 * 1024) throw new MonitorError(`${label} response exceeds 4 MiB.`);
-        chunks.push(value);
-      }
-    } finally {
-      await reader.cancel();
-    }
-    let value: unknown;
-    try {
-      value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    } catch (cause) {
-      throw new MonitorError(`${label} returned invalid JSON.`, { cause });
-    }
+    const value = await readJson(response, 4 * 1024 * 1024, label, MonitorError);
     const result = schema.safeParse(value);
     if (!result.success) {
       throw new MonitorError(`${label} returned an unsupported data format. Check the Magpie version.`, {
@@ -137,8 +122,16 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
   }
   async function snapshot(config: MonitorSettings, period: Period): Promise<Monitor> {
     const gatewayHeaders = { authorization: `Bearer ${config.gatewayKey || "magpie-pi"}` };
-    const web = async <T>(path: string, schema: z.ZodType<T>) =>
-      read(config.webUrl, path, { cookie: await cookie(config) }, schema, "Magpie Web UI");
+    const web = async <T>(path: string, schema: z.ZodType<T>) => {
+      const session = cookie(config);
+      try {
+        return await read(config.webUrl, path, { cookie: await session }, schema, "Magpie Web UI");
+      } catch (error) {
+        // An expired session signs in again on the next snapshot; a newer login stays in place.
+        if (error instanceof HttpError && error.status === 401 && login === session) login = undefined;
+        throw error;
+      }
+    };
     const [health, providers, usage, quotas] = await Promise.all([
       section(() => read(config.gatewayUrl, "/api/hello", gatewayHeaders, parsers.health, "Magpie gateway")),
       section(() => web("/api/providers", parsers.providers)),
@@ -171,7 +164,6 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
     };
     return {
       updatedAt: new Date().toISOString(),
-      gatewayUrl: origin(config.gatewayUrl) || "Invalid gateway origin",
       webLink: link(config.webLink) || origin(config.webUrl),
       webConfigured: Boolean(config.webUrl && config.webKey),
       health,

@@ -4,6 +4,8 @@ import { z } from "zod";
 export const periodSchema = z.enum(["today", "7d", "30d"]);
 export type Period = z.infer<typeof periodSchema>;
 const count = z.number().int().nonnegative();
+// Go encodes time.Time as RFC 3339; the page formats these values, so reject anything else here.
+const time = z.iso.datetime({ offset: true });
 export const totalsSchema = z.object({
   calls: count,
   errors: count,
@@ -21,33 +23,21 @@ export const usageSchema = totalsSchema.extend({
   bucket: z.enum(["hour", "day"]),
   series: z.array(totalsSchema.extend({
     label: z.string(),
-    time: z.string(),
-    agents: z.record(z.string(), z.object({ calls: count, tokens: count, cost: z.number().nonnegative() })),
+    time,
+    agents: z.record(z.string(), z.object({ tokens: count, cost: z.number().nonnegative() })),
   })),
   agents: z.array(totalsSchema.extend({ id: z.string(), name: z.string() })),
   models: z.array(totalsSchema.extend({ id: z.string(), name: z.string() })),
 });
-export const providersSchema = z.object({
-  gateway: z.object({ running: z.boolean(), mine: z.boolean(), lan: z.boolean(), models: count }),
-  providers: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    ready: z.boolean(),
-    off: z.boolean(),
-    exposed: count,
-    routing: z.string(),
-    affinity: z.string(),
-  })),
-});
+export const providersSchema = z.object({ providers: z.array(z.object({ ready: z.boolean(), off: z.boolean() })) });
 export const quotasSchema = z.array(z.object({
   provider: z.string(),
   name: z.string(),
   plan: z.string().optional(),
   user: z.string().optional(),
   // used is a percentage of the window's allowance.
-  windows: z.array(z.object({ name: z.string(), used: z.number().nonnegative(), resetsAt: z.string().optional() })),
+  windows: z.array(z.object({ name: z.string(), used: z.number().nonnegative(), resetsAt: time.optional() })),
   balance: z.string().optional(),
-  readAt: z.string().optional(),
 }));
 function section<T extends z.ZodType>(data: T) {
   return z.discriminatedUnion("ok", [
@@ -57,8 +47,7 @@ function section<T extends z.ZodType>(data: T) {
 }
 export const monitorSchema = z.object({
   updatedAt: z.string(),
-  gatewayUrl: z.string(),
-  // Web UI origin for the browser link; empty when the setting is unset or invalid.
+  // URL that the browser opens for Magpie Web; empty when no valid link or Web UI origin is set.
   webLink: z.string(),
   webConfigured: z.boolean(),
   health: section(z.object({ version: z.string() })),
