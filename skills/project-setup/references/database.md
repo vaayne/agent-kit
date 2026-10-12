@@ -76,8 +76,9 @@ sql:
 - Write queries in `internal/db/queries/`. Run `sqlc generate` through a
   `generate:db` mise task.
 - Commit the generated code. Do not edit it by hand. Exclude it from dprint.
-- Add `check:db-drift`: run `sqlc generate`, then fail when `git diff` shows
-  changes under `internal/db/sqlc`. Also run `sqlc vet`.
+- Add `check:db-drift`: generate into a temporary copy and compare it with
+  `internal/db/sqlc` with `diff -r`, so added and deleted files also fail.
+  Also run `sqlc vet`. Run the task from `check`.
 - Use `pgx/v5` for the driver and the connection pool (`pgxpool`).
 - Add `overrides` in `sqlc.yaml` only when the default type is wrong for the
   callers, for example `jsonb` to `json.RawMessage`.

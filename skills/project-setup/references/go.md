@@ -104,9 +104,9 @@ web/
 ## API contract: OpenAPI
 
 `api/openapi.yaml` is the single source of the HTTP API. The Go server and the
-TypeScript client are both generated from it, so a contract change fails the
-type check on both sides. Change the spec first, then regenerate, then change
-the handlers and the callers.
+TypeScript client are both generated from it, so most contract changes fail
+the type check on one side or both. Change the spec first, then regenerate,
+then change the handlers and the callers.
 
 Go server, with [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) on
 the standard `net/http` router:
@@ -127,9 +127,11 @@ generate:
   strict-server: true
 ```
 
-`strict-server` gives each operation typed request and response objects. The
-handler returns one of the declared responses, so an undeclared status code or
-body does not compile.
+`strict-server` gives each operation typed request and response objects, so a
+handler cannot return an undeclared response type. The types do not validate
+the request on the wire, and they do not check authentication. Validate
+untrusted input at the handler boundary (or with the oapi-codegen request
+validation middleware), and test the HTTP contract with real requests.
 
 TypeScript client, with [@hey-api/openapi-ts](https://heyapi.dev) as a pinned
 development dependency in `web/`:
@@ -151,8 +153,9 @@ passes them to TanStack Query, for example `useQuery(getHealthOptions())`. Do
 not write `fetch` calls to `/api/` by hand. Keep the `/api` prefix in the spec paths, so the generated
 client calls the same origin and needs no base URL.
 
-`@hey-api/openapi-ts` 0.99 imports the TypeScript 6 API. Install TypeScript 6
-next to TypeScript 7, as [typescript](typescript.md) describes.
+`@hey-api/openapi-ts` imports the TypeScript JavaScript API, which TypeScript
+7.0 does not have. Install TypeScript 6 next to TypeScript 7, as
+[typescript](typescript.md) describes.
 
 Tasks:
 

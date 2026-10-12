@@ -2,9 +2,10 @@
 name: project-setup
 description: >
   Set up or audit a repository with V's project baseline: a short root AGENTS.md
-  index, .agents/{rules,skills}, mise for tools and tasks, prek for Git hooks,
-  dprint for formatting, documd for diagrams, tester-army/e2e for end-to-end
-  tests, and PostgreSQL with goose migrations. Stack rules cover Go
+  index, .agents/{rules,skills}, mise for tools and .mise/tasks file tasks,
+  prek for Git hooks, dprint for formatting, documentation with documd figures
+  and Fumadocs public docs, a no-mock test policy with tester-army/e2e, GitHub
+  commit, issue, PR, and CI rules, and PostgreSQL with goose migrations. Stack rules cover Go
   (golangci-lint, sqlc, OpenAPI, an embedded React UI), React UIs (TypeScript 7,
   Vite+, shadcn on Base UI, Tailwind CSS, Beautiful UI, TanStack Query,
   anti-slop Oxlint), and TypeScript full stack (TanStack Start, Effect,
@@ -20,6 +21,25 @@ repository uses. The target repository owns the result: it pins its own tool
 versions and installs its own skills. This skill only says what to install and
 where to get it.
 
+## Modes
+
+- **Setup** applies the baseline to a new repository, or to an existing one
+  when the user asks for the change.
+- **Audit** reports the differences between the repository and the baseline,
+  with file references and a proposed change for each. An audit does not
+  install, generate, format, or move files.
+
+State the mode before you start. If the request is not clear, run an audit.
+
+## New and existing repositories
+
+The stack choices in this skill (Vite+, TypeScript 7, TanStack Query, Effect,
+golangci-lint, PostgreSQL) are defaults for new projects. In an existing
+repository, keep the established stack, package manager, and documentation
+layout. Report a stack migration as a proposal; do it only when the user puts
+it in scope. Read the ADRs and data-ownership rules before you interpret
+leftover configuration.
+
 ## Procedure
 
 1. **Inspect.** Read the existing agent instructions, `git status`, and the
@@ -33,8 +53,16 @@ where to get it.
    root `AGENTS.md` index and the `.agents/rules/` files. Keep existing rules
    that still apply; move them into the matching rule file.
 
-3. **Install the common tooling.** Follow [tooling](references/tooling.md) for
-   mise, prek, dprint, documd, and e2e.
+3. **Install the common tooling and rules.** Follow these for every
+   repository:
+   - [tooling](references/tooling.md): mise and `.mise/tasks`, prek, dprint,
+     documd, and e2e.
+   - [testing](references/testing.md): test policy, tiers, coverage, and
+     enforcement.
+   - [documentation](references/documentation.md): document layout, figures,
+     and Fumadocs for public docs.
+   - [github](references/github.md): commits, issues, PRs, CI, and
+     Dependabot.
 
 4. **Apply each stack.** Read only the matching references:
    - Go service: [go](references/go.md)
@@ -42,15 +70,22 @@ where to get it.
      [typescript](references/typescript.md), and [web](references/web.md)
    - TypeScript full stack: [typescript](references/typescript.md),
      [web](references/web.md), and [ts-fullstack](references/ts-fullstack.md)
-   - Persistent data: [database](references/database.md)
+   - The application owns relational data: [database](references/database.md).
+     Persistent data alone does not require PostgreSQL; a file store or an
+     external system of record may own it.
 
 5. **Install skills.** Install each skill from its upstream source with
    `gh skill install`. Do not copy skill content into this skill or write it
    from memory. See [skill sources](#skill-sources).
 
-6. **Verify.** Run `mise install`, `prek validate-config prek.toml`,
-   `mise run format`, and `mise run check`. Report each check that you did not
-   run and why.
+6. **Bootstrap.** Run `mise install`, the locked dependency install
+   (`mise run install`), `mise run hooks:install`, and the browser install for
+   e2e when the repository has one.
+
+7. **Verify.** After an initial setup, run `prek validate-config prek.toml`,
+   `mise run format`, and `mise run check`. After an incremental change, run
+   the checks for the changed area, and widen them for shared contracts.
+   Report each check that you did not run and why.
 
 Before you add a tool, ask if the repository needs it now. Skip parts that do
 not apply. For example, do not add PostgreSQL to a repository without

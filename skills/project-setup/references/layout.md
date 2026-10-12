@@ -3,6 +3,11 @@
 ```
 AGENTS.md            # short index; links to rules
 CLAUDE.md -> AGENTS.md
+mise.toml            # tools and aggregate tasks
+.mise/tasks/         # file tasks, one directory per group
+.github/             # CI, issue and PR templates, Dependabot
+docs/                # see documentation.md
+.local/              # temporary reports; ignored by Git
 .agents/
   rules/             # one file per task area
   skills/            # skills installed with gh skill install
@@ -34,14 +39,19 @@ areas, read each matching rule. Do not load all rule files by default.
 - Every task, Git commits, issues and PRs: [workflow](.agents/rules/workflow.md).
 - Code, dependencies, API contracts and data: [implementation](.agents/rules/implementation.md).
 - Database schema, migrations and queries: [database](.agents/rules/database.md).
-- Documents and diagrams: [documentation](.agents/rules/documentation.md).
+- Writing or changing tests: [testing](.agents/rules/testing.md).
+- Documents, diagrams and public docs: [documentation](.agents/rules/documentation.md).
 - Selecting checks or completing work: [verification](.agents/rules/verification.md).
+- Production, deployment, releases and paid calls: [operations](.agents/rules/operations.md).
 
 Repository skills live in `.agents/skills/`. Read a skill when a rule links to
 it. If a skill conflicts with a rule, the rule wins.
 ```
 
-Add an entry only for an area the repository has. Add a stack-specific rule
+Use this layout for new repositories. In an existing repository, keep a
+structure that already routes agents to authoritative documents (for example
+`docs/dev/`); link to it from the index instead of moving it. Add an entry only
+for an area the repository has. Add a stack-specific rule
 (for example `web.md` or `go.md`) when that stack has rules beyond the shared
 ones.
 
@@ -52,13 +62,19 @@ repository facts and decisions; do not restate general engineering advice that
 the agent already follows.
 
 - `workflow.md`: use `mise tasks` and `mise run <task>` instead of hand-written
-  commands; the formatter and lint entry points; hook installation; commit
-  format.
+  commands; where new tasks go (`.mise/tasks/`); hook installation; commits,
+  issues, and PRs from [github](github.md).
 - `implementation.md`: module ownership, dependency policy, boundaries for
   untrusted data, generated code that must not be edited by hand.
 - `database.md`: migrations are the schema source; how to add a migration and
   regenerate queries. Link `postgres-best-practices`.
-- `documentation.md`: where documents go; draw diagrams with documd and link
-  `documd-visuals`.
+- `testing.md`: the policy from [testing](testing.md), with this repository's
+  tiers and tasks.
+- `documentation.md`: the rules from [documentation](documentation.md).
 - `verification.md`: map each changed area to the smallest `mise run` task;
   the e2e task and when to run it; report checks not run.
+- `operations.md`: only for deployable services. Which actions need explicit
+  user authorization in the current task: production reads and writes,
+  deployments, pushes, tags, releases, destructive resets, and tests that cost
+  money. Finishing a setup or passing CI does not authorize a deployment. Keep
+  offline validation (manifests, image builds) runnable without credentials.
