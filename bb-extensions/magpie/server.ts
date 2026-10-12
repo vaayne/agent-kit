@@ -41,6 +41,13 @@ export default async function plugin(bb: BbPluginApi) {
       default: "",
       description: "MAGPIE_WEB_KEY from magpie web. Kept on the BB server; never sent to the browser.",
     },
+    webLink: {
+      type: "string",
+      label: "Magpie Web UI link",
+      default: "",
+      description:
+        "HTTP(S) URL that your browser opens for Open Magpie Web, such as an exposed or LAN address. Defaults to the Web UI origin.",
+    },
     piAgentDir: {
       type: "string",
       label: "Magpie Pi config directory",

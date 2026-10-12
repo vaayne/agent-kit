@@ -11,15 +11,21 @@ export const totalsSchema = z.object({
   output: count,
   cache_read: count,
   cache_write: count,
+  reasoning: count,
   cost: z.number().nonnegative(),
   unpriced: count,
 });
+// Tokens are input + output + cache reads + cache writes, as Magpie counts them per agent.
 export const usageSchema = totalsSchema.extend({
   period: periodSchema,
-  since: z.string(),
-  series: z.array(totalsSchema.extend({ label: z.string(), time: z.string() })),
-  models: z.array(totalsSchema.extend({ id: z.string(), name: z.string(), sub: z.string().optional() })),
+  bucket: z.enum(["hour", "day"]),
+  series: z.array(totalsSchema.extend({
+    label: z.string(),
+    time: z.string(),
+    agents: z.record(z.string(), z.object({ calls: count, tokens: count, cost: z.number().nonnegative() })),
+  })),
   agents: z.array(totalsSchema.extend({ id: z.string(), name: z.string() })),
+  models: z.array(totalsSchema.extend({ id: z.string(), name: z.string() })),
 });
 export const providersSchema = z.object({
   gateway: z.object({ running: z.boolean(), mine: z.boolean(), lan: z.boolean(), models: count }),
@@ -32,33 +38,6 @@ export const providersSchema = z.object({
     routing: z.string(),
     affinity: z.string(),
   })),
-});
-export const groupsSchema = z.array(z.object({
-  id: z.string(),
-  name: z.string(),
-  ready: z.boolean(),
-  routing: z.string(),
-  affinity: z.string(),
-  members: z.array(z.string()),
-}));
-export const traceSchema = z.object({
-  mine: z.boolean(),
-  totals: z.object({ requests: count, rerouted: count, errors: count }),
-  routes: z.array(z.object({
-    id: count,
-    time: z.string(),
-    agent: z.string(),
-    model: z.string(),
-    provider: z.string(),
-    done: z.boolean(),
-    failed: z.boolean(),
-    status: count,
-    ms: count,
-    tokens: count,
-    ttft: count,
-    tries: count,
-  })),
-  totalRoutes: count,
 });
 export const quotasSchema = z.array(z.object({
   provider: z.string(),
@@ -79,12 +58,11 @@ function section<T extends z.ZodType>(data: T) {
 export const monitorSchema = z.object({
   updatedAt: z.string(),
   gatewayUrl: z.string(),
+  // Web UI origin for the browser link; empty when the setting is unset or invalid.
+  webLink: z.string(),
   webConfigured: z.boolean(),
-  connector: z.object({ codex: z.boolean(), claude: z.boolean(), autoSync: z.boolean() }),
   health: section(z.object({ version: z.string() })),
   providers: section(providersSchema),
-  groups: section(groupsSchema),
-  trace: section(traceSchema),
   usage: section(usageSchema),
   quotas: section(quotasSchema),
 });

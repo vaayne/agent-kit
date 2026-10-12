@@ -2,9 +2,10 @@ import {
   definePluginApp,
   experimental_ProviderIcon as ProviderIcon,
   experimental_useProviders,
+  UrlLink,
   useRpc,
 } from "@get-bb/plugin-sdk/app";
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { Monitor, monitorRpc, Period, SyncResult } from "./monitor-contract.ts";
 
 type Quota = Extract<Monitor["quotas"], { ok: true }>["data"][number];
@@ -18,8 +19,6 @@ const dollars = new Intl.NumberFormat(undefined, { style: "currency", currency: 
 const control =
   "rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
 const muted = "text-xs text-muted-foreground";
-const policy = (value: string) => value || "Auto";
-const duration = (value: number) => value ? `${(value / 1000).toFixed(1)}s` : "—";
 
 function Notice({ children }: { children: ReactNode }) {
   return (
@@ -99,7 +98,7 @@ function Subscriptions({ data }: { data: Monitor }) {
   );
 }
 // Magpie quota providers that match a BB agent provider, for its icon.
-const agentProvider: Record<string, string> = { claude: "claude-code", codex: "codex" };
+const agentProvider: Record<string, string> = { claude: "claude-code", codex: "codex", pi: "pi" };
 // "7 days Sonnet" -> "7d Sonnet", to fit the narrow sidebar row.
 const windowLabel = (name: string) =>
   name.replace(/^(\d+) (hour|day|week|month)s?\b/, (_, count: string, unit: string) =>
@@ -240,285 +239,442 @@ function MagpieIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="min-w-0 border-l-2 border-border pl-4 py-1">
-      <p className={muted}>{label}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight" title={value}>{value}</p>
-      <p className={`${muted} mt-1`}>{detail}</p>
-    </div>
-  );
-}
-function Panel({ title, detail, children }: { title: string; detail?: string; children: ReactNode }) {
+function Panel({ title, detail, action, children }: {
+  title: string;
+  detail?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {detail ? <p className={`${muted} mt-1`}>{detail}</p> : null}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {detail ? <p className={`${muted} mt-1`}>{detail}</p> : null}
+        </div>
+        {action}
       </div>
       {children}
     </section>
   );
 }
-function Table({ headings, children }: { headings: string[]; children: ReactNode }) {
+function Segmented<T extends string>({ label, value, options, onChange }: {
+  label: string;
+  value: T;
+  options: Array<[NoInfer<T>, string]>;
+  onChange(value: NoInfer<T>): void;
+}) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-left text-xs">
-        <thead className="bg-muted/40 text-muted-foreground">
-          <tr>
-            {headings.map((heading) => (
-              <th key={heading} scope="col" className="whitespace-nowrap px-4 py-2.5 font-medium">{heading}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">{children}</tbody>
-      </table>
-    </div>
-  );
-}
-const cell = "px-4 py-3 tabular-nums";
-
-function Gateway({ data }: { data: Monitor }) {
-  const providers = data.providers;
-  return (
-    <div className="space-y-7">
-      <Panel title="BB connection" detail="Native routing defaults. A thread can override its default.">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            ["Codex", data.connector.codex ? "Through Magpie" : "Direct"],
-            ["Claude Code", data.connector.claude ? "Through Magpie" : "Direct"],
-            ["Pi catalog", data.connector.autoSync ? "Auto sync · every 30s" : "Manual sync"],
-          ].map(([name, value]) => (
-            <div key={name} className="rounded-lg border border-border p-4">
-              <p className={muted}>{name}</p>
-              <p className="mt-1 text-sm font-medium">{value}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
-      {!providers.ok ? <Notice>{providers.error}</Notice> : (
-        <>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span>
-              Gateway:{" "}
-              <strong className="text-foreground">{providers.data.gateway.running ? "Running" : "Stopped"}</strong>
-            </span>
-            <span>
-              Models: <strong className="text-foreground">{providers.data.gateway.models}</strong>
-            </span>
-            <span>
-              Network sharing: <strong className="text-foreground">{providers.data.gateway.lan ? "On" : "Off"}</strong>
-            </span>
-            <span>
-              Served by:{" "}
-              <strong className="text-foreground">
-                {providers.data.gateway.mine ? "Web process" : "Another Magpie process"}
-              </strong>
-            </span>
-          </div>
-          <Panel title="Providers" detail="Availability and routing policy reported by Magpie.">
-            {providers.data.providers.length
-              ? (
-                <Table headings={["Provider", "State", "Models", "Routing", "Affinity"]}>
-                  {providers.data.providers.map((provider) => (
-                    <tr key={provider.id}>
-                      <td className={cell}>
-                        <div className="font-medium">{provider.name}</div>
-                        <div className={`${muted} mt-0.5`}>{provider.id}</div>
-                      </td>
-                      <td className={cell}>{provider.off ? "Disabled" : provider.ready ? "Ready" : "Not ready"}</td>
-                      <td className={cell}>{provider.exposed}</td>
-                      <td className={cell}>{policy(provider.routing)}</td>
-                      <td className={cell}>{policy(provider.affinity)}</td>
-                    </tr>
-                  ))}
-                </Table>
-              )
-              : <Notice>No providers are configured.</Notice>}
-          </Panel>
-        </>
-      )}
+    <div role="group" aria-label={label} className="inline-flex rounded-lg border border-border p-0.5">
+      {options.map(([option, text]) => (
+        <button
+          key={option}
+          type="button"
+          aria-pressed={value === option}
+          onClick={() => onChange(option)}
+          className={`rounded-md px-2.5 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+            value === option ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {text}
+        </button>
+      ))}
     </div>
   );
 }
 
-function Routing({ data }: { data: Monitor }) {
-  const trace = data.trace;
-  const groups = data.groups;
+type Usage = Extract<Monitor["usage"], { ok: true }>["data"];
+type Totals = Omit<Usage, "period" | "bucket" | "series" | "agents" | "models">;
+const card = "rounded-xl border border-border/70 bg-muted/[0.08]";
+// Brand colors for known agents; others take the palette in usage order.
+const agentColors: Record<string, string> = { claude: "#D97757", codex: "#10A37F", pi: "#64748B" };
+const palette = ["#0EA5E9", "#F59E0B", "#EC4899", "#8B5CF6", "#14B8A6"];
+const tokens = (totals: Totals) => totals.input + totals.output + totals.cache_read + totals.cache_write;
+const share = (value: number, total: number) => `${total ? (100 * value / total).toFixed(1) : "0.0"}%`;
+const price = (totals: Totals) =>
+  totals.unpriced && !totals.cost ? "Unknown" : `${dollars.format(totals.cost)}${totals.unpriced ? "+" : ""}`;
+const bucketLabel = (usage: Usage, label: string) => usage.bucket === "hour" ? `${label}:00` : label;
+
+function AgentIcon({ id, className = "size-4" }: { id: string; className?: string }) {
+  const providers = experimental_useProviders();
+  const bbId = agentProvider[id];
+  if (!bbId) return <span className={`${className} shrink-0 rounded-full border border-border`} aria-hidden="true" />;
+  const provider = providers.providers.find((entry) => entry.id === bbId);
+  return <ProviderIcon providerKind="agent" provider={provider ?? { id: bbId }} className={`${className} shrink-0`} />;
+}
+
+// Catmull-Rom curve with control points held between neighbours, so a line never dips below zero.
+function linePath(points: Array<[number, number]>) {
+  if (!points.length) return "";
+  let path = `M${points[0][0]},${points[0][1]}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x0, y0] = points[i - 1] ?? points[i];
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[i + 1];
+    const [x3, y3] = points[i + 2] ?? points[i + 1];
+    const clamp = (y: number) => Math.min(Math.max(y1, y2), Math.max(Math.min(y1, y2), y));
+    path += ` C${x1 + (x2 - x0) / 6},${clamp(y1 + (y2 - y0) / 6)} ${x2 - (x3 - x1) / 6},${clamp(y2 - (y3 - y1) / 6)} ${x2},${y2}`;
+  }
+  return path;
+}
+function niceMaximum(value: number) {
+  if (value <= 0) return 1;
+  const power = 10 ** Math.floor(Math.log10(value));
+  return ([1, 2, 2.5, 5, 10].find((step) => value <= step * power) ?? 10) * power;
+}
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const id = useId();
+  const max = Math.max(...values, 0) || 1;
+  const points = values.map((value, i): [number, number] => [
+    values.length > 1 ? i / (values.length - 1) * 100 : 50,
+    30 - value / max * 26,
+  ]);
+  const line = linePath(points);
   return (
-    <div className="space-y-7">
-      <Panel
-        title="Recent requests"
-        detail="The newest 30 requests retained by the running gateway. Counters reset when that process restarts."
-      >
-        {!trace.ok
-          ? <Notice>{trace.error}</Notice>
-          : !trace.data.mine
-          ? (
-            <Notice>
-              The Web UI process does not own the gateway. Live routing data is available only from the process that
-              serves it.
-            </Notice>
-          )
-          : (
-            <>
-              <div className="flex flex-wrap gap-5 text-xs text-muted-foreground">
-                <span>{exact.format(trace.data.totals.requests)} requests</span>
-                <span>{exact.format(trace.data.totals.rerouted)} rerouted</span>
-                <span>{exact.format(trace.data.totals.errors)} errors</span>
-                <span>Showing {trace.data.routes.length} of {trace.data.totalRoutes} retained</span>
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className="mt-3 h-10 w-full" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={`${line} L100,32 L0,32 Z`} fill={`url(#${CSS.escape(id)})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+function StatCard({ label, value, detail, values, color }: {
+  label: string;
+  value: string;
+  detail: string;
+  values: number[];
+  color: string;
+}) {
+  return (
+    <div className={`${card} min-w-0 p-4`}>
+      <p className={muted}>{label}</p>
+      <p className="mt-1 truncate text-2xl font-semibold tabular-nums tracking-tight" title={value}>{value}</p>
+      <p className={`${muted} mt-1 truncate`} title={detail}>{detail}</p>
+      <Sparkline values={values} color={color} />
+    </div>
+  );
+}
+
+function Overview({ usage, colors }: { usage: Usage; colors: Record<string, string> }) {
+  const total = tokens(usage);
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className={muted}>Estimated cost</p>
+        <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
+          {dollars.format(usage.cost)}{usage.unpriced ? "*" : ""}
+        </p>
+        <p className={`${muted} mt-1`}>
+          {usage.unpriced
+            ? `* ${exact.format(usage.unpriced)} requests have no known price`
+            : "At model list prices; not an invoice"}
+        </p>
+      </div>
+      <div className="space-y-4">
+        {usage.agents.map((agent) => {
+          const value = tokens(agent);
+          return (
+            <div key={agent.id} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2 font-medium">
+                  <AgentIcon id={agent.id} />
+                  <span className="truncate">{agent.name}</span>
+                </span>
+                <span className="shrink-0 tabular-nums">{number.format(value)} tokens</span>
               </div>
-              {trace.data.routes.length
-                ? (
-                  <Table
-                    headings={[
-                      "Time / client",
-                      "Model / provider",
-                      "State",
-                      "Attempts",
-                      "Duration",
-                      "First token",
-                      "Tokens",
-                    ]}
-                  >
-                    {trace.data.routes.map((route) => (
-                      <tr key={route.id}>
-                        <td className={`${cell} whitespace-nowrap`}>
-                          <time dateTime={route.time}>{new Date(route.time).toLocaleTimeString()}</time>
-                          <div className={`${muted} mt-0.5`}>{route.agent || "Unknown client"}</div>
-                        </td>
-                        <td className={`${cell} max-w-80 break-words`}>
-                          <div className="font-medium">{route.model}</div>
-                          <div className={`${muted} mt-0.5`}>{route.provider}</div>
-                        </td>
-                        <td className={`${cell} whitespace-nowrap ${route.failed ? "text-destructive" : ""}`}>
-                          {!route.done
-                            ? "In progress"
-                            : route.failed
-                            ? `Failed${route.status ? ` · ${route.status}` : ""}`
-                            : `Done${route.status ? ` · ${route.status}` : ""}`}
-                        </td>
-                        <td className={cell}>{route.tries}</td>
-                        <td className={cell}>{duration(route.ms)}</td>
-                        <td className={cell}>{duration(route.ttft)}</td>
-                        <td className={cell}>{route.tokens ? number.format(route.tokens) : "—"}</td>
-                      </tr>
-                    ))}
-                  </Table>
-                )
-                : <Notice>No requests are retained by this gateway process yet.</Notice>}
-            </>
-          )}
-      </Panel>
-      <Panel title="Routing groups" detail="Current group members and selection rules.">
-        {!groups.ok
-          ? <Notice>{groups.error}</Notice>
-          : groups.data.length
-          ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {groups.data.map((group) => (
-                <div key={group.id} className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">{group.name}</h3>
-                    <span className={muted}>{group.ready ? "Ready" : "Not ready"}</span>
-                  </div>
-                  <p className={`${muted} mt-1`}>{policy(group.routing)} · affinity {policy(group.affinity)}</p>
-                  <ul className="mt-3 space-y-1 text-xs font-mono break-all">
-                    {group.members.map((member) => <li key={member}>{member}</li>)}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )
-          : <Notice>No routing groups are configured. Requests use each provider's routing policy.</Notice>}
-      </Panel>
-    </div>
-  );
-}
-
-function Usage({ data }: { data: Monitor }) {
-  if (!data.usage.ok) return <Notice>{data.usage.error}</Notice>;
-  const usage = data.usage.data;
-  const peak = Math.max(1, ...usage.series.map((point) => point.calls));
-  return (
-    <div className="space-y-7">
-      <Panel
-        title="Request activity"
-        detail="Magpie's usage log includes gateway requests and supported agent session logs. Period boundaries use the Magpie server's time zone."
-      >
-        <div className="rounded-lg border border-border p-4">
-          <div
-            className="flex h-32 items-end gap-1"
-            role="img"
-            aria-label={`${exact.format(usage.calls)} requests in the selected period`}
-          >
-            {usage.series.map((point) => (
-              <div key={point.time} className="group relative flex h-full min-w-0 flex-1 items-end">
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
-                  tabIndex={0}
-                  aria-label={`${point.label}: ${point.calls} requests, ${point.errors} errors`}
-                  title={`${point.label}: ${exact.format(point.calls)} requests · ${point.errors} errors`}
-                  className="w-full rounded-t-sm bg-primary/65 hover:bg-primary focus:bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                  style={{ height: `${point.calls / peak * 100}%`, minHeight: 2 }}
+                  className="h-full rounded-full"
+                  style={{ width: `${total ? 100 * value / total : 0}%`, backgroundColor: colors[agent.id] }}
                 />
               </div>
-            ))}
-          </div>
-          <div className={`${muted} mt-3 flex justify-between gap-3`}>
-            <span>{usage.series[0]?.label ?? "No activity"}</span>
-            <span>{usage.series.at(-1)?.label}</span>
-          </div>
-        </div>
-      </Panel>
-      <Panel
-        title="Usage by model"
-        detail="USD values are estimates from Magpie's model prices. They are not an invoice."
-      >
-        {usage.models.length
-          ? (
-            <Table headings={["Model", "Requests", "Errors", "Input / output", "Cache read / write", "Est. USD"]}>
-              {[...usage.models].sort((a, b) => b.calls - a.calls).map((model) => (
-                <tr key={model.id}>
-                  <td className={`${cell} max-w-80 break-words`}>
-                    <div className="font-medium">{model.name}</div>
-                    <div className={`${muted} mt-0.5`}>{model.sub}</div>
-                  </td>
-                  <td className={cell}>{exact.format(model.calls)}</td>
-                  <td className={`${cell} ${model.errors ? "text-destructive" : ""}`}>{model.errors}</td>
-                  <td
-                    className={`${cell} whitespace-nowrap`}
-                    title={`${exact.format(model.input)} input / ${exact.format(model.output)} output`}
-                  >
-                    {number.format(model.input)} / {number.format(model.output)}
-                  </td>
-                  <td
-                    className={`${cell} whitespace-nowrap`}
-                    title={`${exact.format(model.cache_read)} read / ${exact.format(model.cache_write)} write`}
-                  >
-                    {number.format(model.cache_read)} / {number.format(model.cache_write)}
-                  </td>
-                  <td className={`${cell} whitespace-nowrap`}>
-                    {dollars.format(model.cost)}
-                    {model.unpriced ? <div className={muted}>{model.unpriced} unpriced</div> : null}
-                  </td>
-                </tr>
-              ))}
-            </Table>
-          )
-          : <Notice>No usage is recorded for this period.</Notice>}
-      </Panel>
+              <p className={`${muted} tabular-nums`}>
+                {share(value, total)} of tokens · {price(agent)} · {exact.format(agent.calls)} requests
+              </p>
+            </div>
+          );
+        })}
+        {!usage.agents.length ? <p className={muted}>No requests in this period.</p> : null}
+      </div>
     </div>
+  );
+}
+
+const chartWidth = 600;
+const chartHeight = 200;
+function TrendChart({ usage, colors }: { usage: Usage; colors: Record<string, string> }) {
+  const [metric, setMetric] = useState<"tokens" | "cost">("tokens");
+  const [hover, setHover] = useState<number | null>(null);
+  const count = usage.series.length;
+  const values = (id: string) => usage.series.map((bucket) => bucket.agents[id]?.[metric] ?? 0);
+  const agents = usage.agents.filter((agent) => values(agent.id).some(Boolean));
+  const max = niceMaximum(Math.max(0, ...agents.flatMap((agent) => values(agent.id))));
+  const x = (i: number) => count > 1 ? i / (count - 1) * chartWidth : chartWidth / 2;
+  const y = (value: number) => chartHeight - value / max * chartHeight;
+  const format = (value: number) => metric === "cost" ? dollars.format(value) : number.format(value);
+  const step = Math.max(1, Math.ceil(count / 6));
+  const ticks = usage.series.map((_, i) => i).filter((i) => i % step === 0 || i === count - 1)
+    .filter((i, index, all) => i === count - 1 || all[index + 1] - i >= step / 2);
+  const hovered = hover === null ? null : usage.series[hover];
+  return (
+    <Panel
+      title={metric === "tokens" ? "Tokens over time" : "Cost over time"}
+      detail={usage.bucket === "hour" ? "Per hour, Magpie server time" : "Per day, Magpie server time"}
+      action={
+        <Segmented
+          label="Chart metric"
+          value={metric}
+          options={[["tokens", "Tokens"], ["cost", "Cost"]]}
+          onChange={setMetric}
+        />
+      }
+    >
+      <div className="relative h-52 pl-12">
+        {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
+          <span
+            key={tick}
+            className="absolute left-0 w-10 -translate-y-1/2 text-right text-[11px] tabular-nums text-muted-foreground"
+            style={{ top: `${(1 - tick) * 100}%` }}
+          >
+            {format(max * tick)}
+          </span>
+        ))}
+        <div
+          className="relative h-full"
+          onPointerMove={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+            setHover(count > 1 ? Math.round(fraction * (count - 1)) : 0);
+          }}
+          onPointerLeave={() => setHover(null)}
+        >
+          <svg
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            preserveAspectRatio="none"
+            className="h-full w-full overflow-visible"
+            role="img"
+            aria-label={`${metric === "tokens" ? "Tokens" : "Cost"} per ${usage.bucket} by agent`}
+          >
+            <defs>
+              {agents.map((agent) => (
+                <linearGradient key={agent.id} id={`magpie-area-${agent.id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={colors[agent.id]} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={colors[agent.id]} stopOpacity={0} />
+                </linearGradient>
+              ))}
+            </defs>
+            {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
+              <line
+                key={tick}
+                x1={0}
+                x2={chartWidth}
+                y1={y(max * tick)}
+                y2={y(max * tick)}
+                stroke="currentColor"
+                className="text-border"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            {agents.map((agent) => {
+              const line = linePath(values(agent.id).map((value, i): [number, number] => [x(i), y(value)]));
+              return (
+                <g key={agent.id}>
+                  <path
+                    d={`${line} L${x(count - 1)},${chartHeight} L${x(0)},${chartHeight} Z`}
+                    fill={`url(#magpie-area-${agent.id})`}
+                  />
+                  <path
+                    d={line}
+                    fill="none"
+                    stroke={colors[agent.id]}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            })}
+            {hover !== null
+              ? (
+                <line
+                  x1={x(hover)}
+                  x2={x(hover)}
+                  y1={0}
+                  y2={chartHeight}
+                  stroke="currentColor"
+                  strokeDasharray="3 3"
+                  className="text-muted-foreground"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+              : null}
+          </svg>
+          {hover !== null && hovered
+            ? (
+              <div
+                className={`pointer-events-none absolute top-2 z-10 min-w-40 rounded-lg border border-border bg-background p-2.5 text-xs shadow-md ${
+                  x(hover) > chartWidth / 2 ? "-translate-x-[calc(100%+0.75rem)]" : "translate-x-3"
+                }`}
+                style={{ left: `${x(hover) / chartWidth * 100}%` }}
+              >
+                <p className="mb-1.5 font-medium">{bucketLabel(usage, hovered.label)}</p>
+                {agents.map((agent) => (
+                  <div key={agent.id} className="flex items-center justify-between gap-4 tabular-nums">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className="size-2 rounded-full" style={{ backgroundColor: colors[agent.id] }} />
+                      {agent.name}
+                    </span>
+                    {format(hovered.agents[agent.id]?.[metric] ?? 0)}
+                  </div>
+                ))}
+              </div>
+            )
+            : null}
+        </div>
+      </div>
+      <div className="relative ml-12 h-4 text-[11px] text-muted-foreground">
+        {ticks.map((i) => (
+          <span
+            key={i}
+            className={`absolute whitespace-nowrap ${
+              i === 0 ? "" : i === count - 1 ? "-translate-x-full" : "-translate-x-1/2"
+            }`}
+            style={{ left: `${x(i) / chartWidth * 100}%` }}
+          >
+            {bucketLabel(usage, usage.series[i].label)}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap justify-center gap-4 pt-1 text-xs">
+        {agents.map((agent) => (
+          <span key={agent.id} className="flex items-center gap-1.5">
+            <AgentIcon id={agent.id} className="size-3.5" />
+            {agent.name}
+          </span>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function Stats({ usage }: { usage: Usage }) {
+  const total = tokens(usage);
+  const active = usage.series.filter((bucket) => bucket.calls).length || 1;
+  const input = usage.input + usage.cache_read + usage.cache_write;
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard
+        label="Processed tokens"
+        value={number.format(total)}
+        detail={`${number.format(total / active)} per active ${usage.bucket}`}
+        values={usage.series.map(tokens)}
+        color="#0EA5E9"
+      />
+      <StatCard
+        label="Cached input"
+        value={number.format(usage.cache_read)}
+        detail={`${share(usage.cache_read, input)} of input · ${number.format(usage.cache_write)} writes`}
+        values={usage.series.map((bucket) => bucket.cache_read)}
+        color="#F59E0B"
+      />
+      <StatCard
+        label="Output"
+        value={number.format(usage.output)}
+        detail={`Includes ${number.format(usage.reasoning)} reasoning tokens`}
+        values={usage.series.map((bucket) => bucket.output)}
+        color="#EC4899"
+      />
+      <StatCard
+        label="Requests"
+        value={number.format(usage.calls)}
+        detail={`${exact.format(usage.errors)} errors · ${share(usage.errors, usage.calls)}`}
+        values={usage.series.map((bucket) => bucket.calls)}
+        color="#14B8A6"
+      />
+    </div>
+  );
+}
+
+function Breakdown({ usage }: { usage: Usage }) {
+  const [view, setView] = useState<"model" | "agent" | "time">("model");
+  const total = tokens(usage);
+  const rows: Array<Totals & { id: string; name: string; agent?: string }> = view === "model"
+    ? [...usage.models].sort((a, b) => tokens(b) - tokens(a))
+    : view === "agent"
+    ? usage.agents.map((agent) => ({ ...agent, agent: agent.id }))
+    : usage.series.filter((bucket) => bucket.calls).reverse()
+      .map((bucket) => ({ ...bucket, id: bucket.time, name: bucketLabel(usage, bucket.label) }));
+  const head = "px-4 py-2.5 font-medium";
+  return (
+    <Panel
+      title="Breakdown"
+      action={
+        <Segmented
+          label="Breakdown view"
+          value={view}
+          options={[["model", "Model"], ["agent", "Agent"], ["time", usage.bucket === "hour" ? "Hour" : "Day"]]}
+          onChange={setView}
+        />
+      }
+    >
+      <div className={`${card} overflow-x-auto`}>
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border text-xs text-muted-foreground">
+            <tr>
+              <th scope="col" className={head}>{view === "model" ? "Model" : view === "agent" ? "Agent" : "Time"}</th>
+              <th scope="col" className={`${head} text-right`}>Requests</th>
+              <th scope="col" className={`${head} text-right`}>Tokens</th>
+              <th scope="col" className={`${head} text-right`}>Cost</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((row) => (
+              <tr key={row.id} className="tabular-nums">
+                <td className="px-4 py-3">
+                  <span className="flex min-w-0 items-center gap-2 font-medium">
+                    {row.agent ? <AgentIcon id={row.agent} /> : null}
+                    <span className="truncate" title={row.name}>{row.name}</span>
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {exact.format(row.calls)}
+                  {row.errors ? <p className={muted}>{exact.format(row.errors)} errors</p> : null}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {number.format(tokens(row))}
+                  <p className={muted}>{share(tokens(row), total)} of tokens</p>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {price(row)}
+                  <p className={muted}>{share(row.cost, usage.cost)} of cost</p>
+                </td>
+              </tr>
+            ))}
+            {!rows.length
+              ? (
+                <tr>
+                  <td colSpan={4} className={`${muted} px-4 py-6 text-center`}>No requests in this period.</td>
+                </tr>
+              )
+              : null}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
 function Dashboard() {
   const rpc = useRpc<typeof monitorRpc>();
   const root = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<"Gateway" | "Routing" | "Usage">("Gateway");
-  const [period, setPeriod] = useState<Period>("today");
+  const [period, setPeriod] = useState<Period>("7d");
   const [data, setData] = useState<Monitor | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paused, setPaused] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   async function sync() {
@@ -551,18 +707,18 @@ function Dashboard() {
           setError(null);
         }
       } catch {
-        if (alive) setError("Cannot refresh the Magpie monitor. The values below may be out of date.");
+        if (alive) setError("Cannot refresh Magpie usage. The values below may be out of date.");
       } finally {
         inFlight = false;
         if (alive) {
           setLoading(false);
-          if (!paused && visible && !document.hidden) timer = setTimeout(() => void load(), 5_000);
+          if (visible && !document.hidden) timer = setTimeout(() => void load(), 15_000);
         }
       }
     };
     const onVisibility = () => {
       clearTimeout(timer);
-      if (!paused) void load();
+      void load();
     };
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
@@ -577,43 +733,52 @@ function Dashboard() {
       observer.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [rpc, period, paused, refresh]);
+  }, [rpc, period, refresh]);
 
   const usage = data?.usage.ok && data.usage.data.period === period ? data.usage.data : null;
+  const colors = Object.fromEntries(
+    (usage?.agents ?? []).map((agent, i) => [agent.id, agentColors[agent.id] ?? palette[i % palette.length]]),
+  );
+  const providers = data?.providers.ok ? data.providers.data.providers.filter((provider) => !provider.off) : null;
   return (
     <div ref={root} className="h-full overflow-y-auto bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl space-y-7 p-4 md:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <span className={`h-2 w-2 rounded-full ${data?.health.ok ? "bg-primary" : "bg-muted-foreground"}`} />
+      <div className="mx-auto w-full max-w-6xl space-y-8 p-4 md:p-7">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-base font-semibold">
+              <MagpieIcon className="size-5" />
+              Magpie usage
+            </h1>
+            <p className={`${muted} mt-1 flex items-center gap-1.5`}>
+              <span
+                className={`size-1.5 rounded-full ${data?.health.ok ? "bg-emerald-500" : "bg-muted-foreground"}`}
+                aria-hidden="true"
+              />
               {!data
                 ? "Connecting…"
                 : data.health.ok
-                ? `Gateway online · v${data.health.data.version}`
+                ? `Gateway v${data.health.data.version}${
+                  providers ? ` · ${providers.filter((provider) => provider.ready).length}/${providers.length} providers ready` : ""
+                } · updated ${new Date(data.updatedAt).toLocaleTimeString()}`
                 : "Gateway unavailable"}
-            </div>
-            <p className={`${muted} mt-1.5 break-all`}>{data?.gatewayUrl ?? "Reading Magpie status"}</p>
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor="magpie-period">Usage period</label>
-            <select
-              id="magpie-period"
-              className={control}
+            <Segmented
+              label="Usage period"
               value={period}
-              onChange={(event) => setPeriod(event.target.value as Period)}
-            >
-              <option value="today">Today</option>
-              <option value="7d">7 days</option>
-              <option value="30d">30 days</option>
-            </select>
+              options={[["today", "Today"], ["7d", "7 days"], ["30d", "30 days"]]}
+              onChange={setPeriod}
+            />
             <button
               type="button"
-              className={control}
-              aria-pressed={paused}
-              onClick={() => setPaused((value) => !value)}
+              className={`${control} px-2`}
+              aria-label="Refresh"
+              title="Refresh"
+              disabled={loading}
+              onClick={() => setRefresh((value) => value + 1)}
             >
-              {paused ? "Resume" : "Pause"}
+              <RefreshIcon className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               type="button"
@@ -624,87 +789,41 @@ function Dashboard() {
             >
               {syncing ? "Syncing…" : "Sync models"}
             </button>
-            <button
-              type="button"
-              className={control}
-              disabled={loading}
-              onClick={() => setRefresh((value) => value + 1)}
-            >
-              {loading ? "Refreshing…" : "Refresh"}
-            </button>
+            {data?.webLink
+              ? (
+                <UrlLink href={data.webLink} className={control} title="Accounts, routing and settings">
+                  Open Magpie Web ↗
+                </UrlLink>
+              )
+              : null}
           </div>
-        </div>
-        <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-          <span>{paused ? "Auto refresh paused" : "Auto refresh · 5s while visible"}</span>
-          <span>
-            {data ? `Updated ${new Date(data.updatedAt).toLocaleTimeString()}` : "Waiting for the first snapshot"}
-          </span>
-        </div>
+        </header>
         {syncResult ? <Notice>{syncResult}</Notice> : null}
         {error ? <Notice>{error}</Notice> : null}
         {data && !data.health.ok ? <Notice>{data.health.error}</Notice> : null}
+        {data && !data.usage.ok ? <Notice>{data.usage.error}</Notice> : null}
         {data && !data.webConfigured
           ? (
             <Notice>
-              Set the Web UI origin and Web UI key in Settings → Plugins → Magpie to show gateway details and routing.
+              Set the Web UI origin and Web UI key in Settings → Plugins → Magpie to show subscriptions and provider status.
             </Notice>
           )
           : null}
-        <div className="grid grid-cols-2 gap-x-5 gap-y-5 lg:grid-cols-4" aria-label="Usage summary">
-          <Metric
-            label="Requests"
-            value={usage ? number.format(usage.calls) : "—"}
-            detail={usage ? `${exact.format(usage.calls)} in the selected period` : "Usage unavailable"}
-          />
-          <Metric
-            label="Errors"
-            value={usage ? number.format(usage.errors) : "—"}
-            detail={usage
-              ? usage.calls ? `${(100 * usage.errors / usage.calls).toFixed(1)}% of requests` : "No requests"
-              : "Usage unavailable"}
-          />
-          <Metric
-            label="Input + output tokens"
-            value={usage ? number.format(usage.input + usage.output) : "—"}
-            detail={usage
-              ? `${number.format(usage.cache_read + usage.cache_write)} cache tokens counted separately`
-              : "Usage unavailable"}
-          />
-          <Metric
-            label="Estimated cost"
-            value={usage ? dollars.format(usage.cost) : "—"}
-            detail={usage
-              ? usage.unpriced ? `${usage.unpriced} requests have no known price` : "USD · model price estimate"
-              : "Usage unavailable"}
-          />
-        </div>
+        {usage
+          ? (
+            <>
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                <Overview usage={usage} colors={colors} />
+                <TrendChart usage={usage} colors={colors} />
+              </div>
+              <Stats usage={usage} />
+            </>
+          )
+          : !data || data.usage.ok
+          ? <Notice>Loading usage…</Notice>
+          : null}
         {data ? <Subscriptions data={data} /> : null}
-        <nav aria-label="Magpie views" className="flex gap-5 border-b border-border">
-          {(["Gateway", "Routing", "Usage"] as const).map((name) => (
-            <button
-              key={name}
-              type="button"
-              aria-current={tab === name ? "page" : undefined}
-              onClick={() => setTab(name)}
-              className={`border-b-2 pb-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
-                tab === name
-                  ? "border-primary font-semibold text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {name}
-            </button>
-          ))}
-        </nav>
-        {!data
-          ? <Notice>Loading gateway, routing and usage data…</Notice>
-          : tab === "Gateway"
-          ? <Gateway data={data} />
-          : tab === "Routing"
-          ? <Routing data={data} />
-          : data.usage.ok && data.usage.data.period !== period
-          ? <Notice>Loading the selected period…</Notice>
-          : <Usage data={data} />}
+        {usage ? <Breakdown usage={usage} /> : null}
       </div>
     </div>
   );

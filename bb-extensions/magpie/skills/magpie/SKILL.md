@@ -19,7 +19,7 @@ Use `bb magpie` to inspect and configure the connector. Use the separate `magpie
 Open Magpie in the BB navigation rail for Gateway, Routing, and Usage. Visible pages refresh every 5 seconds; snapshots are shared for up to 5 seconds. Usage offers Today, 7 days, and 30 days, using the Magpie server's time zone. Costs are model-price estimates, not invoices.
 
 - Health and usage read the configured gateway. A restricted gateway key may be refused the global usage summary.
-- Gateway details and routing need `webUrl` and secret `webKey` in plugin settings. `webUrl` is an HTTP(S) origin reached by the BB server. Use the fixed `MAGPIE_WEB_KEY` when available. Never print keys or put them in command arguments.
+- Subscriptions and provider status need `webUrl` and secret `webKey` in plugin settings. Optional `webLink` sets the browser URL for Open Magpie Web. `webUrl` is an HTTP(S) origin reached by the BB server. Use the fixed `MAGPIE_WEB_KEY` when available. Never print keys or put them in command arguments.
 - The Web UI must own the gateway for live routing traces. The page reports when another process owns it.
 - Monitoring is read-only. It does not expose Web UI credentials, request bodies, session IDs, or raw upstream errors to the browser.
 

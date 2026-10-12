@@ -12,6 +12,7 @@ const totals = {
   output: 100,
   cache_read: 500,
   cache_write: 20,
+  reasoning: 30,
   cost: 0.42,
   unpriced: 1,
 };
@@ -29,33 +30,25 @@ const providers = {
     headers: { Authorization: "PRIVATE-KEY" },
   }],
 };
-const trace = {
-  mine: true,
-  seq: 50,
-  totals: { requests: 41, errors: 1, rerouted: 2 },
-  routes: Array.from({ length: 41 }, (_, id) => ({
-    id: id + 1,
-    time: "2026-10-11T10:00:00Z",
-    agent: "codex",
-    model: "test-model",
-    provider: "example",
-    done: id !== 40,
-    ...(id === 39 ? { error: "PRIVATE-ERROR", status: 500 } : {}),
-    tries: [{ id: "PRIVATE-ACCOUNT" }],
-    prompt: { text: "PRIVATE-PROMPT" },
-    session: "PRIVATE-SESSION",
-  })),
-};
+// Shape of Magpie /v1/magpie/usage/requests, trimmed to one bucket and one request row.
 function usage(period: string) {
+  const agent = { ...totals, id: "codex", name: "Codex", icon: "codex-color", ttft_ms: 900 };
   return {
     ...totals,
     period,
-    since: "2026-10-11T00:00:00Z",
-    series: [{ ...totals, label: "10:00", time: "2026-10-11T10:00:00Z" }],
-    models: [{ ...totals, id: "example/test", name: "Test", sub: "Example" }],
-    agents: null,
-    accounts: [{ account: "PRIVATE-ACCOUNT" }],
-    path: "PRIVATE-PATH",
+    bucket: period === "today" ? "hour" : "day",
+    series: [{
+      ...totals,
+      label: "10",
+      time: "2026-10-11T10:00:00Z",
+      by: { agent: { codex: { calls: 12, tokens: 820, cost: 0.42, ttft_ms: 900 } }, model: {}, modelAt: {}, provider: {} },
+    }, { ...totals, calls: 0, label: "11", time: "2026-10-11T11:00:00Z", by: { agent: null } }],
+    by: { agent: [agent], model: [{ ...totals, id: "test", name: "test" }], modelAt: [], provider: [] },
+    rows: [{ t: "2026-10-11T10:00:00Z", agent: "codex", session: "PRIVATE-SESSION", req: "PRIVATE-PROMPT" }],
+    accounts: [{ id: "PRIVATE-ACCOUNT", providers: ["Codex"] }],
+    callerKeys: [{ callerKeyName: "PRIVATE-KEY" }],
+    total: 1,
+    offset: 0,
   };
 }
 // Shape of Magpie 0.1.1190 /api/usage/quotas, with account details replaced.
@@ -130,11 +123,7 @@ async function fixture(t: TestContext) {
     assert.equal(req.headers.cookie, `magpie_web_3430=${key}`);
     const data = url.pathname === "/api/providers"
       ? failure === "schema" ? { ...providers, gateway: { running: "yes" } } : providers
-      : url.pathname === "/api/usage/quotas"
-      ? quotas
-      : url.pathname === "/api/groups"
-      ? { groups: [{ id: "test", name: "Test", ready: true, members: null }] }
-      : trace;
+      : quotas;
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(data));
   });
@@ -143,9 +132,7 @@ async function fixture(t: TestContext) {
     webUrl,
     gatewayKey: "test-gateway-key",
     webKey: key,
-    codexRouting: true,
-    claudeRouting: false,
-    autoSync: true,
+    webLink: "",
   };
   const monitor = createMonitor(async () => config);
   t.after(() => monitor.dispose());
@@ -165,20 +152,23 @@ async function fixture(t: TestContext) {
   };
 }
 
-test("real HTTP login, summary and routing produce a bounded, credential-free snapshot", async (t) => {
+test("real HTTP login, summary and usage produce a bounded, credential-free snapshot", async (t) => {
   const f = await fixture(t);
   const [data, duplicate] = await Promise.all([f.monitor.get("today"), f.monitor.get("today")]);
   assert.deepEqual(data, duplicate);
   assert.equal(monitorSchema.safeParse(data).success, true);
   assert.equal(f.requests.filter((path) => path === "/").length, 1);
   assert.equal(f.requests.filter((path) => path === "/api/hello").length, 1);
-  assert.ok(data.trace.ok && data.usage.ok && data.groups.ok);
-  assert.equal(data.trace.data.totalRoutes, 41);
-  assert.equal(data.trace.data.routes.length, 30);
-  assert.equal(data.trace.data.routes[0].id, 41);
-  assert.equal(data.trace.data.routes[1].failed, true);
-  assert.deepEqual(data.usage.data.agents, []);
-  assert.equal(data.groups.data[0].routing, "");
+  assert.ok(f.requests.includes("/v1/magpie/usage/requests"));
+  assert.ok(data.usage.ok && data.providers.ok);
+  assert.equal(data.usage.data.bucket, "hour");
+  assert.deepEqual(data.usage.data.agents.map((agent) => [agent.id, agent.name, agent.reasoning]), [["codex", "Codex", 30]]);
+  assert.deepEqual(data.usage.data.series.map((bucket) => bucket.agents), [
+    { codex: { calls: 12, tokens: 820, cost: 0.42 } },
+    {},
+  ]);
+  assert.ok(!("rows" in data.usage.data) && !("by" in data.usage.data));
+  assert.equal(data.webLink, new URL(data.webLink).origin);
   assert.ok(data.quotas.ok);
   assert.deepEqual(data.quotas.data.map((account) => [account.provider, account.windows.length]), [
     ["claude", 2],
@@ -196,7 +186,7 @@ test("a usage access failure preserves gateway and routing results without expos
   const f = await fixture(t);
   f.fail("usage");
   const data = await f.monitor.get("7d");
-  assert.ok(data.health.ok && data.trace.ok && !data.usage.ok);
+  assert.ok(data.health.ok && data.providers.ok && !data.usage.ok);
   assert.match(data.usage.error, /HTTP 403/);
   assert.doesNotMatch(JSON.stringify(data), /PRIVATE-/);
 });
@@ -205,7 +195,7 @@ test("schema drift is explicit and limited to the affected section", async (t) =
   const f = await fixture(t);
   f.fail("schema");
   const data = await f.monitor.get("today");
-  assert.ok(!data.providers.ok && data.health.ok && data.usage.ok && data.groups.ok);
+  assert.ok(!data.providers.ok && data.health.ok && data.usage.ok && data.quotas.ok);
   assert.match(data.providers.error, /unsupported data format/);
 });
 
@@ -213,16 +203,16 @@ test("missing or wrong web credentials preserve gateway monitoring; settings cha
   const f = await fixture(t);
   f.configure({ webKey: "" });
   let data = await f.monitor.get("today");
-  assert.ok(data.health.ok && data.usage.ok && !data.trace.ok);
+  assert.ok(data.health.ok && data.usage.ok && !data.providers.ok);
   assert.equal(data.webConfigured, false);
   assert.equal(f.requests.includes("/"), false);
   f.configure({ webKey: "wrong-key" });
   data = await f.monitor.get("today");
-  assert.ok(!data.trace.ok);
-  assert.match(data.trace.error, /HTTP 401/);
+  assert.ok(!data.providers.ok);
+  assert.match(data.providers.error, /HTTP 401/);
   f.rotate();
   data = await f.monitor.get("today");
-  assert.ok(data.trace.ok);
+  assert.ok(data.providers.ok);
   assert.equal(f.requests.filter((path) => path === "/").length, 2);
 });
 
@@ -239,9 +229,16 @@ test("periods have separate cached results and disposal stops further reads", as
 test("invalid origins cannot return embedded credentials to the browser", async (t) => {
   const f = await fixture(t);
   f.configure({ gatewayUrl: "http://PRIVATE-KEY@example.test/?key=PRIVATE-QUERY" });
-  const data = await f.monitor.get("today");
+  let data = await f.monitor.get("today");
   assert.ok(!data.health.ok);
   assert.equal(data.gatewayUrl, "Invalid gateway origin");
+  assert.equal(data.webLink, new URL(data.webLink).origin);
+  f.configure({ webLink: "https://PRIVATE-USER:PRIVATE-PASS@magpie.example.test/" });
+  data = await f.monitor.get("today");
+  assert.equal(data.webLink, new URL(data.webLink).origin);
+  f.configure({ webLink: "https://magpie.example.test/web" });
+  data = await f.monitor.get("today");
+  assert.equal(data.webLink, "https://magpie.example.test/web");
   assert.doesNotMatch(JSON.stringify(data), /PRIVATE-/);
 });
 
@@ -260,12 +257,10 @@ test("redirects are not followed and cannot send a key to another origin", async
     gatewayKey: "private",
     webUrl: source,
     webKey: "private",
-    codexRouting: false,
-    claudeRouting: false,
-    autoSync: false,
+    webLink: "",
   }));
   t.after(() => monitor.dispose());
   const data = await monitor.get("today");
-  assert.ok(!data.health.ok && !data.trace.ok);
+  assert.ok(!data.health.ok && !data.providers.ok);
   assert.equal(contacted, false);
 });

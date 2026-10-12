@@ -1,13 +1,5 @@
 import { z } from "zod";
-import {
-  groupsSchema,
-  type Monitor,
-  type Period,
-  providersSchema,
-  quotasSchema,
-  totalsSchema,
-  usageSchema,
-} from "./monitor-contract.ts";
+import { type Monitor, type Period, providersSchema, quotasSchema, totalsSchema, usageSchema } from "./monitor-contract.ts";
 import { gatewayURL } from "./proxy.ts";
 
 export interface MonitorSettings {
@@ -15,66 +7,37 @@ export interface MonitorSettings {
   gatewayKey: string;
   webUrl: string;
   webKey: string;
-  codexRouting: boolean;
-  claudeRouting: boolean;
-  autoSync: boolean;
+  webLink: string;
 }
 
 // Go encodes nil slices as null. Missing fields still indicate API drift.
 function list<T extends z.ZodType>(item: T) {
   return z.array(item).nullable().transform((value) => value ?? []);
 }
-const rawUsage = usageSchema.extend({
-  series: list(totalsSchema.extend({ label: z.string(), time: z.string() })),
-  models: list(usageSchema.shape.models.element),
-  agents: list(usageSchema.shape.agents.element),
-});
-const rawProviders = providersSchema.extend({ providers: list(providersSchema.shape.providers.element) });
-const rawGroups = z.object({
-  groups: list(groupsSchema.element.extend({
-    members: list(z.string()),
-    routing: z.string().default(""),
-    affinity: z.string().default(""),
-  })),
-});
-const rawQuotas = list(quotasSchema.element.extend({ windows: list(quotasSchema.element.shape.windows.element) }));
-const rawTrace = z.object({
-  mine: z.boolean(),
-  totals: z.object({
-    requests: z.number().int().nonnegative(),
-    rerouted: z.number().int().nonnegative(),
-    errors: z.number().int().nonnegative(),
-  }),
-  routes: list(z.object({
-    id: z.number().int().nonnegative(),
+const named = totalsSchema.extend({ id: z.string(), name: z.string() });
+// /v1/magpie/usage/requests covers gateway requests and local agent sessions, with per-agent buckets.
+// It always returns a page of request rows; they are dropped here and never reach the browser.
+const rawUsage = totalsSchema.extend({
+  period: usageSchema.shape.period,
+  bucket: usageSchema.shape.bucket,
+  series: list(totalsSchema.extend({
+    label: z.string(),
     time: z.string(),
-    agent: z.string(),
-    model: z.string(),
-    provider: z.string(),
-    done: z.boolean(),
-    error: z.string().optional(),
-    status: z.number().int().nonnegative().default(0),
-    ms: z.number().int().nonnegative().default(0),
-    tokens: z.number().int().nonnegative().default(0),
-    ttft: z.number().int().nonnegative().default(0),
-    tries: list(z.object({})),
+    by: z.object({ agent: z.record(z.string(), usageSchema.shape.series.element.shape.agents.valueType).nullable() }),
   })),
-});
+  by: z.object({ agent: list(named), model: list(named) }),
+}).transform(({ series, by, ...usage }) => ({
+  ...usage,
+  series: series.map(({ by, ...bucket }) => ({ ...bucket, agents: by.agent ?? {} })),
+  agents: by.agent,
+  models: by.model,
+}));
+const rawProviders = providersSchema.extend({ providers: list(providersSchema.shape.providers.element) });
+const rawQuotas = list(quotasSchema.element.extend({ windows: list(quotasSchema.element.shape.windows.element) }));
 
 export const parsers = {
   health: z.object({ name: z.literal("magpie"), version: z.string() }).transform(({ version }) => ({ version })),
   providers: rawProviders,
-  groups: rawGroups.transform(({ groups }) => groups),
-  trace: rawTrace.transform(({ routes, ...trace }) => ({
-    ...trace,
-    totalRoutes: routes.length,
-    // Keep the newest 30 routes. Use pagination if a full history view is added.
-    routes: routes.sort((a, b) => b.id - a.id).slice(0, 30).map(({ error, tries, ...route }) => ({
-      ...route,
-      failed: Boolean(error) || route.status >= 400,
-      tries: tries.length,
-    })),
-  })),
   usage: rawUsage,
   quotas: rawQuotas,
 };
@@ -176,31 +139,43 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
     const gatewayHeaders = { authorization: `Bearer ${config.gatewayKey || "magpie-pi"}` };
     const web = async <T>(path: string, schema: z.ZodType<T>) =>
       read(config.webUrl, path, { cookie: await cookie(config) }, schema, "Magpie Web UI");
-    const [health, providers, groups, trace, usage, quotas] = await Promise.all([
+    const [health, providers, usage, quotas] = await Promise.all([
       section(() => read(config.gatewayUrl, "/api/hello", gatewayHeaders, parsers.health, "Magpie gateway")),
       section(() => web("/api/providers", parsers.providers)),
-      section(() => web("/api/groups", parsers.groups)),
-      section(() => web("/api/gateway/trace", parsers.trace)),
       section(() =>
-        read(config.gatewayUrl, `/v1/magpie/usage?period=${period}`, gatewayHeaders, parsers.usage, "Magpie usage")
+        read(
+          config.gatewayUrl,
+          `/v1/magpie/usage/requests?period=${period}`,
+          gatewayHeaders,
+          parsers.usage,
+          "Magpie usage",
+        )
       ),
       section(() => web("/api/usage/quotas", parsers.quotas)),
     ]);
+    const origin = (value: string) => {
+      try {
+        return gatewayURL(value).origin;
+      } catch {
+        return "";
+      }
+    };
+    // The browser opens this link directly, so it may have a path but never embedded credentials.
+    const link = (value: string) => {
+      try {
+        const url = new URL(value);
+        return /^https?:$/.test(url.protocol) && !url.username && !url.password ? url.href : "";
+      } catch {
+        return "";
+      }
+    };
     return {
       updatedAt: new Date().toISOString(),
-      gatewayUrl: (() => {
-        try {
-          return gatewayURL(config.gatewayUrl).origin;
-        } catch {
-          return "Invalid gateway origin";
-        }
-      })(),
+      gatewayUrl: origin(config.gatewayUrl) || "Invalid gateway origin",
+      webLink: link(config.webLink) || origin(config.webUrl),
       webConfigured: Boolean(config.webUrl && config.webKey),
-      connector: { codex: config.codexRouting, claude: config.claudeRouting, autoSync: config.autoSync },
       health,
       providers,
-      groups,
-      trace,
       usage,
       quotas,
     };
