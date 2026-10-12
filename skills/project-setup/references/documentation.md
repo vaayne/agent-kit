@@ -7,39 +7,55 @@ public documentation site.
 ## Layout
 
 ```
-README.md                 # entry point: what it is, quick start, links
+README.md                 # what it is, quick start, links
 docs/
+  product.md              # users, problem, scope, non-goals
   dev/
-    README.md             # index of developer documents
-    architecture.md       # modules, boundaries, data flow (with a figure)
+    architecture.md       # boundaries, sources of truth, flows (with a figure)
     development.md        # set up, run, debug; refers to mise tasks
-    testing.md            # how to run each test tier; links the testing rule
-    decisions/
-      0001-<slug>.md      # one ADR per decision
-  <topic>.md              # user and operator guides
+    testing.md            # test tiers, coverage scope, known limits
+    decisions/NNNN-<slug>.md   # ADRs
+  design/
+    YYYY-MM-DD-<slug>.md  # proposals, with mockups in assets/<slug>/
+  ops/                    # deploy, rollback, runbooks
+content/docs/             # public docs (Fumadocs), in the web app
 assets/
   src/<name>.puml         # figure sources (DocumD: .puml, .mmd, ...)
   <name>.png              # rendered figures
 .local/                   # temporary reports and notes; ignored by Git
 ```
 
+Start with `README.md`, `product.md`, and `docs/dev/`. Add the other folders
+when the project needs them. In an existing repository, keep the paths that
+work. Public docs are for users and live with the Fumadocs site: in the web
+app for a TypeScript full stack, or in `site/content/docs/` for a Go service
+(see [Public docs with Fumadocs](#public-docs-with-fumadocs)).
+
+There are two kinds of documents:
+
+- **Current documents** (`product.md`, `docs/dev/`, `docs/ops/`, public docs)
+  describe the code as it is. Update them in the same PR when a change alters
+  a documented contract. Rewrite the old text; do not add a "changes" section.
+- **Records** (`docs/design/`, `docs/dev/decisions/`) are true for their date.
+  Give each one a status (`Draft`, `Accepted`, `Implemented`, `Superseded`).
+  Do not change an accepted record; supersede it with a new one and link both
+  ways. When a proposal is implemented, write the result into the current
+  documents and link the proposal from there.
+
+Other rules:
+
 - **README.md** is short. It says what the project does, how to run it in
   three commands or fewer, and where the other documents are.
-- **docs/dev/** is for people who change the code. Each document describes the
-  current state. Delete or update a section when the code changes; do not add
-  a "changes" section.
 - **architecture.md** states, for each subsystem: its responsibilities, its
   source of truth, the main runtime paths, the state transitions, and the
   failure behavior. Link source files and named symbols; do not copy code.
-  Split it into one file per subsystem under `docs/dev/` when it grows too
-  long. Update it in the same PR when a change alters a documented contract.
-- **Security gaps.** When a document describes a confirmed security gap, link
-  an open defect for it. A gap is not a description of current behavior. With
-  the user's authorization, file the defect through a private channel (a
-  security advisory) when the gap can be exploited.
+  Split it into one file per subsystem when it grows too long.
 - **ADRs** record a decision that is hard to reverse: context, options,
-  decision, consequences. Do not edit an accepted ADR; supersede it with a new
-  one and link both ways.
+  decision, consequences.
+- **Security gaps.** When a document describes a confirmed security gap, link
+  an open defect for it. With the user's authorization, file the defect
+  through a private channel (a security advisory) when the gap can be
+  exploited.
 - **.local/** holds plans, review notes, and run reports. Add it to
   `.gitignore`. Move a result to `docs/` only when it stays true.
 
