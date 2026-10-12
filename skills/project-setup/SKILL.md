@@ -1,0 +1,80 @@
+---
+name: project-setup
+description: >
+  Set up or audit a repository with V's project baseline: a short root AGENTS.md
+  index, .agents/{rules,skills}, mise for tools and tasks, prek for Git hooks,
+  dprint for formatting, documd for diagrams, tester-army/e2e for end-to-end
+  tests, and PostgreSQL with goose migrations. Stack rules cover Go
+  (golangci-lint, sqlc, OpenAPI, an embedded React UI), React UIs (TypeScript 7,
+  Vite+, shadcn on Base UI, Tailwind CSS, Beautiful UI, TanStack Query,
+  anti-slop Oxlint), and TypeScript full stack (TanStack Start, Effect,
+  @effect/sql-pg). Use when the user starts a new project, asks to apply "best
+  practices" or "项目规范" to a repository, bootstraps AGENTS.md or .agents/, or
+  asks which tools and skills a project should use.
+---
+
+# Project setup
+
+Apply one baseline to every repository, then add the rules for each stack the
+repository uses. The target repository owns the result: it pins its own tool
+versions and installs its own skills. This skill only says what to install and
+where to get it.
+
+## Procedure
+
+1. **Inspect.** Read the existing agent instructions, `git status`, and the
+   manifests (`package.json`, `go.mod`, `mise.toml`, `prek.toml`, `dprint.json`).
+   Identify the stacks. Record any user edits in the working tree and preserve
+   them.
+
+   Complete when you know the stacks and which baseline parts already exist.
+
+2. **Lay out instructions.** Follow [layout](references/layout.md). Create the
+   root `AGENTS.md` index and the `.agents/rules/` files. Keep existing rules
+   that still apply; move them into the matching rule file.
+
+3. **Install the common tooling.** Follow [tooling](references/tooling.md) for
+   mise, prek, dprint, documd, and e2e.
+
+4. **Apply each stack.** Read only the matching references:
+   - Go service: [go](references/go.md)
+   - Go service with a web UI: [go](references/go.md),
+     [typescript](references/typescript.md), and [web](references/web.md)
+   - TypeScript full stack: [typescript](references/typescript.md),
+     [web](references/web.md), and [ts-fullstack](references/ts-fullstack.md)
+   - Persistent data: [database](references/database.md)
+
+5. **Install skills.** Install each skill from its upstream source with
+   `gh skill install`. Do not copy skill content into this skill or write it
+   from memory. See [skill sources](#skill-sources).
+
+6. **Verify.** Run `mise install`, `prek validate-config prek.toml`,
+   `mise run format`, and `mise run check`. Report each check that you did not
+   run and why.
+
+Before you add a tool, ask if the repository needs it now. Skip parts that do
+not apply. For example, do not add PostgreSQL to a repository without
+persistent data, and do not add e2e to a library without a user interface.
+
+## Skill sources
+
+Install skills at project scope into `.agents/skills/`. Resolve the current
+release when you install, and commit the installed files. `gh skill update`
+uses the source metadata in each `SKILL.md`.
+
+```bash
+gh skill install <owner/repo> <skill> --dir .agents/skills
+```
+
+| Need                     | Repository                       | Skill                     |
+| ------------------------ | -------------------------------- | ------------------------- |
+| Diagrams in Markdown     | `markdown-viewer/skills`         | `documd-visuals`          |
+| PostgreSQL               | `neondatabase/postgres-skills`   | `postgres-best-practices` |
+| End-to-end tests         | `tester-army/e2e`                | `e2e`                     |
+| Go code                  | `JetBrains/go-modern-guidelines` | `use-modern-go`           |
+| Oxlint anti-slop install | `dmmulroy/anti-slop`             | `install-anti-slop`       |
+| shadcn components        | `shadcn/ui`                      | `shadcn`                  |
+
+`install-anti-slop` is a one-time installer. Run it from its upstream copy
+during setup; do not keep it in the repository unless the team updates
+anti-slop often.
