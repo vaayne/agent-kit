@@ -23,6 +23,16 @@ policy.
 
   The scenario must fail before the change and pass after it. A bug fix starts
   with a test that reproduces the bug.
+- **Prove the regression test.** Keep the new test, remove the fix, and run
+  the test. It must fail with an assertion about the target behavior. A
+  compile error or a skipped test does not count. Put the command and the
+  failure in the PR, then restore the fix and run the test again.
+- **Real inputs.** Build fixtures from the literal input in the report (the
+  request, the file, the model output), with private data removed. Do not
+  invent a similar sample. Test through the entry point that the user used
+  (UI, CLI, API) with their configuration. For a platform-specific bug, run
+  the test on that platform. When the evidence comes from a cross-compile, a
+  different entry point, or a fake, state what it does not prove.
 - **No mocks.** Use real dependencies: a real PostgreSQL database, a real HTTP
   server, a real browser. Do not mock modules, patch imports, or stub methods
   on objects you own.
@@ -36,7 +46,25 @@ policy.
   and fail with the last observed state.
 - **Isolation.** Each test creates its own data and does not depend on test
   order. Tests that share a database use a unique schema or database per
-  test file, or a transaction that rolls back.
+  test file, or a transaction that rolls back. A test that can read user
+  configuration runs with a temporary `HOME` and temporary application and
+  platform config directories; it never touches the real ones.
+- **Clean ends.** A test stops or waits for every process, goroutine, timer,
+  and background task that it starts before it returns. Otherwise the work
+  leaks into the next test.
+
+## Failures on main
+
+A test that fails on `main` is a bug to fix now. "It fails the same on main"
+is not a baseline, and neither is "it passes alone".
+
+- Record the `main` commit you tested and the failure output.
+- Fix the cause in a separate commit, or, with the user's authorization, open
+  an issue that names the cause. Do not report the failing check as passed.
+- Before you call a test flaky, run it many times under load. For Go, use
+  `go test -race -count=20 -run <Test>`. Reproduce a timing failure by
+  injecting the delay (a held lock, a late reply) instead of rerunning until
+  it fails. Many passing runs do not prove that the bug is absent.
 
 ## Tiers
 

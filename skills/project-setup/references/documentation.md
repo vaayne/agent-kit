@@ -28,6 +28,15 @@ assets/
 - **docs/dev/** is for people who change the code. Each document describes the
   current state. Delete or update a section when the code changes; do not add
   a "changes" section.
+- **architecture.md** states, for each subsystem: its responsibilities, its
+  source of truth, the main runtime paths, the state transitions, and the
+  failure behavior. Link source files and named symbols; do not copy code.
+  Split it into one file per subsystem under `docs/dev/` when it grows too
+  long. Update it in the same PR when a change alters a documented contract.
+- **Security gaps.** When a document describes a confirmed security gap, link
+  an open defect for it. A gap is not a description of current behavior. With
+  the user's authorization, file the defect through a private channel (a
+  security advisory) when the gap can be exploited.
 - **ADRs** record a decision that is hard to reverse: context, options,
   decision, consequences. Do not edit an accepted ADR; supersede it with a new
   one and link both ways.
@@ -112,6 +121,19 @@ Add a second language only when a user needs it. Put the translation next to
 the source: `quickstart.zh.mdx` and `meta.zh.json`. Change both languages in
 the same commit. Add a test that fails when a page or a `meta.json` entry
 exists in one language and not in the other.
+
+## Lessons (optional)
+
+Add a lessons file only after the same kind of rework happens more than once.
+
+- Keep it at `.agents/rules/lessons.md` and link it from the root `AGENTS.md`.
+- Write each lesson as a rule, then why, then evidence (commit hashes), and the
+  dates it was seen. Start the file with
+  `<!-- reviewed-through: <sha> -->` to record how far the review went.
+- Keep at most 10 active lessons and about 100 lines. When a lesson is seen on
+  three separate days, review it for promotion. Move a stable lesson into the
+  matching rule file, and delete lessons that are promoted, stale, or
+  duplicated.
 
 ## Verification
 

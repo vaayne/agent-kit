@@ -184,6 +184,7 @@ Use [tester-army/e2e](https://github.com/tester-army/e2e) for user flows in web
 and mobile apps. Run `npx e2e init` once, then add the package as a pinned
 development dependency. Add `test:e2e` and `install:e2e-browser` tasks. Only
 tests with agent steps need model credentials; load them in `test:e2e` from
-`.env`. Install the `e2e` skill. The package ships its documents in
+`.env`. In CI, give those credentials only to jobs that run trusted code (see
+[github](github.md)). Install the `e2e` skill. The package ships its documents in
 `node_modules/e2e/docs`. [testing](testing.md) defines when an e2e run counts
 as passed.

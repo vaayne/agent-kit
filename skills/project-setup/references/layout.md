@@ -66,7 +66,11 @@ the agent already follows.
   commands; where new tasks go (`.mise/tasks/`); hook installation; commits,
   issues, and PRs from [github](github.md).
 - `implementation.md`: module ownership, dependency policy, boundaries for
-  untrusted data, generated code that must not be edited by hand.
+  untrusted data, generated code that must not be edited by hand. A fix
+  covers every entry point with the same failure mechanism (search for the
+  pattern), and re-checks the callers, saved data, and tests that depend on the
+  old meaning. Neighboring cases that the fix does not apply to keep their
+  behavior; test one of them, for example another vendor's model.
 - `database.md`: migrations are the schema source; how to add a migration and
   regenerate queries. Link `postgres-best-practices`.
 - `testing.md`: the policy from [testing](testing.md), with this repository's

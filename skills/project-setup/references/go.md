@@ -13,6 +13,11 @@ golangci-lint = "<version>"
 Install the `use-modern-go` skill from `JetBrains/go-modern-guidelines` and
 link it from `implementation.md`.
 
+Tests that swap `HOME` must pin `GOPATH`, `GOMODCACHE`, and `GOCACHE` to the
+values from `go env` before the swap. Otherwise each run downloads the module
+cache into the new `HOME`. The module cache is read-only, so remove the
+temporary `HOME` with `chmod -R u+w` before `rm -rf`.
+
 Add these entries to `mise run check`: `golangci-lint fmt --diff`,
 `golangci-lint run`, `go test ./...`, and `go build ./...`. golangci-lint runs
 `go vet` through the `govet` linter, so do not run `go vet` separately. A

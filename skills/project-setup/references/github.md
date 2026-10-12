@@ -15,6 +15,10 @@ templates below into `.github/`.
 - Do not amend or force-push unless the user asks. Use
   `git push --force-with-lease`, never `--force`.
 - Do not add `Signed-off-by`. Never commit secrets, `.env`, or local reports.
+- When several agent sessions write to one repository at the same time, give
+  each session its own worktree or checkout. Sessions that share a working
+  tree and Git index commit each other's files. Before you commit, read the
+  staged diff; after you commit, read `git show --stat HEAD`.
 
 ## Writing to GitHub
 
@@ -71,7 +75,20 @@ first tests (see [testing](testing.md)).
   partial work, or `No issue: <reason>`.
 - List the exact checks you ran and their results. State what you did not
   check and why.
-- Update documents and generated contracts in the same PR.
+- Update documents and generated contracts in the same PR. When a change
+  alters a subsystem contract, describe the before and after behavior for each
+  affected subsystem.
+
+### Merging
+
+Merge only when the user authorizes the merge.
+
+1. Run the checks on the PR merged with the current target branch, not only on
+   the PR head. Locking the head does not prove the integration.
+2. Post on the PR which head you reviewed, which commit you tested, and the
+   results.
+3. Merge with `gh pr merge --match-head-commit <reviewed sha>`. A push after
+   the review then stops the merge. Review the new head before you try again.
 
 Template `.github/pull_request_template.md`:
 
@@ -90,7 +107,7 @@ Template `.github/pull_request_template.md`:
 
 ## Test
 
-<!-- List the exact checks and results, with report links when available. State what was not checked and why. Do not claim a check passed without evidence. -->
+<!-- List the exact checks and results, with report links when available. For a behavior fix, give the command that failed with the fix removed and its assertion failure. State what was not checked and why. Do not claim a check passed without evidence. -->
 
 ## Refs
 
@@ -121,13 +138,17 @@ on:
 permissions:
   contents: read
 
+# A new push cancels a running PR check. A running main check finishes, so a
+# release has a completed run to wait for. A queued main run can still be
+# replaced, so not every main commit gets a run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@<version>
       - uses: jdx/mise-action@<version>
@@ -146,6 +167,13 @@ jobs:
 - Pin each action to a version. Keep `permissions` at `contents: read` and
   widen it only per job.
 - Store secrets in GitHub environments. Never print them in a step.
+- Code from an untrusted PR gets no secrets and no write access. A low spending
+  limit does not stop a leak. When a job must publish a result for a PR (a
+  comment, a preview), split it: the job that runs PR code has read access and
+  no secrets, and the job that writes runs only trusted code and treats the
+  first job's artifacts as data.
+- Release only a commit whose own CI run finished green. A green run on a later
+  commit does not prove an earlier one.
 - Do not deploy from a push. Use `workflow_dispatch` with a confirmation input
   and a protected environment.
 
