@@ -58,6 +58,28 @@ function usage(period: string) {
     path: "PRIVATE-PATH",
   };
 }
+// Shape of Magpie 0.1.1190 /api/usage/quotas, with account details replaced.
+const quotas = [
+  {
+    provider: "claude",
+    name: "Claude Code",
+    icon: "claude",
+    plan: "max",
+    user: "user@example.com",
+    windows: [{ name: "5 hours", used: 3, resetsAt: "2026-10-12T12:40:00+08:00" }, { name: "7 days", used: 52 }],
+    readAt: "2026-10-12T08:52:27+08:00",
+    lastServedAt: "2026-10-12T00:56:44Z",
+  },
+  {
+    provider: "codex",
+    name: "Codex",
+    plan: "pro",
+    windows: [{ name: "7 days", used: 9, resetsAt: "2026-10-18T12:29:06+08:00", resetSecs: 531148 }],
+    balance: "62500 credits",
+    resets: { count: 3 },
+  },
+  { provider: "deepseek", name: "DeepSeek", windows: null, balance: "¥3.53 · $0.00", balanceTrend: { points: [] } },
+];
 async function serve(t: TestContext, handler: (req: IncomingMessage, res: ServerResponse) => void) {
   const server = createServer(handler);
   server.listen(0, "127.0.0.1");
@@ -108,6 +130,8 @@ async function fixture(t: TestContext) {
     assert.equal(req.headers.cookie, `magpie_web_3430=${key}`);
     const data = url.pathname === "/api/providers"
       ? failure === "schema" ? { ...providers, gateway: { running: "yes" } } : providers
+      : url.pathname === "/api/usage/quotas"
+      ? quotas
       : url.pathname === "/api/groups"
       ? { groups: [{ id: "test", name: "Test", ready: true, members: null }] }
       : trace;
@@ -155,6 +179,14 @@ test("real HTTP login, summary and routing produce a bounded, credential-free sn
   assert.equal(data.trace.data.routes[1].failed, true);
   assert.deepEqual(data.usage.data.agents, []);
   assert.equal(data.groups.data[0].routing, "");
+  assert.ok(data.quotas.ok);
+  assert.deepEqual(data.quotas.data.map((account) => [account.provider, account.windows.length]), [
+    ["claude", 2],
+    ["codex", 1],
+    ["deepseek", 0],
+  ]);
+  assert.equal(data.quotas.data[1].balance, "62500 credits");
+  assert.ok(!("resetSecs" in data.quotas.data[1].windows[0]) && !("icon" in data.quotas.data[0]));
   assert.doesNotMatch(JSON.stringify(data), /PRIVATE-|test-web-key|test-gateway-key|requestBody|prompt/);
   await f.monitor.get("today");
   assert.equal(f.requests.filter((path) => path === "/api/hello").length, 1);

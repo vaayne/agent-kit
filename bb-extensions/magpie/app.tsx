@@ -29,6 +29,59 @@ function syncSummary(result: SyncResult) {
     : `BB pickers: ${result.bb.error}`;
   return `${pi} ${native}`;
 }
+const resetTime = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+function resetLabel(value: string) {
+  const at = new Date(value);
+  const minutes = Math.max(0, Math.round((at.getTime() - Date.now()) / 60_000));
+  const left = minutes >= 1440 ? `${Math.floor(minutes / 1440)}d ${Math.floor(minutes % 1440 / 60)}h`
+    : minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+  return `Resets in ${left} · ${resetTime.format(at)}`;
+}
+function Subscriptions({ data }: { data: Monitor }) {
+  if (!data.webConfigured) return null;
+  if (!data.quotas.ok) return <Notice>{data.quotas.error}</Notice>;
+  if (!data.quotas.data.length) return null;
+  return (
+    <Panel title="Subscriptions" detail="Allowance used in each window, as Magpie last read it.">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {data.quotas.data.map((account) => (
+          <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
+            <div>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
+                {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
+              </div>
+              {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
+            </div>
+            {account.windows.map((window) => (
+              <div key={window.name} className="space-y-1">
+                <div className="flex justify-between gap-2 text-xs">
+                  <span className="truncate">{window.name}</span>
+                  <span className="shrink-0 tabular-nums">{window.used}% used</span>
+                </div>
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label={`${account.name} ${window.name}`}
+                  aria-valuenow={window.used}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${Math.min(100, window.used)}%` }}
+                  />
+                </div>
+                {window.resetsAt ? <p className={muted}>{resetLabel(window.resetsAt)}</p> : null}
+              </div>
+            ))}
+            {!account.windows.length && !account.balance ? <p className={muted}>No allowance data</p> : null}
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0 border-l-2 border-border pl-4 py-1">
@@ -467,6 +520,7 @@ function Dashboard() {
               : "Usage unavailable"}
           />
         </div>
+        {data ? <Subscriptions data={data} /> : null}
         <nav aria-label="Magpie views" className="flex gap-5 border-b border-border">
           {(["Gateway", "Routing", "Usage"] as const).map((name) => (
             <button

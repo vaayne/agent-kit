@@ -4,6 +4,7 @@ import {
   type Monitor,
   type Period,
   providersSchema,
+  quotasSchema,
   totalsSchema,
   usageSchema,
 } from "./monitor-contract.ts";
@@ -36,6 +37,7 @@ const rawGroups = z.object({
     affinity: z.string().default(""),
   })),
 });
+const rawQuotas = list(quotasSchema.element.extend({ windows: list(quotasSchema.element.shape.windows.element) }));
 const rawTrace = z.object({
   mine: z.boolean(),
   totals: z.object({
@@ -74,6 +76,7 @@ export const parsers = {
     })),
   })),
   usage: rawUsage,
+  quotas: rawQuotas,
 };
 
 class MonitorError extends Error {}
@@ -173,7 +176,7 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
     const gatewayHeaders = { authorization: `Bearer ${config.gatewayKey || "magpie-pi"}` };
     const web = async <T>(path: string, schema: z.ZodType<T>) =>
       read(config.webUrl, path, { cookie: await cookie(config) }, schema, "Magpie Web UI");
-    const [health, providers, groups, trace, usage] = await Promise.all([
+    const [health, providers, groups, trace, usage, quotas] = await Promise.all([
       section(() => read(config.gatewayUrl, "/api/hello", gatewayHeaders, parsers.health, "Magpie gateway")),
       section(() => web("/api/providers", parsers.providers)),
       section(() => web("/api/groups", parsers.groups)),
@@ -181,6 +184,7 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
       section(() =>
         read(config.gatewayUrl, `/v1/magpie/usage?period=${period}`, gatewayHeaders, parsers.usage, "Magpie usage")
       ),
+      section(() => web("/api/usage/quotas", parsers.quotas)),
     ]);
     return {
       updatedAt: new Date().toISOString(),
@@ -198,6 +202,7 @@ export function createMonitor(readSettings: () => Promise<MonitorSettings>) {
       groups,
       trace,
       usage,
+      quotas,
     };
   }
   return {

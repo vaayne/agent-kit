@@ -60,6 +60,16 @@ export const traceSchema = z.object({
   })),
   totalRoutes: count,
 });
+export const quotasSchema = z.array(z.object({
+  provider: z.string(),
+  name: z.string(),
+  plan: z.string().optional(),
+  user: z.string().optional(),
+  // used is a percentage of the window's allowance.
+  windows: z.array(z.object({ name: z.string(), used: z.number().nonnegative(), resetsAt: z.string().optional() })),
+  balance: z.string().optional(),
+  readAt: z.string().optional(),
+}));
 function section<T extends z.ZodType>(data: T) {
   return z.discriminatedUnion("ok", [
     z.object({ ok: z.literal(true), data }),
@@ -76,6 +86,7 @@ export const monitorSchema = z.object({
   groups: section(groupsSchema),
   trace: section(traceSchema),
   usage: section(usageSchema),
+  quotas: section(quotasSchema),
 });
 export type Monitor = z.infer<typeof monitorSchema>;
 const failure = z.object({ ok: z.literal(false), error: z.string() });
