@@ -325,7 +325,9 @@ test("cancelling an early SSE response closes the upstream request", async (t) =
   Object.assign(streamTiming, { headers: 50, ping: 20 });
   t.after(() => Object.assign(streamTiming, { headers: 10_000, ping: 10_000 }));
   let close!: () => void;
-  const closed = new Promise<void>((resolve) => { close = resolve; });
+  const closed = new Promise<void>((resolve) => {
+    close = resolve;
+  });
   const url = await gateway(t, (req, res) => {
     req.resume();
     res.on("close", close);
