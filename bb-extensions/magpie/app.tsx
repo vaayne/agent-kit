@@ -1,6 +1,16 @@
-import { definePluginApp, useRpc } from "@get-bb/plugin-sdk/app";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  definePluginApp,
+  experimental_ProviderIcon as ProviderIcon,
+  experimental_useProviders,
+  useRpc,
+} from "@get-bb/plugin-sdk/app";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import type { Monitor, monitorRpc, Period, SyncResult } from "./monitor-contract.ts";
+
+type Quota = Extract<Monitor["quotas"], { ok: true }>["data"][number];
+// Same artwork as assets/icon.svg, which the manifest cannot share with app-registered icons.
+const magpiePath =
+  "M1.31 3.44L1.17 4.35L1.52 5.40L2.15 6.30L4.66 9.24L4.59 9.31L1.03 5.61L0.89 5.61L0.89 6.58L1.03 7.07L1.31 7.56L2.01 8.26L3.54 9.45L4.73 10.57L4.59 10.64L2.57 8.96L0.89 7.91L0.89 8.47L1.17 9.17L1.94 10.01L4.38 11.62L5.08 12.31L6.06 13.85L7.11 12.94L7.25 13.01L5.57 14.90L4.59 16.58L5.29 16.23L6.69 15.88L6.76 15.95L6.62 16.09L5.71 16.44L5.22 16.93L5.99 17L6.97 17.35L8.02 18.04L9.27 19.09L10.67 19.93L11.86 20.35L12.77 20.49L14.52 20.42L15.91 20L16.89 19.51L17.59 19.02L18.85 17.77L19.69 16.51L20.25 15.32L20.60 14.13L20.74 13.22L20.74 12.03L20.53 10.92L19.62 8.82L19.69 7.84L19.90 7.49L20.32 7.14L20.87 6.86L23.04 6.44L22.83 6.23L21.71 5.75L20.32 5.47L19.41 4.70L18.57 4.28L17.59 4.07L16.19 4.28L15.49 4.63L14.52 5.54L13.12 8.12L11.93 9.38L9 11.41L8.72 11.41L7.74 10.92L6.76 10.01L6.13 9.10L4.80 6.30L3.96 5.12L2.64 3.93L1.87 3.51ZM20.18 13.99L20.18 14.48L19.90 15.53L19.34 16.72L18.78 17.56L17.94 18.46L17.24 19.02L15.49 19.93L14.38 20.21L12.42 20.21L11.79 20.07L10.18 19.37L9.20 18.46L9 18.11L8.93 17.42L9 17.21L9.41 16.79L11.93 15.60L13.96 14.27L15.21 12.94L15.91 11.69L16.19 10.92L16.40 11.06L17.10 12.31L17.80 13.01L18.57 13.50L19.69 13.85L20.04 13.85ZM16.12 9.73L16.19 10.08L15.77 10.85L15.07 11.48L14.03 12.03L11.16 12.94L8.65 13.57L8.23 13.50L9 12.38L10.60 10.78L12 9.87L14.10 9.17L15.42 9.17L15.77 9.31ZM18.01 5.54L18.29 5.40L18.50 5.54L18.50 5.75L18.36 5.89L18.15 5.89L18.01 5.75Z";
 
 const number = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
 const exact = new Intl.NumberFormat();
@@ -30,12 +40,53 @@ function syncSummary(result: SyncResult) {
   return `${pi} ${native}`;
 }
 const resetTime = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
-function resetLabel(value: string) {
-  const at = new Date(value);
-  const minutes = Math.max(0, Math.round((at.getTime() - Date.now()) / 60_000));
-  const left = minutes >= 1440 ? `${Math.floor(minutes / 1440)}d ${Math.floor(minutes % 1440 / 60)}h`
+function timeLeft(value: string) {
+  const minutes = Math.max(0, Math.round((new Date(value).getTime() - Date.now()) / 60_000));
+  return minutes >= 1440 ? `${Math.floor(minutes / 1440)}d ${Math.floor(minutes % 1440 / 60)}h`
     : minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
-  return `Resets in ${left} · ${resetTime.format(at)}`;
+}
+function resetLabel(value: string) {
+  return `Resets in ${timeLeft(value)} · ${resetTime.format(new Date(value))}`;
+}
+function QuotaCards({ accounts, className }: { accounts: Quota[]; className: string }) {
+  return (
+    <div className={className}>
+      {accounts.map((account) => (
+        <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
+          <div>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
+              {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
+            </div>
+            {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
+          </div>
+          {account.windows.map((window) => (
+            <div key={window.name} className="space-y-1">
+              <div className="flex justify-between gap-2 text-xs">
+                <span className="truncate">{window.name}</span>
+                <span className="shrink-0 tabular-nums">{Math.round(window.used)}% used</span>
+              </div>
+              <div
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label={`${account.name} ${window.name}`}
+                aria-valuenow={window.used}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
+                  style={{ width: `${Math.min(100, window.used)}%` }}
+                />
+              </div>
+              {window.resetsAt ? <p className={muted}>{resetLabel(window.resetsAt)}</p> : null}
+            </div>
+          ))}
+          {!account.windows.length && !account.balance ? <p className={muted}>No allowance data</p> : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 function Subscriptions({ data }: { data: Monitor }) {
   if (!data.webConfigured) return null;
@@ -43,43 +94,150 @@ function Subscriptions({ data }: { data: Monitor }) {
   if (!data.quotas.data.length) return null;
   return (
     <Panel title="Subscriptions" detail="Allowance used in each window, as Magpie last read it.">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {data.quotas.data.map((account) => (
-          <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
-            <div>
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
-                {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
-              </div>
-              {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
-            </div>
-            {account.windows.map((window) => (
-              <div key={window.name} className="space-y-1">
-                <div className="flex justify-between gap-2 text-xs">
-                  <span className="truncate">{window.name}</span>
-                  <span className="shrink-0 tabular-nums">{window.used}% used</span>
-                </div>
-                <div
-                  className="h-1.5 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label={`${account.name} ${window.name}`}
-                  aria-valuenow={window.used}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
-                    style={{ width: `${Math.min(100, window.used)}%` }}
-                  />
-                </div>
-                {window.resetsAt ? <p className={muted}>{resetLabel(window.resetsAt)}</p> : null}
-              </div>
-            ))}
-            {!account.windows.length && !account.balance ? <p className={muted}>No allowance data</p> : null}
-          </div>
-        ))}
-      </div>
+      <QuotaCards accounts={data.quotas.data} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" />
     </Panel>
+  );
+}
+// Magpie quota providers that match a BB agent provider, for its icon.
+const agentProvider: Record<string, string> = { claude: "claude-code", codex: "codex" };
+// "7 days Sonnet" -> "7d Sonnet", to fit the narrow sidebar row.
+const windowLabel = (name: string) =>
+  name.replace(/^(\d+) (hour|day|week|month)s?\b/, (_, count: string, unit: string) =>
+    `${count}${unit === "month" ? "mo" : unit[0]}`);
+// The sidebar footer shows only allowance, so it polls slower than the full dashboard.
+function SubscriptionUsage() {
+  const rpc = useRpc<typeof monitorRpc>();
+  const providers = experimental_useProviders();
+  const [data, setData] = useState<Monitor | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const next = await rpc.call("monitor", { period: "today" });
+        if (alive) {
+          setData(next);
+          setError(null);
+        }
+      } catch {
+        if (alive) setError("Cannot read Magpie subscription usage.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 30_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [rpc, refresh]);
+  const message = error ?? (!data
+    ? "Loading subscription usage…"
+    : !data.webConfigured
+    ? "Set the Magpie Web UI origin and key in the plugin settings."
+    : !data.quotas.ok
+    ? data.quotas.error
+    : !data.quotas.data.length
+    ? "Magpie reports no subscriptions."
+    : null);
+  return (
+    <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden text-xs text-foreground">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
+        <span className="flex items-center gap-1.5 font-medium">
+          <MagpieIcon className="size-3.5" />
+          Magpie
+        </span>
+        <button
+          type="button"
+          aria-label="Refresh subscription usage"
+          title="Refresh"
+          disabled={loading}
+          onClick={() => setRefresh((value) => value + 1)}
+          className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshIcon className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+      {message || !data?.quotas.ok
+        ? <p className="px-3 py-2.5 text-muted-foreground">{message}</p>
+        : (
+          // Accounts share one grid through subgrid, so every window column lines up.
+          <div className="grid grid-cols-[fit-content(5rem)_minmax(1.5rem,1fr)_max-content_max-content] gap-x-2 tabular-nums">
+            {data.quotas.data.map((account) => {
+              const id = agentProvider[account.provider];
+              const provider = providers.providers.find((entry) => entry.id === id);
+              return (
+                <div
+                  key={`${account.provider}:${account.user ?? account.name}`}
+                  className="col-span-full grid grid-cols-subgrid items-center gap-y-1.5 border-t border-border px-3 py-2.5 first:border-t-0"
+                >
+                  <div className="col-span-full flex min-w-0 items-center gap-1.5">
+                    {id
+                      ? <ProviderIcon providerKind="agent" provider={provider ?? { id }} className="size-3.5 shrink-0" />
+                      : <span className="size-3.5 shrink-0" />}
+                    <span className="min-w-0 truncate font-medium" title={account.user ?? account.name}>
+                      {account.user ?? account.name}
+                    </span>
+                    {account.plan
+                      ? <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[11px] capitalize text-muted-foreground">{account.plan}</span>
+                      : null}
+                  </div>
+                  {account.windows.map((window) => (
+                    <Fragment key={window.name}>
+                      <span
+                        className="truncate text-muted-foreground"
+                        title={window.resetsAt ? `${window.name} · ${resetLabel(window.resetsAt)}` : window.name}
+                      >
+                        {windowLabel(window.name)}
+                      </span>
+                      <div
+                        className="h-1 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-label={`${account.name} ${window.name}`}
+                        aria-valuenow={Math.round(window.used)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className={`h-full rounded-full ${window.used >= 90 ? "bg-destructive" : "bg-primary"}`}
+                          style={{ width: `${Math.min(100, window.used)}%` }}
+                        />
+                      </div>
+                      <span className="text-right">{Math.round(window.used)}%</span>
+                      <span className="text-right text-muted-foreground">
+                        {window.resetsAt ? timeLeft(window.resetsAt) : ""}
+                      </span>
+                    </Fragment>
+                  ))}
+                  {account.balance ? <p className="col-span-full text-muted-foreground">{account.balance}</p> : null}
+                  {!account.windows.length && !account.balance
+                    ? <p className="col-span-full text-muted-foreground">No allowance data</p>
+                    : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+    </div>
+  );
+}
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+    </svg>
+  );
+}
+function MagpieIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path fill="currentColor" fillRule="evenodd" d={magpiePath} />
+    </svg>
   );
 }
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
@@ -553,5 +711,13 @@ function Dashboard() {
 }
 
 export default definePluginApp((app) => {
-  app.slots.navPanel({ id: "monitor", title: "Magpie", icon: "Bird", path: "monitor", component: Dashboard });
+  app.experimental_icons.register({ name: "magpie/logo", component: MagpieIcon });
+  app.slots.navPanel({ id: "monitor", title: "Magpie", icon: "magpie/logo", path: "monitor", component: Dashboard });
+  app.experimental_sidebarFooter.register({
+    kind: "disclosure",
+    id: "subscriptions",
+    label: "Magpie subscription usage",
+    icon: "magpie/logo",
+    component: SubscriptionUsage,
+  });
 });

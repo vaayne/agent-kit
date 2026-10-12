@@ -11,7 +11,7 @@
     "name": "Magpie",
     "description": "Route BB agents through Magpie and monitor gateway health, routing, and usage.",
     "branding": {
-      "icon": "Bird"
+      "icon": "./assets/icon.svg"
     },
     "server": "./server.ts",
     "host": "./host.ts",

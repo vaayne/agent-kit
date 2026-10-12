@@ -45,6 +45,8 @@ Open **Magpie** in the BB navigation rail. The monitor has three views:
 - **Routing:** the newest 30 retained requests, attempts, status, duration, and routing groups. The counters cover the current gateway process and reset when it restarts.
 - **Usage:** requests, errors, input/output and cache tokens, estimated USD cost, activity, and model totals. Select Today, 7 days, or 30 days. The data includes the gateway and supported agent session logs. Period boundaries use the Magpie server's time zone. Costs use model prices; they are not invoices. Requests without a known price are marked.
 
+The Magpie button in the sidebar footer opens a compact subscription allowance view, like BB's Provider usage. It refreshes every 30 seconds while open. Both views need `webUrl` and `webKey`.
+
 The page refreshes every 5 seconds after a completed read while visible. Pause stops automatic refresh. Refresh requests another snapshot. The server shares each snapshot for up to 5 seconds, so several open pages do not duplicate requests.
 
 Health and usage use `gatewayUrl` and `gatewayKey`. For gateway details and routing, run `magpie web` and set these plugin settings:
