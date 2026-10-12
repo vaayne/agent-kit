@@ -44,8 +44,7 @@ src/features/users/
   per request.
 - Read configuration with Effect `Config`, and wrap secrets in `Redacted`.
 - Use a server route (the `server` option of `createFileRoute`) only for
-  endpoints that clients
-  other than this UI call, for example webhooks. Describe such an endpoint with
+  endpoints that clients other than this UI call, for example webhooks. Describe such an endpoint with
   OpenAPI when an external client depends on it.
 
 ## Data in the UI

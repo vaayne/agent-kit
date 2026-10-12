@@ -14,8 +14,8 @@ from `.agents/rules/database.md`.
 - Test queries and migrations against a real PostgreSQL instance, not a mock.
   Give each test run its own database or schema, and drop it after the run.
 
-Goose owns migrations for every stack: it is a CLI, and its migrations are
-plain SQL files. The query layer depends on the backend language:
+Goose owns migrations for every stack: it is a single binary, and its
+migrations are plain SQL files. The query layer depends on the backend language:
 
 | Backend    | Migrations | Queries                            |
 | ---------- | ---------- | ---------------------------------- |
@@ -33,7 +33,7 @@ the schema from them.
 ```toml
 # mise.toml
 [tools]
-"go:github.com/pressly/goose/v3/cmd/goose" = "<version>"
+"aqua:pressly/goose" = "<version>" # prebuilt; a TypeScript project needs no Go
 ```
 
 - Keep migrations in `internal/db/migrations/` as plain SQL files with
@@ -54,7 +54,7 @@ migrations to build its catalog, so the schema exists in one place.
 ```toml
 # mise.toml
 [tools]
-"go:github.com/sqlc-dev/sqlc/cmd/sqlc" = "<version>"
+"aqua:sqlc-dev/sqlc" = "<version>"
 ```
 
 ```yaml
@@ -75,7 +75,7 @@ sql:
 
 - Write queries in `internal/db/queries/`. Run `sqlc generate` through a
   `generate:db` mise task.
-- Commit the generated code. Do not edit it by hand. Exclude it from dprint.
+- Commit the generated code. Do not edit it by hand.
 - Add `check:db-drift`: generate into a temporary copy and compare it with
   `internal/db/sqlc` with `diff -r`, so added and deleted files also fail.
   Also run `sqlc vet`. Run the task from `check`.
@@ -93,8 +93,8 @@ hand with the `sql` tagged template; it sends values as parameters.
   `Config.redacted("DATABASE_URL")`. Include the layer in the application
   layer, so the pool opens once.
 - Decode every result with Effect Schema, through the helpers in
-  `effect/sql/SqlSchema` (`findAll`, `findOne`, `findOneOption`). Declare one schema per query result next to the
-  query in a `.server.ts` file.
+  `effect/sql/SqlSchema` (`findAll`, `findOne`, `findOneOption`). Declare one
+  schema per query result next to the query in a `.server.ts` file.
 - Nothing generates these schemas from the migrations, so the compiler does
   not detect a mismatch with the tables. Cover each query with a test against a
   real PostgreSQL instance that has all migrations applied.

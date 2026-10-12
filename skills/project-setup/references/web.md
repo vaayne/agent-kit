@@ -20,8 +20,8 @@ primitives. Use Tailwind CSS v4 through `@tailwindcss/vite`. Install the
 
 ### Setup
 
-1. Run `shadcn init -b base -p nova` in the UI project root, so components use Base UI
-   (`@base-ui/react`) and the `base-nova` style, not Radix.
+1. Run `shadcn init -b base -p nova` in the UI project root, so components use
+   Base UI (`@base-ui/react`) and the `base-nova` style, not Radix.
 2. In `components.json`, set `tailwind.css` to `src/styles/shadcn.css` and add
    the registry:
 

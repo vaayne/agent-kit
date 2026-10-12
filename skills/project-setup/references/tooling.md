@@ -17,6 +17,10 @@ prek = "<version>"
 node = "<version>"
 "npm:@markdown-viewer/documd" = "<version>"
 
+[tasks.install]
+description = "Install project dependencies from the lockfiles"
+run = [] # add stack installs here, for example "vp install --frozen-lockfile"
+
 [tasks.format]
 description = "Format all files"
 run = "dprint fmt"
@@ -41,9 +45,10 @@ Give every task a `description`, because agents choose tasks from
 
 - Commit `.env.example` with safe placeholder values. Ignore `.env` in
   `.gitignore` and `.dockerignore`.
-- Do not load `.env` globally with `[env] _.file`. Load it only in the tasks
-  that need it, such as `dev`. Then `check` and the tests do not receive
-  provider or production credentials by accident.
+- Do not load `.env` globally with `[env] _.file`. Load it only in the file
+  tasks that need it, such as `dev`, with `set -a; . ./.env; set +a`. Then
+  `check` and the tests do not receive provider or production credentials by
+  accident.
 - Tests start child processes with an explicit environment, not the full
   parent environment.
 - Document where each secret comes from (for example a 1Password item). Do not
@@ -58,8 +63,9 @@ reads this directory by default, so `mise.toml` needs no `includes` entry.
 ```
 .mise/tasks/
   check/        # check:web-dist, check:api-drift
-  generate/     # generate:api, generate:sql
+  generate/     # generate:api, generate:db
   dev/          # dev:server, dev:web
+  build/        # build:web
   db/           # db:migrate, db:reset
   test/         # test:unit, test:e2e
   install/      # install:web, install:e2e-browser
@@ -89,9 +95,8 @@ npx e2e run "$@"
 - Call tools by name. mise puts the pinned versions on `PATH`; use
   `mise which <tool>` only when a child process needs an absolute path.
 - Keep the aggregate tasks (`install`, `format`, `check`, `build`, `dev`) in
-  `mise.toml` as lists of other tasks, so one file shows what `check` runs.
-  `install` installs project dependencies from the lockfiles; CI runs it
-  before `check`.
+  `mise.toml` as lists of other tasks, so one file shows what `check` runs. CI
+  runs `install` before `check`.
 - Use a TypeScript or Python file task only when Bash becomes hard to read.
   `mise run` puts the pinned runtime on `PATH`, so `#!/usr/bin/env node` uses
   the pinned Node.
@@ -177,8 +182,8 @@ backend, as shown above. This pins it like every other tool; do not use
 
 Use [tester-army/e2e](https://github.com/tester-army/e2e) for user flows in web
 and mobile apps. Run `npx e2e init` once, then add the package as a pinned
-development dependency. Add a `test:e2e` mise task. Keep model credentials in
-`.env`; tests without agent steps need no model. Install the `e2e` skill. The
-package ships its documents in `node_modules/e2e/docs`.
-
-Follow [testing](testing.md) for the test policy.
+development dependency. Add `test:e2e` and `install:e2e-browser` tasks. Only
+tests with agent steps need model credentials; load them in `test:e2e` from
+`.env`. Install the `e2e` skill. The package ships its documents in
+`node_modules/e2e/docs`. [testing](testing.md) defines when an e2e run counts
+as passed.

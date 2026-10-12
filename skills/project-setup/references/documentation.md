@@ -18,7 +18,7 @@ docs/
       0001-<slug>.md      # one ADR per decision
   <topic>.md              # user and operator guides
 assets/
-  src/<name>.md           # figure sources (DocumD)
+  src/<name>.puml         # figure sources (DocumD: .puml, .mmd, ...)
   <name>.png              # rendered figures
 .local/                   # temporary reports and notes; ignored by Git
 ```

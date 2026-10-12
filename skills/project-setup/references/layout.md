@@ -3,16 +3,16 @@
 ```
 AGENTS.md            # short index; links to rules
 CLAUDE.md -> AGENTS.md
-mise.toml            # tools and aggregate tasks
-.mise/tasks/         # file tasks, one directory per group
-.github/             # CI, issue and PR templates, Dependabot
-docs/                # see documentation.md
-.local/              # temporary reports; ignored by Git
 .agents/
   rules/             # one file per task area
   skills/            # skills installed with gh skill install
 .claude/
   skills -> ../.agents/skills
+mise.toml            # tools and aggregate tasks (tooling.md)
+.mise/tasks/         # file tasks, one directory per group (tooling.md)
+.github/             # CI, templates, Dependabot (github.md)
+docs/, assets/       # documents and figures (documentation.md)
+.local/              # temporary reports; ignored by Git
 ```
 
 Codex and most other agents read `AGENTS.md` and `.agents/skills/`. Claude Code
@@ -50,8 +50,9 @@ it. If a skill conflicts with a rule, the rule wins.
 
 Use this layout for new repositories. In an existing repository, keep a
 structure that already routes agents to authoritative documents (for example
-`docs/dev/`); link to it from the index instead of moving it. Add an entry only
-for an area the repository has. Add a stack-specific rule
+`docs/dev/`); link to it from the index instead of moving it.
+
+Add an entry only for an area the repository has. Add a stack-specific rule
 (for example `web.md` or `go.md`) when that stack has rules beyond the shared
 ones.
 

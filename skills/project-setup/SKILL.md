@@ -1,14 +1,13 @@
 ---
 name: project-setup
 description: >
-  Set up or audit a repository with V's project baseline: a short root AGENTS.md
-  index, .agents/{rules,skills}, mise for tools and .mise/tasks file tasks,
-  prek for Git hooks, dprint for formatting, documentation with documd figures
-  and Fumadocs public docs, a no-mock test policy with tester-army/e2e, GitHub
-  commit, issue, PR, and CI rules, and PostgreSQL with goose migrations. Stack rules cover Go
-  (golangci-lint, sqlc, OpenAPI, an embedded React UI), React UIs (TypeScript 7,
-  Vite+, shadcn on Base UI, Tailwind CSS, Beautiful UI, TanStack Query,
-  anti-slop Oxlint), and TypeScript full stack (TanStack Start, Effect,
+  Set up or audit a repository with V's project baseline. Common: an AGENTS.md
+  index with .agents/{rules,skills}, mise tools and .mise/tasks, prek, dprint,
+  a no-mock test policy with tester-army/e2e, documentation with documd figures
+  and Fumadocs, GitHub commit/issue/PR/CI rules, and PostgreSQL with goose.
+  Stacks: Go (golangci-lint, sqlc, OpenAPI, embedded React UI), React UI
+  (TypeScript 7, Vite+, shadcn on Base UI, Beautiful UI, TanStack Query,
+  anti-slop), and TypeScript full stack (TanStack Start, Effect,
   @effect/sql-pg). Use when the user starts a new project, asks to apply "best
   practices" or "项目规范" to a repository, bootstraps AGENTS.md or .agents/, or
   asks which tools and skills a project should use.
@@ -65,11 +64,11 @@ leftover configuration.
      Dependabot.
 
 4. **Apply each stack.** Read only the matching references:
-   - Go service: [go](references/go.md)
+   - Go service: [go](references/go.md).
    - Go service with a web UI: [go](references/go.md),
-     [typescript](references/typescript.md), and [web](references/web.md)
+     [typescript](references/typescript.md), and [web](references/web.md).
    - TypeScript full stack: [typescript](references/typescript.md),
-     [web](references/web.md), and [ts-fullstack](references/ts-fullstack.md)
+     [web](references/web.md), and [ts-fullstack](references/ts-fullstack.md).
    - The application owns relational data: [database](references/database.md).
      Persistent data alone does not require PostgreSQL; a file store or an
      external system of record may own it.
@@ -88,8 +87,9 @@ leftover configuration.
    Report each check that you did not run and why.
 
 Before you add a tool, ask if the repository needs it now. Skip parts that do
-not apply. For example, do not add PostgreSQL to a repository without
-persistent data, and do not add e2e to a library without a user interface.
+not apply. For example, do not add PostgreSQL when the application owns no
+relational data, do not add e2e to a library without a user interface, and do
+not add Fumadocs without public documentation.
 
 ## Skill sources
 

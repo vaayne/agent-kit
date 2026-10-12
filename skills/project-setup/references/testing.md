@@ -37,9 +37,6 @@ policy.
 - **Isolation.** Each test creates its own data and does not depend on test
   order. Tests that share a database use a unique schema or database per
   test file, or a transaction that rolls back.
-- **Real artifacts.** An e2e run leaves evidence: a report, screenshots, or
-  traces in a known directory. A failure message names the scenario and the
-  artifact path.
 
 ## Tiers
 
@@ -84,7 +81,8 @@ passes only when:
   fails on zero selected tests or on a skipped selected test.
 - The report records the Git revision, the build that was tested, and the
   command.
-- A failure leaves traces, screenshots, and the report in a known directory.
+- A failure leaves traces, screenshots, and the report in a known directory,
+  and the failure message names the scenario and that directory.
 
 State what the e2e run does not prove, for example flows that use a fake
 upstream instead of the real provider.

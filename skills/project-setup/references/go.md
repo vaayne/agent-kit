@@ -1,7 +1,8 @@
 # Go
 
-Pin Go and golangci-lint in `mise.toml`. Install other Go tools through the
-mise `go:` backend so that they also have exact versions:
+Pin Go and golangci-lint in `mise.toml`. Install other Go tools at exact
+versions through the mise `aqua:` backend when a prebuilt binary exists, else
+through the `go:` backend:
 
 ```toml
 [tools]
@@ -69,8 +70,8 @@ exclusion and its reason in `.golangci.yml`.
 
 When a Go service has a web UI, put the UI in `web/` as a Vite+ project and
 follow [typescript](typescript.md) and [web](web.md). The UI is plain React
-with TanStack Query; it needs no TanStack Start and no Effect. The Go binary embeds the built UI, so one
-binary serves both the API and the UI.
+with TanStack Query; it needs no TanStack Start and no Effect. The Go binary
+embeds the built UI, so one binary serves both the API and the UI.
 
 ```
 api/
@@ -114,7 +115,7 @@ the standard `net/http` router:
 ```toml
 # mise.toml
 [tools]
-"go:github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen" = "<version>"
+"aqua:oapi-codegen/oapi-codegen" = "<version>"
 ```
 
 ```yaml
@@ -150,8 +151,8 @@ export default defineConfig({
 The `@tanstack/react-query` plugin generates query and mutation options for
 each operation in `src/api/generated/@tanstack/react-query.gen.ts`. UI code
 passes them to TanStack Query, for example `useQuery(getHealthOptions())`. Do
-not write `fetch` calls to `/api/` by hand. Keep the `/api` prefix in the spec paths, so the generated
-client calls the same origin and needs no base URL.
+not write `fetch` calls to `/api/` by hand. Keep the `/api` prefix in the spec
+paths, so the generated client calls the same origin and needs no base URL.
 
 `@hey-api/openapi-ts` imports the TypeScript JavaScript API, which TypeScript
 7.0 does not have. Install TypeScript 6 next to TypeScript 7, as
