@@ -83,6 +83,40 @@ The later layer wins, so the project edits only its own file.
   states. Show hover-only actions for a coarse pointer too
   (`pointer-coarse:`).
 
+### Agent UI
+
+Beautiful UI has components for agent products. Look at them on
+[beautifului.dev](https://www.beautifului.dev) before you design a chat,
+tool-call, or approval surface, and reuse their look.
+
+- **Use as they are.** These are data-driven primitives: `shimmer` (a working
+  label), `stream-text` (text revealed while it streams), `code-block` (code
+  and unified diff with copy), `entity-chip`, `value-pill`, `glide-menu`, and
+  `button`. Add them to `atoms/`.
+- **Adapt before use.** These are scripted demos that run their own timers:
+  `thinking-state`, `streaming-text`, `tool-chips`, `task-rows`,
+  `approval-card`, `chat-composer`, `prompt-bar`, `context-cards`,
+  `diff-table`, and `loading-state`. Do not put them in a product surface as
+  they are. Copy the one you need into a project directory such as
+  `src/components/agent/`, remove the timers and sample data, and drive every
+  state from props that come from the real agent events (message deltas, tool
+  calls and results, approval requests). Keep the markup and the tokens, so
+  the look stays the same.
+
+The usual mapping from agent events to components:
+
+| Agent event                     | Component                              |
+| ------------------------------- | -------------------------------------- |
+| Model is working, no output yet | `shimmer`, `thinking-state`            |
+| Text delta                      | `stream-text`, `streaming-text`        |
+| Tool call and result            | `tool-chips`, `task-rows`              |
+| Approval or question for user   | `approval-card`                        |
+| File edit or code output        | `code-block` (Diff view), `diff-table` |
+
+An agent surface also needs the states the demos skip: a failed tool call, a
+rejected approval, a cancelled run, and a reconnect after a dropped stream.
+Show each one explicitly, and test it in e2e with recorded agent events.
+
 ## Server state: TanStack Query
 
 Fetch and cache all server data with `@tanstack/react-query`. Create one
