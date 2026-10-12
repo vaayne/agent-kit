@@ -56,10 +56,14 @@ export function gatewayFailure(error: unknown): Response {
   for (let cause = error; cause instanceof Error; cause = cause.cause) {
     const code = "code" in cause ? cause.code : undefined;
     if (cause.name === "TimeoutError" || code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT") {
-      return Response.json({ error: { message: "Timed out waiting for the Magpie gateway response." } }, { status: 504 });
+      return Response.json({ error: { message: "Timed out waiting for the Magpie gateway response." } }, {
+        status: 504,
+      });
     }
   }
-  return Response.json({ error: { message: "Cannot reach the Magpie gateway. Run bb magpie check." } }, { status: 502 });
+  return Response.json({ error: { message: "Cannot reach the Magpie gateway. Run bb magpie check." } }, {
+    status: 502,
+  });
 }
 
 /** Read a JSON body of at most `limit` bytes. The caller validates its shape. */
@@ -67,7 +71,7 @@ export async function readJson(
   response: Response,
   limit: number,
   label: string,
-  Failure: new (message: string, options?: ErrorOptions) => Error = Error,
+  Failure: new(message: string, options?: ErrorOptions) => Error = Error,
 ): Promise<unknown> {
   const reader = response.body?.getReader();
   if (!reader) throw new Failure(`${label} returned an empty response.`);

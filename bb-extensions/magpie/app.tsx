@@ -32,7 +32,9 @@ function syncSummary(result: SyncResult) {
     ? t.piUpdated(result.pi.machines.length, result.pi.refreshed)
     : "error" in result.pi
     ? `Pi: ${result.pi.error}`
-    : `Pi: ${result.pi.machines.filter((entry) => !entry.ok).map((entry) => `${entry.machine}: ${entry.error}`).join("; ")}`;
+    : `Pi: ${
+      result.pi.machines.filter((entry) => !entry.ok).map((entry) => `${entry.machine}: ${entry.error}`).join("; ")
+    }`;
   const native = result.bb.ok
     ? t.pickersUpdated(result.bb.total, result.bb.added, result.bb.removed)
     : `${t.pickers}: ${result.bb.error}`;
@@ -42,8 +44,11 @@ const resetTime = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "
 function timeLeft(value: string) {
   const minutes = Math.max(0, Math.round((new Date(value).getTime() - Date.now()) / 60_000));
   const { d, h, m } = t.units;
-  return minutes >= 1440 ? `${Math.floor(minutes / 1440)}${d} ${Math.floor(minutes % 1440 / 60)}${h}`
-    : minutes >= 60 ? `${Math.floor(minutes / 60)}${h} ${minutes % 60}${m}` : `${minutes}${m}`;
+  return minutes >= 1440
+    ? `${Math.floor(minutes / 1440)}${d} ${Math.floor(minutes % 1440 / 60)}${h}`
+    : minutes >= 60
+    ? `${Math.floor(minutes / 60)}${h} ${minutes % 60}${m}`
+    : `${minutes}${m}`;
 }
 function resetLabel(value: string) {
   return t.resetsIn(timeLeft(value), resetTime.format(new Date(value)));
@@ -56,10 +61,16 @@ function Subscriptions({ data }: { data: Monitor }) {
     <Panel title={t.subscriptions} detail={t.subscriptionsDetail}>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.quotas.data.map((account) => (
-          <div key={`${account.provider}:${account.user ?? account.name}`} className="space-y-3 rounded-lg border border-border p-4">
+          <div
+            key={`${account.provider}:${account.user ?? account.name}`}
+            className="space-y-3 rounded-lg border border-border p-4"
+          >
             <div>
               <div className="flex items-baseline justify-between gap-2">
-                <p className="truncate text-sm font-semibold">{account.name}{account.plan ? ` · ${account.plan}` : ""}</p>
+                <p className="truncate text-sm font-semibold">
+                  {account.name}
+                  {account.plan ? ` · ${account.plan}` : ""}
+                </p>
                 {account.balance ? <p className={`${muted} shrink-0`}>{account.balance}</p> : null}
               </div>
               {account.user ? <p className={`${muted} mt-0.5 truncate`} title={account.user}>{account.user}</p> : null}
@@ -97,7 +108,10 @@ function Subscriptions({ data }: { data: Monitor }) {
 const agentProvider: Record<string, string> = { claude: "claude-code", codex: "codex", pi: "pi" };
 // "7 days Sonnet" -> "7d Sonnet", to fit the narrow sidebar row.
 const windowLabel = (name: string) =>
-  name.replace(/^(\d+) (hour|day|week|month)s?\b/, (_, count: string, unit: string) => `${count}${t.windowUnits[unit]}`);
+  name.replace(
+    /^(\d+) (hour|day|week|month)s?\b/,
+    (_, count: string, unit: string) => `${count}${t.windowUnits[unit]}`,
+  );
 // The sidebar footer shows only allowance, so it polls slower than the full dashboard.
 function SubscriptionUsage() {
   const rpc = useRpc<typeof monitorRpc>();
@@ -171,13 +185,23 @@ function SubscriptionUsage() {
                 >
                   <div className="col-span-full flex min-w-0 items-center gap-1.5">
                     {id
-                      ? <ProviderIcon providerKind="agent" provider={provider ?? { id }} className="size-3.5 shrink-0" />
+                      ? (
+                        <ProviderIcon
+                          providerKind="agent"
+                          provider={provider ?? { id }}
+                          className="size-3.5 shrink-0"
+                        />
+                      )
                       : <span className="size-3.5 shrink-0" />}
                     <span className="min-w-0 truncate font-medium" title={account.user ?? account.name}>
                       {account.user ?? account.name}
                     </span>
                     {account.plan
-                      ? <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[11px] capitalize text-muted-foreground">{account.plan}</span>
+                      ? (
+                        <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[11px] capitalize text-muted-foreground">
+                          {account.plan}
+                        </span>
+                      )
                       : null}
                   </div>
                   {account.windows.map((window) => (
@@ -221,7 +245,16 @@ function SubscriptionUsage() {
 }
 function RefreshIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
       <path d="M21 3v5h-5" />
     </svg>
@@ -311,7 +344,9 @@ function linePath(points: Array<[number, number]>) {
     const [x2, y2] = points[i + 1];
     const [x3, y3] = points[i + 2] ?? points[i + 1];
     const clamp = (y: number) => Math.min(Math.max(y1, y2), Math.max(Math.min(y1, y2), y));
-    path += ` C${x1 + (x2 - x0) / 6},${clamp(y1 + (y2 - y0) / 6)} ${x2 - (x3 - x1) / 6},${clamp(y2 - (y3 - y1) / 6)} ${x2},${y2}`;
+    path += ` C${x1 + (x2 - x0) / 6},${clamp(y1 + (y2 - y0) / 6)} ${x2 - (x3 - x1) / 6},${
+      clamp(y2 - (y3 - y1) / 6)
+    } ${x2},${y2}`;
   }
   return path;
 }
@@ -365,7 +400,8 @@ function Overview({ usage, colors }: { usage: Usage; colors: Record<string, stri
       <div>
         <p className={muted}>{t.estimatedCost}</p>
         <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
-          {dollars.format(usage.cost)}{usage.unpriced ? "*" : ""}
+          {dollars.format(usage.cost)}
+          {usage.unpriced ? "*" : ""}
         </p>
         <p className={`${muted} mt-1`}>
           {usage.unpriced
@@ -756,7 +792,9 @@ function Dashboard() {
                 ? t.connecting
                 : data.health.ok
                 ? `${t.gateway(data.health.data.version)}${
-                  providers ? ` · ${t.providersReady(providers.filter((provider) => provider.ready).length, providers.length)}` : ""
+                  providers
+                    ? ` · ${t.providersReady(providers.filter((provider) => provider.ready).length, providers.length)}`
+                    : ""
                 } · ${t.updated(new Date(data.updatedAt).toLocaleTimeString())}`
                 : t.gatewayDown}
             </p>
@@ -801,9 +839,7 @@ function Dashboard() {
         {data && !data.health.ok ? <Notice>{data.health.error}</Notice> : null}
         {data && !data.usage.ok ? <Notice>{data.usage.error}</Notice> : null}
         {data && !data.webConfigured
-          ? (
-            <Notice>{t.webNotice}</Notice>
-          )
+          ? <Notice>{t.webNotice}</Notice>
           : null}
         {usage
           ? (

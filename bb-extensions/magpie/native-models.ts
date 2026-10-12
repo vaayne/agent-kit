@@ -67,10 +67,13 @@ type CustomModel = ReturnType<typeof customModelEntries>[number];
 
 /** Replace Magpie-owned customModels entries. Entries from other sources stay in place. */
 export function replaceMagpieModels(config: unknown, entries: CustomModel[]) {
-  if (config === null || typeof config !== "object" || Array.isArray(config)) throw new Error("BB config.json must be a JSON object.");
+  if (config === null || typeof config !== "object" || Array.isArray(config)) {
+    throw new Error("BB config.json must be a JSON object.");
+  }
   const current: unknown = "customModels" in config ? config.customModels : [];
   if (!Array.isArray(current)) throw new Error("BB config.json customModels must be an array.");
-  const owned = (value: unknown) => value !== null && typeof value === "object"
+  const owned = (value: unknown) =>
+    value !== null && typeof value === "object"
     && "displayName" in value && typeof value.displayName === "string" && value.displayName.startsWith(magpiePrefix);
   const kept = current.filter((value) => !owned(value));
   const previous = new Set(current.filter(owned).map((value) => `${value.providerId}\0${value.model}`));

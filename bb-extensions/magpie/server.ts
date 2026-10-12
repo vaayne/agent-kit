@@ -290,9 +290,11 @@ export default async function plugin(bb: BbPluginApi) {
   /** Write Magpie models into BB customModels so native Codex and Claude Code pickers list them. */
   async function syncBbModels() {
     const config = await settings.get();
-    const entries = (await Promise.all(nativeProviderSchema.options.map(async (provider) =>
-      customModelEntries(provider, await readNativeModels(config, provider, nativeLifetime.signal))
-    ))).flat();
+    const entries = (await Promise.all(
+      nativeProviderSchema.options.map(async (provider) =>
+        customModelEntries(provider, await readNativeModels(config, provider, nativeLifetime.signal))
+      ),
+    )).flat();
     const path = join((await bb.sdk.system.config()).dataDir, "config.json");
     const original = await readFile(path, "utf8").catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return "{}";
@@ -388,11 +390,14 @@ export default async function plugin(bb: BbPluginApi) {
         summary: "List Magpie models for Codex or Claude Code, including converted models.",
         positionals: [{ name: "provider", description: "codex or claude-code.", required: true }],
         options: { json: jsonOption, "bb-config": { type: "boolean", description: "Print BB customModels entries." } },
-        run: ({ options, positionals }) => run(options.json, async () => {
-          const provider = nativeProviderSchema.parse(positionals.provider === "claude" ? "claude-code" : positionals.provider);
-          const models = await readNativeModels(await settings.get(), provider, nativeLifetime.signal);
-          return options["bb-config"] ? customModelEntries(provider, models) : models;
-        }),
+        run: ({ options, positionals }) =>
+          run(options.json, async () => {
+            const provider = nativeProviderSchema.parse(
+              positionals.provider === "claude" ? "claude-code" : positionals.provider,
+            );
+            const models = await readNativeModels(await settings.get(), provider, nativeLifetime.signal);
+            return options["bb-config"] ? customModelEntries(provider, models) : models;
+          }),
       }),
       routing: cliCommand({
         summary: "Set the default Magpie route for native Codex or Claude Code on all machines.",
@@ -468,7 +473,8 @@ export default async function plugin(bb: BbPluginApi) {
       }),
       sync: cliCommand({
         summary: "Sync Magpie models to Pi on connected machines and to the BB Codex and Claude Code pickers.",
-        description: "Pi refreshes now when no Pi thread runs; otherwise autoSync refreshes it later. --machine limits Pi only.",
+        description:
+          "Pi refreshes now when no Pi thread runs; otherwise autoSync refreshes it later. --machine limits Pi only.",
         options: { json: jsonOption, machine: machineOption },
         run: ({ options }) => run(options.json, () => syncModels(options.machine)),
       }),

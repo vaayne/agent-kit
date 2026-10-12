@@ -35,7 +35,8 @@ const en = {
   noRequests: "No requests in this period.",
   tokensOverTime: "Tokens over time",
   costOverTime: "Cost over time",
-  perBucket: (bucket: Bucket): string => bucket === "hour" ? "Per hour, Magpie server time" : "Per day, Magpie server time",
+  perBucket: (bucket: Bucket): string =>
+    bucket === "hour" ? "Per hour, Magpie server time" : "Per day, Magpie server time",
   chartMetric: "Chart metric",
   tokens: "Tokens",
   cost: "Cost",
@@ -71,7 +72,8 @@ const en = {
   syncModels: "Sync models",
   webTitle: "Accounts, routing and settings",
   openWeb: "Open Magpie Web ↗",
-  webNotice: "Set the Web UI origin and Web UI key in Settings → Plugins → Magpie to show subscriptions and provider status.",
+  webNotice:
+    "Set the Web UI origin and Web UI key in Settings → Plugins → Magpie to show subscriptions and provider status.",
   loadingUsage: "Loading usage…",
   footerLabel: "Magpie subscription usage",
 };

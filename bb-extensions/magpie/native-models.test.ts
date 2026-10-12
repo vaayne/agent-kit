@@ -13,7 +13,12 @@ test("the catalog keeps converted models for both agents", () => {
 });
 
 test("entries skip same-family models and dated aliases", () => {
-  const models = ["claude/claude-opus-4-5", "claude/claude-opus-4-5-20251101", "codex/gpt-6.1-sol", "deepseek/deepseek-flash"]
+  const models = [
+    "claude/claude-opus-4-5",
+    "claude/claude-opus-4-5-20251101",
+    "codex/gpt-6.1-sol",
+    "deepseek/deepseek-flash",
+  ]
     .map((id) => ({ id, name: id, efforts: [] }));
   const codex = customModelEntries("codex", models).map((entry) => entry.model);
   const claude = customModelEntries("claude-code", models).map((entry) => entry.model);

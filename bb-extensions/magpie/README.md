@@ -96,7 +96,7 @@ bb magpie sync --machine <machine-name-or-id>
 
 Omit `--machine` to sync all connected persistent machines. Sync installs `extensions/magpie/index.js` in each machine's Pi directory and sets `defaultProvider`, `defaultModel`, and `enabledModels`. It saves the prior values for removal and preserves other settings. It does not change `models.json` or `auth.json`.
 
-Sync also writes Magpie models into the top-level `customModels` list in BB's `config.json`, then reloads the BB config. Codex then lists the Claude and DeepSeek models, and Claude Code lists the GPT and DeepSeek models. Sync skips models that the native picker already lists and dated aliases. It replaces only entries whose `displayName` starts with `Magpie · `, so it also removes models that Magpie no longer serves. It saves the prior file as `config.json.magpie.bak`. These entries work only on threads that route through Magpie. Turn off `streamerMode` to see them.
+Sync also writes Magpie models into the top-level `customModels` list in BB's `config.json`, then reloads the BB config. Codex then lists the Claude and DeepSeek models, and Claude Code lists the GPT and DeepSeek models. Sync skips models that the native picker already lists and dated aliases. It replaces only entries whose `displayName` starts with `Magpie ·`, so it also removes models that Magpie no longer serves. It saves the prior file as `config.json.magpie.bak`. These entries work only on threads that route through Magpie. Turn off `streamerMode` to see them.
 
 The **Sync models** button in the Magpie panel runs the same sync. When no Pi thread is running, sync also reloads the Pi provider. Otherwise, refresh it later:
 

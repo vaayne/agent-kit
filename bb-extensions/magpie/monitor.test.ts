@@ -41,7 +41,12 @@ function usage(period: string) {
       ...totals,
       label: "10",
       time: "2026-10-11T10:00:00Z",
-      by: { agent: { codex: { calls: 12, tokens: 820, cost: 0.42, ttft_ms: 900 } }, model: {}, modelAt: {}, provider: {} },
+      by: {
+        agent: { codex: { calls: 12, tokens: 820, cost: 0.42, ttft_ms: 900 } },
+        model: {},
+        modelAt: {},
+        provider: {},
+      },
     }, { ...totals, calls: 0, label: "11", time: "2026-10-11T11:00:00Z", by: { agent: null } }],
     by: { agent: [agent], model: [{ ...totals, id: "test", name: "test" }], modelAt: [], provider: [] },
     rows: [{ t: "2026-10-11T10:00:00Z", agent: "codex", session: "PRIVATE-SESSION", req: "PRIVATE-PROMPT" }],
@@ -98,7 +103,9 @@ async function fixture(t: TestContext) {
       res.end("PRIVATE-ERROR");
       return;
     }
-    const body = url.pathname === "/api/hello" ? { name: "magpie", version: "0.1.1190" } : usage(url.searchParams.get("period")!);
+    const body = url.pathname === "/api/hello"
+      ? { name: "magpie", version: "0.1.1190" }
+      : usage(url.searchParams.get("period")!);
     if (failure === "time" && "series" in body) body.series[0].time = "Oct 11";
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(body));
@@ -163,7 +170,11 @@ test("real HTTP login, summary and usage produce a bounded, credential-free snap
   assert.ok(f.requests.includes("/v1/magpie/usage/requests"));
   assert.ok(data.usage.ok && data.providers.ok);
   assert.equal(data.usage.data.bucket, "hour");
-  assert.deepEqual(data.usage.data.agents.map((agent) => [agent.id, agent.name, agent.reasoning]), [["codex", "Codex", 30]]);
+  assert.deepEqual(data.usage.data.agents.map((agent) => [agent.id, agent.name, agent.reasoning]), [[
+    "codex",
+    "Codex",
+    30,
+  ]]);
   assert.deepEqual(data.usage.data.series.map((bucket) => bucket.agents), [
     { codex: { tokens: 820, cost: 0.42 } },
     {},

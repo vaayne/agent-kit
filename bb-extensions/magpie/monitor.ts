@@ -19,9 +19,11 @@ const named = usageSchema.shape.agents.element;
 // /v1/magpie/usage/requests covers gateway requests and local agent sessions, with per-agent buckets.
 // It always returns a page of request rows; they are dropped here and never reach the browser.
 const rawUsage = usageSchema.omit({ series: true, agents: true, models: true }).extend({
-  series: list(bucket.omit({ agents: true }).extend({
-    by: z.object({ agent: bucket.shape.agents.nullable() }),
-  })),
+  series: list(
+    bucket.omit({ agents: true }).extend({
+      by: z.object({ agent: bucket.shape.agents.nullable() }),
+    }),
+  ),
   by: z.object({ agent: list(named), model: list(named) }),
 }).transform(({ series, by, ...usage }) => ({
   ...usage,

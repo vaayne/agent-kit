@@ -251,8 +251,12 @@ test("caller abort and disposal close upstream while waiting for headers", { tim
     await t.test(reason, async (t) => {
       let accept!: () => void;
       let close!: () => void;
-      const accepted = new Promise<void>((resolve) => { accept = resolve; });
-      const closed = new Promise<void>((resolve) => { close = resolve; });
+      const accepted = new Promise<void>((resolve) => {
+        accept = resolve;
+      });
+      const closed = new Promise<void>((resolve) => {
+        close = resolve;
+      });
       const url = await gateway(t, (req, res) => {
         req.resume();
         res.on("close", close);
@@ -286,12 +290,16 @@ test("disposal during the enrollment check never sends the request", async (t) =
   });
   let release!: () => void;
   let checking!: () => void;
-  const checked = new Promise<void>((resolve) => { checking = resolve; });
+  const checked = new Promise<void>((resolve) => {
+    checking = resolve;
+  });
   const proxy = createProxy({
     settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
     enrolled: () => {
       checking();
-      return new Promise((resolve) => { release = () => resolve(true); });
+      return new Promise((resolve) => {
+        release = () => resolve(true);
+      });
     },
     onError: (error) => assert.fail(String(error)),
   });
@@ -315,15 +323,21 @@ test("a non-streaming response can wait 75 seconds for headers", {
   const proxy = createProxy({
     settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
     enrolled: async () => true,
-    onError: (error) => { throw error; },
+    onError: (error) => {
+      throw error;
+    },
   });
   t.after(() => proxy.dispose());
   const started = performance.now();
-  const response = await proxy.handle(new Request("http://bb.invalid/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}` },
-    body: JSON.stringify({ model: "test/long", stream: false }),
-  }), "/v1/responses", "codex");
+  const response = await proxy.handle(
+    new Request("http://bb.invalid/v1/responses", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({ model: "test/long", stream: false }),
+    }),
+    "/v1/responses",
+    "codex",
+  );
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { model: "test/long", output: [] });
   assert.ok(performance.now() - started >= 75_000);
