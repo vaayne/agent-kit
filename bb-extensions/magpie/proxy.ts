@@ -97,6 +97,93 @@ export async function readJson(
 
 const stopping = () => Response.json({ error: { message: "Magpie connector is stopping." } }, { status: 503 });
 
+// The bb connect relay returns 504 when response headers take about 30 seconds. Compaction and other
+// large streamed requests can wait longer for the gateway, so send SSE headers first and keep the line busy.
+export const streamTiming = { headers: 10_000, ping: 10_000 };
+
+function streamed(request: Request, body: ArrayBuffer): boolean {
+  if (request.headers.get("accept")?.includes("text/event-stream")) return true;
+  if (request.headers.get("content-encoding")) return false;
+  try {
+    return JSON.parse(Buffer.from(body).toString("utf8"))?.stream === true;
+  } catch {
+    return false;
+  }
+}
+
+// Each protocol's own stream error event, so clients report or retry it like an upstream failure.
+function errorEvent(path: typeof routes[number], message: string): string {
+  if (path === "/v1/responses") {
+    // Codex treats an unknown failure code as retryable.
+    const data = { type: "response.failed", response: { status: "failed", error: { code: "server_error", message } } };
+    return `event: response.failed\ndata: ${JSON.stringify(data)}\n\n`;
+  }
+  if (path === "/v1/messages") {
+    return `event: error\ndata: ${JSON.stringify({ type: "error", error: { type: "api_error", message } })}\n\n`;
+  }
+  return `data: ${JSON.stringify({ error: { message } })}\n\n`;
+}
+
+async function failureMessage(response: Response): Promise<string> {
+  if (response.status >= 200 && response.status < 300) return "";
+  const text = await response.text().catch(() => "");
+  try {
+    const message = JSON.parse(text)?.error?.message;
+    if (typeof message === "string") return `Magpie gateway HTTP ${response.status}: ${message}`;
+  } catch {}
+  return `Magpie gateway HTTP ${response.status}.`;
+}
+
+/** Send SSE headers now; ping until the gateway answers, then forward its stream or an error event. */
+function earlyStream(upstream: Promise<Response>, path: typeof routes[number], onError: (error: unknown) => void) {
+  const encoder = new TextEncoder();
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let cancelled = false;
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      async start(controller) {
+        timer = setInterval(() => controller.enqueue(encoder.encode(": ping\n\n")), streamTiming.ping);
+        let response: Response;
+        try {
+          response = await upstream;
+        } catch (error) {
+          clearInterval(timer);
+          if (cancelled) return;
+          onError(error);
+          const failure = await gatewayFailure(error).json() as { error: { message: string } };
+          controller.enqueue(encoder.encode(errorEvent(path, failure.error.message)));
+          controller.close();
+          return;
+        }
+        clearInterval(timer);
+        if (cancelled) {
+          await response.body?.cancel();
+          return;
+        }
+        const failure = await failureMessage(response);
+        if (failure || !response.body) {
+          controller.enqueue(encoder.encode(errorEvent(path, failure || "Magpie gateway returned no body.")));
+          controller.close();
+          return;
+        }
+        reader = response.body.getReader();
+      },
+      async pull(controller) {
+        const { done, value } = await reader!.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      },
+      async cancel(reason) {
+        cancelled = true;
+        clearInterval(timer);
+        await reader?.cancel(reason);
+      },
+    }),
+    { status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" } },
+  );
+}
+
 export function createProxy(options: {
   settings: () => Promise<GatewaySettings>;
   enrolled: (hostId: string) => Promise<boolean>;
@@ -145,7 +232,19 @@ export function createProxy(options: {
         const body = await request.arrayBuffer();
         // Compaction can take over a minute before headers arrive, so keep the HTTP client's timeouts.
         // The signal also ends the streamed body; a caller that cancels the body cancels the upstream read.
-        const upstream = await fetch(upstreamURL, { method: "POST", headers, body, redirect: "manual", signal });
+        const pending = fetch(upstreamURL, { method: "POST", headers, body, redirect: "manual", signal });
+        let upstream: Response;
+        if (streamed(request, body)) {
+          let wait: ReturnType<typeof setTimeout> | undefined;
+          const early = await Promise.race([
+            pending,
+            new Promise<undefined>((resolve) => wait = setTimeout(() => resolve(undefined), streamTiming.headers)),
+          ]).finally(() => clearTimeout(wait));
+          if (!early) return earlyStream(pending, path, options.onError);
+          upstream = early;
+        } else {
+          upstream = await pending;
+        }
         const outgoing = new Headers();
         for (const name of responseHeaders) {
           const value = upstream.headers.get(name);

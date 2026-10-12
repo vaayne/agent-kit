@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { test, type TestContext } from "node:test";
 import { gunzipSync, gzipSync, zstdCompressSync, zstdDecompressSync } from "node:zlib";
-import { createProxy, gatewayFailure, gatewayURL, machineToken, routes, tokenHost } from "./proxy.ts";
+import { createProxy, gatewayFailure, gatewayURL, machineToken, routes, streamTiming, tokenHost } from "./proxy.ts";
 
 const secret = "test-only-signing-key";
 const token = machineToken(secret, "host_test");
@@ -279,6 +279,72 @@ test("caller abort and disposal close upstream while waiting for headers", { tim
       assert.deepEqual(errors, []);
     });
   }
+});
+
+test("slow stream headers get early SSE headers, pings, then the upstream stream or an error event", async (t) => {
+  Object.assign(streamTiming, { headers: 50, ping: 20 });
+  t.after(() => Object.assign(streamTiming, { headers: 10_000, ping: 10_000 }));
+  for (const status of [200, 429]) {
+    await t.test(`upstream ${status}`, async (t) => {
+      const url = await gateway(t, (req, res) => {
+        req.resume();
+        setTimeout(() => {
+          if (status === 200) {
+            res.writeHead(200, { "content-type": "text/event-stream" });
+            res.end("data: done\n\n");
+          } else {
+            res.writeHead(429, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: { message: "all accounts are busy" } }));
+          }
+        }, 200);
+      });
+      const proxy = createProxy({
+        settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
+        enrolled: async () => true,
+        onError: (error) => assert.fail(String(error)),
+      });
+      t.after(() => proxy.dispose());
+      const started = performance.now();
+      const response = await proxy.handle(request(), "/v1/responses", "codex");
+      assert.ok(performance.now() - started < 190);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "text/event-stream");
+      const text = await response.text();
+      assert.match(text, /^: ping\n\n/);
+      if (status === 200) assert.ok(text.endsWith("data: done\n\n"));
+      else {
+        const event = /event: response\.failed\ndata: (.*)\n\n$/.exec(text);
+        assert.ok(event);
+        assert.equal(JSON.parse(event[1]).response.error.message, "Magpie gateway HTTP 429: all accounts are busy");
+      }
+    });
+  }
+});
+
+test("cancelling an early SSE response closes the upstream request", async (t) => {
+  Object.assign(streamTiming, { headers: 50, ping: 20 });
+  t.after(() => Object.assign(streamTiming, { headers: 10_000, ping: 10_000 }));
+  let close!: () => void;
+  const closed = new Promise<void>((resolve) => { close = resolve; });
+  const url = await gateway(t, (req, res) => {
+    req.resume();
+    res.on("close", close);
+  });
+  const errors: unknown[] = [];
+  const proxy = createProxy({
+    settings: async () => ({ gatewayUrl: url, gatewayKey: "", proxySecret: secret }),
+    enrolled: async () => true,
+    onError: (error) => errors.push(error),
+  });
+  t.after(() => proxy.dispose());
+  const controller = new AbortController();
+  const response = await proxy.handle(request({}, controller.signal), "/v1/responses", "codex");
+  const reader = response.body!.getReader();
+  assert.equal(new TextDecoder().decode((await reader.read()).value), ": ping\n\n");
+  controller.abort();
+  await reader.cancel();
+  await closed;
+  assert.deepEqual(errors, []);
 });
 
 test("disposal during the enrollment check never sends the request", async (t) => {
