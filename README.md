@@ -140,6 +140,7 @@ The kit's workflow skills each stand alone — pick the one that fits the moment
 | **cf-email**      | Send email through the Cloudflare Email Sending API        |
 | **gws**           | Google Workspace operations via the `gws` CLI              |
 | **lark-cli**      | Lark/Feishu workspace operations via `lark-cli`            |
+| **tap**           | Search public sources, read pages, and run site scripts    |
 | **openlist**      | Manage files on OpenList/AList cloud storage               |
 
 Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **use-modern-go**, **grilling**, **documd-visuals**.
