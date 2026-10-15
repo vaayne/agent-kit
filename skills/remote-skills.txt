@@ -17,3 +17,4 @@ JetBrains/go-modern-guidelines use-modern-go
 mattpocock/skills grilling
 markdown-viewer/skills documd-visuals
 JimLiu/baoyu-design baoyu-design
+Leonxlnx/taste-skill design-taste-frontend
