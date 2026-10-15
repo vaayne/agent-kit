@@ -17,4 +17,5 @@ JetBrains/go-modern-guidelines use-modern-go
 mattpocock/skills grilling
 markdown-viewer/skills documd-visuals
 JimLiu/baoyu-design baoyu-design
-Leonxlnx/taste-skill design-taste-frontend
+# gh skill selects the directory name; its SKILL.md name is design-taste-frontend.
+Leonxlnx/taste-skill taste-skill
