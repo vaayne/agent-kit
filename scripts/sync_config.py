@@ -11,9 +11,8 @@ import logging
 import os
 import sys
 import tempfile
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = logging.getLogger("agent-kit.sync.config")
@@ -29,6 +28,49 @@ def regular_path(path: Path) -> None:
 
 def digest(content: bytes | None) -> str | None:
     return hashlib.sha256(content).hexdigest() if content is not None else None
+
+
+def codex_managed(content: bytes) -> dict:
+    settings = tomllib.loads(content.decode())
+    for project in list(settings.get("projects", {})):
+        entry = settings["projects"][project]
+        entry.pop("trust_level", None)
+        if not entry:
+            del settings["projects"][project]
+    if settings.get("projects") == {}:
+        del settings["projects"]
+    if "tui" in settings:
+        settings["tui"].pop("screen_reader_detection_done", None)
+        if not settings["tui"]:
+            del settings["tui"]
+    return settings
+
+
+def codex_digest(content: bytes | None) -> str | None:
+    if content is None:
+        return None
+    return digest(json.dumps(codex_managed(content), sort_keys=True).encode())
+
+
+def preserve_codex_state(desired: bytes, current: bytes) -> bytes:
+    settings = tomllib.loads(current.decode())
+    lines = []
+    for project, entry in settings.get("projects", {}).items():
+        if "trust_level" in entry:
+            lines.append(
+                f"projects.{json.dumps(project)}.trust_level = "
+                f"{json.dumps(entry['trust_level'])}\n"
+            )
+    tui = settings.get("tui", {})
+    if "screen_reader_detection_done" in tui:
+        lines.append(
+            "tui.screen_reader_detection_done = "
+            f"{json.dumps(tui['screen_reader_detection_done'])}\n"
+        )
+    merged = "".join(lines).encode() + desired
+    # Reject conflicting repository tables before any files are written.
+    tomllib.loads(merged.decode())
+    return merged
 
 
 def write_file(path: Path, content: bytes, mode: int) -> None:
@@ -52,7 +94,7 @@ def sync(check: bool, replace: bool) -> int:
     previous = json.loads(state_file.read_text()) if state_file.exists() else {}
     if not isinstance(previous, dict):
         raise TypeError(f"Invalid deployment baseline: {state_file}")
-    files: list[tuple[Path, Path, bytes, bytes | None]] = []
+    files: list[tuple[Path, Path, bytes, bytes | None, bytes]] = []
     for provider, destination in [
         ("claude", Path(os.environ.get("CLAUDE_CONFIG_DIR", home / ".claude"))),
         ("codex", Path(os.environ.get("CODEX_HOME", home / ".codex"))),
@@ -76,20 +118,29 @@ def sync(check: bool, replace: bool) -> int:
             target = destination / source.relative_to(source_dir)
             regular_path(target)
             current = target.read_bytes() if target.exists() else None
+            source_content = desired
+            is_codex = provider == "codex" and source.name == "config.toml"
+            fingerprint = codex_digest if is_codex else digest
+            if is_codex and current is not None:
+                if codex_managed(current) == codex_managed(desired):
+                    desired = current
+                else:
+                    desired = preserve_codex_state(desired, current)
             if (
                 current != desired
                 and not replace
                 and (current is not None or str(target) in previous)
                 and digest(current) != previous.get(str(target))
+                and fingerprint(current) != previous.get(str(target))
             ):
                 raise ValueError(
                     f"Local edits: {target}. Review them, then use --replace "
                     "to back up and apply the repository configuration."
                 )
-            files.append((source, target, desired, current))
+            files.append((source, target, desired, current, source_content))
 
     changed = [row for row in files if row[2] != row[3]]
-    for _, target, _, _ in changed:
+    for _, target, _, _, _ in changed:
         LOG.info("%s: %s", "Would copy" if check else "Copy planned", target)
     if check:
         LOG.info("Check complete: %d files differ", len(changed))
@@ -101,7 +152,7 @@ def sync(check: bool, replace: bool) -> int:
         backups.mkdir(parents=True, exist_ok=True, mode=0o700)
         backup = Path(tempfile.mkdtemp(prefix="config-", dir=backups))
         journal = []
-        for index, (_, target, desired, current) in enumerate(changed):
+        for index, (_, target, desired, current, _) in enumerate(changed):
             if current is not None:
                 write_file(backup / str(index), current, 0o600)
             journal.append({"target": str(target), "before": digest(current)})
@@ -112,12 +163,12 @@ def sync(check: bool, replace: bool) -> int:
         )
         LOG.info("Backup: %s", backup)
         # Check every target before the first write; editors do not share this check.
-        for source, target, desired, current in files:
+        for source, target, desired, current, source_content in files:
             regular_path(target)
             observed = target.read_bytes() if target.exists() else None
-            if source.read_bytes() != desired or observed != current:
+            if source.read_bytes() != source_content or observed != current:
                 raise ValueError(f"Configuration changed during sync: {target}")
-        for _, target, desired, current in changed:
+        for _, target, desired, current, _ in changed:
             regular_path(target)
             observed = target.read_bytes() if target.exists() else None
             if observed != current:
@@ -125,15 +176,22 @@ def sync(check: bool, replace: bool) -> int:
             mode = target.stat().st_mode & 0o777 if target.exists() else 0o600
             write_file(target, desired, mode)
 
-    for source, target, desired, _ in files:
+    for source, target, desired, _, source_content in files:
         regular_path(target)
-        if source.read_bytes() != desired or target.read_bytes() != desired:
+        if source.read_bytes() != source_content or target.read_bytes() != desired:
             raise ValueError(f"Configuration changed during sync: {target}")
     write_file(
         state_file,
         (
             json.dumps(
-                {str(target): digest(desired) for _, target, desired, _ in files},
+                {
+                    str(target): (
+                        codex_digest(desired)
+                        if source == ROOT / "config/codex/config.toml"
+                        else digest(desired)
+                    )
+                    for source, target, desired, _, _ in files
+                },
                 indent=2,
             )
             + "\n"

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -101,6 +102,63 @@ class ConfigSyncTests(unittest.TestCase):
         self.assertIn("Local edits", result.stderr)
         self.assertEqual(self.claude.read_bytes(), before)
         self.assertEqual(self.codex.read_text(), 'model_reasoning_effort = "low"\n')
+
+    def test_codex_runtime_state_survives_source_updates(self) -> None:
+        self.run_sync()
+        runtime = (
+            '\n[projects."/tmp/project.with.dots"]\ntrust_level = "trusted"\n'
+            "\n[tui]\nscreen_reader_detection_done = true\n"
+        )
+        self.codex.write_text(self.codex.read_text() + runtime)
+        before = self.codex.read_bytes()
+        self.run_sync("--check")
+        self.run_sync()
+        self.assertEqual(self.codex.read_bytes(), before)
+        source = self.repo / "config/codex/config.toml"
+        source.write_text(
+            source.read_text().replace(
+                'model_reasoning_effort = "medium"', 'model_reasoning_effort = "low"'
+            )
+        )
+        # Codex may change runtime state again after the baseline is recorded.
+        self.codex.write_text(
+            self.codex.read_text().replace('"trusted"', '"untrusted"')
+        )
+        self.run_sync()
+        settings = tomllib.loads(self.codex.read_text())
+        self.assertEqual(settings["model_reasoning_effort"], "low")
+        self.assertEqual(
+            settings["projects"]["/tmp/project.with.dots"]["trust_level"], "untrusted"
+        )
+        self.assertIs(settings["tui"]["screen_reader_detection_done"], True)
+        self.run_sync("--check")
+
+    def test_codex_other_project_and_tui_edits_are_protected(self) -> None:
+        self.run_sync()
+        before = self.codex.read_text()
+        for extra in [
+            '\n[projects."/tmp/example"]\nmodel = "local-model"\n',
+            '\n[tui]\ntheme = "local-theme"\n',
+        ]:
+            with self.subTest(extra=extra):
+                self.codex.write_text(before + extra)
+                result = self.run_sync(status=1)
+                self.assertIn("Local edits", result.stderr)
+                self.assertEqual(self.codex.read_text(), before + extra)
+
+    def test_codex_replace_preserves_runtime_state(self) -> None:
+        self.codex.parent.mkdir()
+        self.codex.write_text(
+            'model_reasoning_effort = "low"\n'
+            '[projects."/tmp/example"]\ntrust_level = "trusted"\n'
+            "[tui]\nscreen_reader_detection_done = true\n"
+        )
+        self.run_sync("--replace")
+        settings = tomllib.loads(self.codex.read_text())
+        self.assertEqual(settings["model_reasoning_effort"], "medium")
+        self.assertEqual(settings["projects"]["/tmp/example"]["trust_level"], "trusted")
+        self.assertIs(settings["tui"]["screen_reader_detection_done"], True)
+        self.run_sync("--check")
 
     def test_first_sync_conflict_requires_replace_and_backups(self) -> None:
         self.claude.parent.mkdir()
