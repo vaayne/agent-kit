@@ -1,7 +1,7 @@
 # Agent Kit
 
 A Git repository for public agent configuration, skills, BB extensions, and
-shared instructions. Claude Code and Codex configuration deploys from `config/`.
+shared instructions. Claude Code, Codex, and Pi configuration deploys from `config/`.
 Skills sync to the BB server; `_AGENTS.md` provides shared instructions.
 
 ## Setup
@@ -22,7 +22,7 @@ BB_SKILLS_TARGET = "MacMini:/Users/vaayne/.bb-machines/vaayne-mbp.getbb.app/skil
 EOF
 
 mise run sync             # configuration, then instructions and skills
-mise run sync:config      # Claude Code and Codex configuration
+mise run sync:config      # Claude Code, Codex, and Pi configuration
 mise run sync:config -- --check  # check configuration without writing files
 mise run sync:skills      # copy local and remote skills to BB
 mise run sync:agents      # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
@@ -39,21 +39,31 @@ Sync uses the checked-out files. It does not pull, commit, push, or run on a
 schedule. Local source edits take effect on that machine; commit and push them
 before other machines can pull the changes.
 
-### Claude Code and Codex configuration
+### Agent configuration
 
-Edit public settings in `config/claude/` and `config/codex/`, then run
+Edit public settings in `config/claude/`, `config/codex/`, and `config/pi/`, then run
 `mise run sync:config`. Claude settings, three role definitions, one routing
-rule, and Codex settings deploy as individual files. Unrelated agents, rules,
-skills, credentials, and session files remain in place. `CODEX_HOME` and
-`CLAUDE_CONFIG_DIR` select a different destination when set.
+rule, Codex settings, and Pi settings deploy as individual files. Unrelated agents,
+rules, skills, credentials, and session files remain in place. `CODEX_HOME`,
+`CLAUDE_CONFIG_DIR`, and `PI_CODING_AGENT_DIR` select different destinations when set.
+Pi defaults to `~/.pi/agent`.
+
+Pi sync manages only `defaultProjectTrust` and `packages` in `settings.json`.
+The package list replaces the corresponding local list. All other Pi settings,
+including model selection, extension settings, and version state, stay local.
+Pi authentication, provider definitions, MCP configuration, and installed package
+files are not copied. Pi loads package declarations on startup; sync does not run
+`pi install` or remove installed files.
 
 Copies keep application writes separate from the Git source. Sync checks all
 files before writing, backs up changed targets under
 `~/.local/state/agent-kit/backups/`, and records a deployment baseline. It
 refuses local edits or a differing file on a machine's first sync. Review and
 reconcile the file with the repository, or run `mise run sync:config -- --replace`
-to save a backup and apply the repository version. The replacement includes any
-machine-specific fields in that managed file, so review provider settings first.
+to save a backup and apply the repository version. Codex project trust and screen
+reader detection state stay local. Pi settings outside the two managed keys also
+stay local, including when `--replace` is used. Review other provider settings
+before replacing them.
 The script respects `XDG_STATE_HOME` for deployment state and backups. File
 operations are logged to `~/.agents/sessions/agent-kit/logs/sync-config.log`.
 
@@ -81,7 +91,8 @@ require account access, feature-flag fetching, and a compatible gateway. Some
 plans require usage-credits consent through `/model fable`; then `/model opus`
 returns to the main model. Configuration sync does not accept billing consent.
 
-Restart Claude Code and Codex sessions after sync. For BB, stop an idle thread
+Restart Claude Code and Codex sessions after sync. Run `/reload` in Pi or start a
+new Pi session. For BB, stop an idle thread
 and send its next message so the provider creates a process with the new files.
 
 ### BB server skills
@@ -164,7 +175,7 @@ bb plugin install ./bb-extensions/workspace-navigator --yes
 ```
 agent-kit/
 ├── _AGENTS.md    # Shared agent instructions, symlinked to every framework
-├── config/       # Public Claude Code and Codex configuration
+├── config/       # Public Claude Code, Codex, and Pi configuration
 ├── skills/       # Local skills + remote-skills.txt registry
 └── bb-extensions/   # BB plugins
 ```

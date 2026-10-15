@@ -34,6 +34,7 @@ class ConfigSyncTests(unittest.TestCase):
         self.state = self.base / "state/agent-kit"
         self.claude = self.home / ".claude/settings.json"
         self.codex = self.home / ".codex/config.toml"
+        self.pi = self.home / ".pi/agent/settings.json"
 
     def run_sync(self, *args: str, status: int = 0) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
@@ -67,7 +68,10 @@ class ConfigSyncTests(unittest.TestCase):
             self.codex.read_bytes(), (ROOT / "config/codex/config.toml").read_bytes()
         )
         baseline = json.loads((self.state / "config.json").read_text())
-        self.assertEqual(len(baseline), 6)
+        self.assertEqual(len(baseline), 7)
+        self.assertEqual(
+            self.pi.read_bytes(), (ROOT / "config/pi/settings.json").read_bytes()
+        )
         self.assertEqual(self.codex.stat().st_mode & 0o777, 0o600)
         backups = list((self.state / "backups").iterdir())
         self.run_sync("--check")
@@ -160,6 +164,62 @@ class ConfigSyncTests(unittest.TestCase):
         self.assertIs(settings["tui"]["screen_reader_detection_done"], True)
         self.run_sync("--check")
 
+    def test_pi_local_settings_survive_first_sync_and_source_updates(self) -> None:
+        public = json.loads((self.repo / "config/pi/settings.json").read_text())
+        local = {
+            "defaultProvider": "local-provider",
+            "defaultModel": "local-model",
+            "enabledModels": ["local-provider/*"],
+            "lastChangelogVersion": "1.0.0",
+            "otel": {"endpoint": "http://localhost:4317"},
+            "theme": "local-theme",
+            "extension-specific-setting": {"enabled": True},
+        }
+        self.pi.parent.mkdir(parents=True)
+        self.pi.write_text(json.dumps(public | local))
+        before = self.pi.read_bytes()
+        self.run_sync()
+        self.assertEqual(self.pi.read_bytes(), before)
+        local["lastChangelogVersion"] = "1.1.0"
+        local["defaultModel"] = "another-local-model"
+        self.pi.write_text(json.dumps(public | local))
+        self.run_sync("--check")
+        source = self.repo / "config/pi/settings.json"
+        public["packages"] = ["npm:pi-web-access"]
+        source.write_text(json.dumps(public))
+        self.run_sync("--check", status=1)
+        self.run_sync()
+        self.assertEqual(json.loads(self.pi.read_text()), public | local)
+        self.run_sync("--check")
+
+    def test_pi_public_drift_requires_replace_and_keeps_local_settings(self) -> None:
+        self.run_sync()
+        settings = json.loads(self.pi.read_text())
+        settings["defaultProjectTrust"] = "ask"
+        settings["theme"] = "local-theme"
+        settings["defaultProvider"] = "local-provider"
+        self.pi.write_text(json.dumps(settings))
+        before = self.pi.read_bytes()
+        self.change_source()
+        result = self.run_sync(status=1)
+        self.assertIn("Local edits", result.stderr)
+        self.assertEqual(self.pi.read_bytes(), before)
+        self.run_sync("--replace")
+        actual = json.loads(self.pi.read_text())
+        self.assertEqual(actual["defaultProjectTrust"], "always")
+        self.assertEqual(actual["theme"], "local-theme")
+        self.assertEqual(actual["defaultProvider"], "local-provider")
+        self.run_sync("--check")
+
+    def test_pi_unmanaged_settings_are_rejected_in_source(self) -> None:
+        source = self.repo / "config/pi/settings.json"
+        settings = json.loads(source.read_text())
+        settings["otel"] = {"endpoint": "http://localhost:4317"}
+        source.write_text(json.dumps(settings))
+        result = self.run_sync(status=1)
+        self.assertIn("Unsupported Pi sync settings", result.stderr)
+        self.assertFalse(self.claude.exists())
+
     def test_first_sync_conflict_requires_replace_and_backups(self) -> None:
         self.claude.parent.mkdir()
         existing = b'{"model": "sonnet"}\n'
@@ -187,6 +247,7 @@ class ConfigSyncTests(unittest.TestCase):
         for filename, content in [
             ("claude/settings.json", b"{"),
             ("codex/config.toml", b"[broken"),
+            ("pi/settings.json", b"[1]"),
         ]:
             with self.subTest(filename=filename):
                 source = self.repo / "config" / filename
@@ -210,18 +271,27 @@ class ConfigSyncTests(unittest.TestCase):
         destination.mkdir()
         self.env["CLAUDE_CONFIG_DIR"] = str(destination)
         self.env["CODEX_HOME"] = str(self.base / "custom-codex")
+        self.env["PI_CODING_AGENT_DIR"] = str(self.base / "custom-pi")
         unrelated = destination / "agents/personal.md"
         unrelated.parent.mkdir()
         unrelated.write_text("Personal agent\n")
         credentials = self.base / "custom-codex/auth.json"
         credentials.parent.mkdir()
         credentials.write_text('{"fixture": true}\n')
+        pi_auth = self.base / "custom-pi/auth.json"
+        pi_auth.parent.mkdir()
+        pi_auth.write_text('{"fixture": true}\n')
         self.run_sync()
         self.assertTrue((destination / "settings.json").is_file())
         self.assertTrue((credentials.parent / "config.toml").is_file())
         self.assertEqual(unrelated.read_text(), "Personal agent\n")
         self.assertEqual(credentials.read_text(), '{"fixture": true}\n')
         self.assertFalse((self.home / ".claude").exists())
+        self.assertTrue((pi_auth.parent / "settings.json").is_file())
+        self.assertFalse((pi_auth.parent / "mcp.json").exists())
+        self.assertFalse((pi_auth.parent / "pi-vcc-config.json").exists())
+        self.assertEqual(pi_auth.read_text(), '{"fixture": true}\n')
+        self.assertFalse((self.home / ".pi").exists())
 
 
 if __name__ == "__main__":

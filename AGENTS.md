@@ -6,7 +6,7 @@ not this file's job to restate it; read it directly when working on its content.
 ## Layout
 
 - `skills/` — local skills, one directory per skill, plus `remote-skills.txt`
-- `config/claude/` and `config/codex/` — public configuration, agents, and rules
+- `config/claude/`, `config/codex/`, and `config/pi/` — public agent configuration
 - `.mise/tasks/sync/` — configuration, skill, and BB server sync tasks
 - `scripts/sync_config.py` — configuration deployment with backups and a baseline
 

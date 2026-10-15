@@ -1,0 +1,9 @@
+{
+  "defaultProjectTrust": "always",
+  "packages": [
+    "npm:pi-powerline-footer",
+    "npm:pi-web-access",
+    "npm:@ff-labs/pi-fff",
+    "npm:@sting8k/pi-vcc"
+  ]
+}

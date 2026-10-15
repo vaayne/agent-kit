@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = logging.getLogger("agent-kit.sync.config")
+PI_MANAGED_SETTINGS = {"defaultProjectTrust", "packages"}
 
 
 def regular_path(path: Path) -> None:
@@ -73,6 +74,27 @@ def preserve_codex_state(desired: bytes, current: bytes) -> bytes:
     return merged
 
 
+def pi_managed(content: bytes) -> dict:
+    settings = json.loads(content)
+    if not isinstance(settings, dict):
+        raise TypeError("Pi settings must be a JSON object")
+    return {key: value for key, value in settings.items() if key in PI_MANAGED_SETTINGS}
+
+
+def pi_digest(content: bytes | None) -> str | None:
+    if content is None:
+        return None
+    return digest(json.dumps(pi_managed(content), sort_keys=True).encode())
+
+
+def config_digest(source: Path, content: bytes | None) -> str | None:
+    if source == ROOT / "config/codex/config.toml":
+        return codex_digest(content)
+    if source == ROOT / "config/pi/settings.json":
+        return pi_digest(content)
+    return digest(content)
+
+
 def write_file(path: Path, content: bytes, mode: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".agent-kit-", dir=path.parent)
@@ -98,6 +120,7 @@ def sync(check: bool, replace: bool) -> int:
     for provider, destination in [
         ("claude", Path(os.environ.get("CLAUDE_CONFIG_DIR", home / ".claude"))),
         ("codex", Path(os.environ.get("CODEX_HOME", home / ".codex"))),
+        ("pi", Path(os.environ.get("PI_CODING_AGENT_DIR", home / ".pi/agent"))),
     ]:
         source_dir = ROOT / "config" / provider
         if not source_dir.is_dir() or source_dir.is_symlink():
@@ -119,8 +142,18 @@ def sync(check: bool, replace: bool) -> int:
             regular_path(target)
             current = target.read_bytes() if target.exists() else None
             source_content = desired
-            is_codex = provider == "codex" and source.name == "config.toml"
-            fingerprint = codex_digest if is_codex else digest
+            is_codex = source == ROOT / "config/codex/config.toml"
+            if source == ROOT / "config/pi/settings.json":
+                public = pi_managed(desired)
+                if public != json.loads(desired):
+                    raise ValueError(f"Unsupported Pi sync settings: {source}")
+                if current is not None:
+                    if pi_managed(current) == public:
+                        desired = current
+                    else:
+                        desired = (
+                            json.dumps(json.loads(current) | public, indent=2) + "\n"
+                        ).encode()
             if is_codex and current is not None:
                 if codex_managed(current) == codex_managed(desired):
                     desired = current
@@ -131,7 +164,7 @@ def sync(check: bool, replace: bool) -> int:
                 and not replace
                 and (current is not None or str(target) in previous)
                 and digest(current) != previous.get(str(target))
-                and fingerprint(current) != previous.get(str(target))
+                and config_digest(source, current) != previous.get(str(target))
             ):
                 raise ValueError(
                     f"Local edits: {target}. Review them, then use --replace "
@@ -185,11 +218,7 @@ def sync(check: bool, replace: bool) -> int:
         (
             json.dumps(
                 {
-                    str(target): (
-                        codex_digest(desired)
-                        if source == ROOT / "config/codex/config.toml"
-                        else digest(desired)
-                    )
+                    str(target): config_digest(source, desired)
                     for source, target, desired, _, _ in files
                 },
                 indent=2,
