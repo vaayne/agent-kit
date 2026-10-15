@@ -68,10 +68,15 @@ class ConfigSyncTests(unittest.TestCase):
             self.codex.read_bytes(), (ROOT / "config/codex/config.toml").read_bytes()
         )
         baseline = json.loads((self.state / "config.json").read_text())
-        self.assertEqual(len(baseline), 7)
+        self.assertEqual(len(baseline), 9)
         self.assertEqual(
             self.pi.read_bytes(), (ROOT / "config/pi/settings.json").read_bytes()
         )
+        for name in ("mcp.json", "pi-vcc-config.json"):
+            self.assertEqual(
+                (self.pi.parent / name).read_bytes(),
+                (ROOT / "config/pi" / name).read_bytes(),
+            )
         self.assertEqual(self.codex.stat().st_mode & 0o777, 0o600)
         backups = list((self.state / "backups").iterdir())
         self.run_sync("--check")
@@ -100,12 +105,20 @@ class ConfigSyncTests(unittest.TestCase):
     def test_local_drift_blocks_all_configuration_writes(self) -> None:
         self.run_sync()
         before = self.claude.read_bytes()
-        self.codex.write_text('model_reasoning_effort = "low"\n')
         self.change_source()
-        result = self.run_sync(status=1)
-        self.assertIn("Local edits", result.stderr)
-        self.assertEqual(self.claude.read_bytes(), before)
-        self.assertEqual(self.codex.read_text(), 'model_reasoning_effort = "low"\n')
+        for target, content in [
+            (self.codex, 'model_reasoning_effort = "low"\n'),
+            (self.pi.parent / "mcp.json", '{"mcpServers": {"local": {}}}\n'),
+            (self.pi.parent / "pi-vcc-config.json", '{"debug": true}\n'),
+        ]:
+            with self.subTest(target=target.name):
+                original = target.read_bytes()
+                target.write_text(content)
+                result = self.run_sync(status=1)
+                self.assertIn("Local edits", result.stderr)
+                self.assertEqual(self.claude.read_bytes(), before)
+                self.assertEqual(target.read_text(), content)
+                target.write_bytes(original)
 
     def test_codex_runtime_state_survives_source_updates(self) -> None:
         self.run_sync()
@@ -288,8 +301,8 @@ class ConfigSyncTests(unittest.TestCase):
         self.assertEqual(credentials.read_text(), '{"fixture": true}\n')
         self.assertFalse((self.home / ".claude").exists())
         self.assertTrue((pi_auth.parent / "settings.json").is_file())
-        self.assertFalse((pi_auth.parent / "mcp.json").exists())
-        self.assertFalse((pi_auth.parent / "pi-vcc-config.json").exists())
+        self.assertTrue((pi_auth.parent / "mcp.json").is_file())
+        self.assertTrue((pi_auth.parent / "pi-vcc-config.json").is_file())
         self.assertEqual(pi_auth.read_text(), '{"fixture": true}\n')
         self.assertFalse((self.home / ".pi").exists())
 

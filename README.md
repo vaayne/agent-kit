@@ -48,12 +48,15 @@ rules, skills, credentials, and session files remain in place. `CODEX_HOME`,
 `CLAUDE_CONFIG_DIR`, and `PI_CODING_AGENT_DIR` select different destinations when set.
 Pi defaults to `~/.pi/agent`.
 
-Pi sync manages only `defaultProjectTrust` and `packages` in `settings.json`.
-The package list replaces the corresponding local list. All other Pi settings,
-including model selection, extension settings, and version state, stay local.
-Pi authentication, provider definitions, MCP configuration, and installed package
-files are not copied. Pi loads package declarations on startup; sync does not run
-`pi install` or remove installed files.
+Within Pi's `settings.json`, sync manages only `defaultProjectTrust` and `packages`.
+The package list replaces the corresponding local list. All other settings in that
+file, including model selection, extension settings, and version state, stay local.
+Pi's `mcp.json` and `pi-vcc-config.json` sync as complete files, with backups and
+local-edit protection. Keep MCP credentials outside the repository; use environment
+variable references when a server needs authentication.
+Pi authentication, provider definitions, and installed package files are not copied.
+Pi loads package declarations on startup; sync does not run `pi install` or remove
+installed files.
 
 Copies keep application writes separate from the Git source. Sync checks all
 files before writing, backs up changed targets under
