@@ -126,6 +126,8 @@ Make the policy a check, so an agent cannot skip it:
   `github.com/golang/mock`). A short Go program under `tools/testpolicy/` or a
   `grep` in the task file is enough.
 - Run `check:testpolicy` and the coverage check from `mise run check`.
+- When a review finds the same kind of problem twice, add a lint rule or a
+  `check:*` task for it, so the next change cannot repeat it.
 
 ## Reporting
 

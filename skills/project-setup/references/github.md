@@ -109,6 +109,14 @@ Template `.github/pull_request_template.md`:
 
 <!-- List the exact checks and results, with report links when available. For a behavior fix, give the command that failed with the fix removed and its assertion failure. State what was not checked and why. Do not claim a check passed without evidence. -->
 
+## Risk
+
+<!-- State how this change can fail, which check catches each failure, and what no check catches. Write "Low: <reason>" for docs, copy, or additive changes behind a flag. -->
+
+## Revert
+
+<!-- Give the one step that undoes the change: a revert of this PR, a flag to turn off, or a migration to run. State any data that a revert does not restore. -->
+
 ## Refs
 
 <!-- Use Closes #123 for a completed issue, Refs #123 for partial work, or No issue: <reason> for a small independent fix. -->

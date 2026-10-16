@@ -41,4 +41,4 @@ For assessment, give the strongest candidates with locations, concrete friction,
 
 Verify the surviving contract with checks proportional to the change and repository requirements. Retain meaningful coverage; a simpler implementation does not by itself justify deleting tests. Once checks pass, repeat them only for new changes or unresolved risk.
 
-Use project terminology. Delegation is optional for useful independent work; follow the host's orchestration rules, using bb child threads inside bb. Findings of reproducible defects can be reported separately, but a cleanup request does not authorize unrelated behavior fixes. Use code-review when defect or regression review is requested or warranted, not as a compulsory second pass.
+Use project terminology. Delegation is optional for useful independent work; follow the host's orchestration rules, using bb child threads inside bb. Findings of reproducible defects can be reported separately, but a cleanup request does not authorize unrelated behavior fixes.

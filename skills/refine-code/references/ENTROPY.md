@@ -76,6 +76,8 @@ verify: smallest decisive check; estimated net reduction
 5. Prefer deletion, then standard library/native features, then already-installed dependencies. A new dependency requires the repository or user approval prescribed for dependency changes; prepare its concrete benefit and cost before escalating.
 6. Avoid compatibility shims when there is no compatibility obligation. When one exists, keep the path or design an explicit migration instead of silently deleting it.
 7. Keep batches reviewable and reversible. Never discard unrelated user changes.
+8. Widen the scope in steps: one proven candidate, then one directory or project, then the requested scope. Add the review feedback from each step to the instructions for the next step. When the user authorizes PRs, open one small draft PR for each independent cut, with its evidence record and links to the sources (history, live configuration, profiling).
+9. Escalate a candidate to the user with its evidence instead of deleting or silently keeping it when it is marked permanent, protects operations (a killswitch, an override, an incident fallback), or has a measured cost.
 
 Net-negative lines are evidence of a cut, not the goal. A safe simplification may add a small test or migration; a large deletion can still be wrong.
 
