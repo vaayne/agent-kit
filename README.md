@@ -135,29 +135,24 @@ skills separately.
 
 The kit's workflow skills each stand alone — pick the one that fits the moment:
 
-| Skill           | Role                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **scout**       | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic                    |
-| **grill**       | Stress-test an idea through structured interrogation — a decision tree worked frontier-first, in rounds                       |
-| **code-review** | Evidence-based code review; use independent reviewers and report bundles when depth or risk warrants                          |
-| **teach**       | Socratic quiz loop — merge only what you can pass a quiz on                                                                   |
-| **refine-code** | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
-| **handoff**     | Transfer context to a fresh focused session                                                                                   |
+| Skill             | Role                                                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **scout**         | Find your unknowns before they get expensive — blindspot pass, prototypes, references, quadrant diagnostic                    |
+| **ambition**      | Raise a task to a higher level — altitude, depth, and range proposals, each with an outside judge                             |
+| **project-setup** | Set up or audit a repository with the project baseline — instructions, tooling, testing, docs, GitHub, and stack rules        |
+| **refine-code**   | Improve existing code without changing behavior — Code, Architecture, and Entropy modes: sharpen, deepen, or prove-and-delete |
 
 ## Tool & service skills
 
-| Skill             | Description                                                |
-| ----------------- | ---------------------------------------------------------- |
-| **curator**       | Maintain the nmem knowledge base — lint + synthesis passes |
-| **humanizer**     | Strip AI writing patterns from prose                       |
-| **python-script** | Robust Python automation with logging and safety checks    |
-| **cf-email**      | Send email through the Cloudflare Email Sending API        |
-| **gws**           | Google Workspace operations via the `gws` CLI              |
-| **lark-cli**      | Lark/Feishu workspace operations via `lark-cli`            |
-| **tap**           | Search public sources, read pages, and run site scripts    |
-| **openlist**      | Manage files on OpenList/AList cloud storage               |
+| Skill             | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| **humanizer**     | Strip AI writing patterns from prose                    |
+| **python-script** | Robust Python automation with logging and safety checks |
+| **cmail**         | Manage Cloud Mail (Skymail) domain email                |
+| **lark-cli**      | Lark/Feishu workspace operations via `lark-cli`         |
+| **tap**           | Search public sources, read pages, and run site scripts |
 
-Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **use-modern-go**, **grilling**, **documd-visuals**.
+Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **use-modern-go**, **grilling**, **documd-visuals**, **baoyu-design**, **design-taste-frontend**.
 
 ## BB extensions
 
