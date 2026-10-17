@@ -17,6 +17,11 @@ default_subagent_model = "gpt-6-luna"
 default_subagent_reasoning_effort = "max"
 max_concurrent_threads_per_session = 8
 
+# Bundled system skills duplicate the skills that BB syncs. Codex reinstalls
+# them on each start unless this is off.
+[skills.bundled]
+enabled = false
+
 [shell_environment_policy]
 inherit = "core"
 
