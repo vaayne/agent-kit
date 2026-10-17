@@ -20,7 +20,8 @@ not this file's job to restate it; read it directly when working on its content.
 
 Keep tokens, login state, transcripts, and machine-specific provider settings out
 of `config/`. Configuration sync uses copies, backs up changes, and refuses local
-edits. Review those edits before using `--replace`.
+edits to repository keys. Keys that only the target sets stay local. Review
+local edits before using `--replace`.
 
 `mise run sync` runs `format` first, so a sync can leave formatting changes in the
 working tree. Commit them separately.

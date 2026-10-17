@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sys
 import tempfile
 import tomllib
@@ -16,7 +17,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = logging.getLogger("agent-kit.sync.config")
-PI_MANAGED_SETTINGS = {"defaultProjectTrust", "packages"}
 
 
 def regular_path(path: Path) -> None:
@@ -31,68 +31,116 @@ def digest(content: bytes | None) -> str | None:
     return hashlib.sha256(content).hexdigest() if content is not None else None
 
 
-def codex_managed(content: bytes) -> dict:
-    settings = tomllib.loads(content.decode())
-    for project in list(settings.get("projects", {})):
-        entry = settings["projects"][project]
-        entry.pop("trust_level", None)
-        if not entry:
-            del settings["projects"][project]
-    if settings.get("projects") == {}:
-        del settings["projects"]
-    if "tui" in settings:
-        settings["tui"].pop("screen_reader_detection_done", None)
-        if not settings["tui"]:
-            del settings["tui"]
-    return settings
+def parse(path: Path, content: bytes) -> dict:
+    try:
+        if path.suffix == ".json":
+            data = json.loads(content)
+        else:
+            data = tomllib.loads(content.decode())
+    except ValueError as error:
+        raise ValueError(f"Invalid configuration {path}: {error}") from error
+    if not isinstance(data, dict):
+        raise TypeError(f"Configuration must be an object: {path}")
+    return data
 
 
-def codex_digest(content: bytes | None) -> str | None:
-    if content is None:
-        return None
-    return digest(json.dumps(codex_managed(content), sort_keys=True).encode())
+def leaves(data: dict, prefix: tuple[str, ...] = ()) -> dict[tuple[str, ...], object]:
+    flat = {}
+    for key, value in data.items():
+        path = (*prefix, key)
+        if isinstance(value, dict) and value:
+            flat.update(leaves(value, path))
+        else:
+            flat[path] = value
+    return flat
 
 
-def preserve_codex_state(desired: bytes, current: bytes) -> bytes:
-    settings = tomllib.loads(current.decode())
-    lines = []
-    for project, entry in settings.get("projects", {}).items():
-        if "trust_level" in entry:
-            lines.append(
-                f"projects.{json.dumps(project)}.trust_level = "
-                f"{json.dumps(entry['trust_level'])}\n"
-            )
-    tui = settings.get("tui", {})
-    if "screen_reader_detection_done" in tui:
-        lines.append(
-            "tui.screen_reader_detection_done = "
-            f"{json.dumps(tui['screen_reader_detection_done'])}\n"
-        )
-    merged = "".join(lines).encode() + desired
-    # Reject conflicting repository tables before any files are written.
-    tomllib.loads(merged.decode())
+def nest(flat: dict[tuple[str, ...], object]) -> dict:
+    data: dict = {}
+    for path, value in flat.items():
+        node = data
+        for key in path[:-1]:
+            node = node.setdefault(key, {})
+        node[path[-1]] = value
+    return data
+
+
+def projection_digest(data: dict, keys: set[tuple[str, ...]]) -> str | None:
+    flat = leaves(data)
+    rows = [[list(key), flat[key]] for key in sorted(keys) if key in flat]
+    return digest(json.dumps(rows, default=str).encode())
+
+
+def toml_key(key: str) -> str:
+    return key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else json.dumps(key)
+
+
+def toml_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(map(toml_value, value)) + "]"
+    if isinstance(value, dict):
+        pairs = (f"{toml_key(k)} = {toml_value(v)}" for k, v in value.items())
+        return "{" + ", ".join(pairs) + "}"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    return value.isoformat()  # TOML dates and times
+
+
+def toml_with(desired: bytes, extras: dict[tuple[str, ...], object]) -> bytes:
+    """Add each extra under the deepest table header of the repository file."""
+    text = desired.decode()
+    lines = (text if text.endswith("\n") else text + "\n").splitlines(keepends=True)
+    headers = {}
+    for index, line in enumerate(lines):
+        match = re.fullmatch(r"\[([^\[\]]+)\]\s*(#.*)?", line.strip())
+        if match:
+            headers[next(iter(leaves(tomllib.loads(f"{match[1]} = 0"))))] = index
+    inserts: dict[int, list[str]] = {}
+    for path, value in extras.items():
+        tables = [t for t in headers if len(t) < len(path) and path[: len(t)] == t]
+        table = max(tables, key=len, default=())
+        key = ".".join(map(toml_key, path[len(table) :]))
+        at = headers[table] if table else -1
+        inserts.setdefault(at, []).append(f"{key} = {toml_value(value)}\n")
+    out = inserts.get(-1, [])
+    for index, line in enumerate(lines):
+        out += [line, *inserts.get(index, [])]
+    return "".join(out).encode()
+
+
+def merge(
+    target: Path,
+    desired: bytes,
+    current: bytes,
+    retired: set[tuple[str, ...]],
+) -> bytes:
+    """Apply the repository keys and keep the keys that only the target sets."""
+    repo = leaves(parse(target, desired))
+    owned = set(repo) | retired
+    prefixes = {key[:i] for key in owned for i in range(1, len(key) + 1)}
+    existing = parse(target, current)
+    extras = {
+        path: value
+        for path, value in leaves(existing).items()
+        if path not in prefixes
+        and not any(path[:i] in owned for i in range(1, len(path)))
+    }
+    expected = nest(repo | extras)
+    if expected == existing:
+        return current
+    if not extras:
+        return desired
+    if target.suffix == ".json":
+        merged = (json.dumps(expected, indent=2) + "\n").encode()
+    else:
+        merged = toml_with(desired, extras)
+    if parse(target, merged) != expected:
+        raise ValueError(f"Cannot keep local settings in {target}")
     return merged
-
-
-def pi_managed(content: bytes) -> dict:
-    settings = json.loads(content)
-    if not isinstance(settings, dict):
-        raise TypeError("Pi settings must be a JSON object")
-    return {key: value for key, value in settings.items() if key in PI_MANAGED_SETTINGS}
-
-
-def pi_digest(content: bytes | None) -> str | None:
-    if content is None:
-        return None
-    return digest(json.dumps(pi_managed(content), sort_keys=True).encode())
-
-
-def config_digest(source: Path, content: bytes | None) -> str | None:
-    if source == ROOT / "config/codex/config.toml":
-        return codex_digest(content)
-    if source == ROOT / "config/pi/settings.json":
-        return pi_digest(content)
-    return digest(content)
 
 
 def write_file(path: Path, content: bytes, mode: int) -> None:
@@ -116,7 +164,7 @@ def sync(check: bool, replace: bool) -> int:
     previous = json.loads(state_file.read_text()) if state_file.exists() else {}
     if not isinstance(previous, dict):
         raise TypeError(f"Invalid deployment baseline: {state_file}")
-    files: list[tuple[Path, Path, bytes, bytes | None, bytes]] = []
+    files: list[tuple[Path, Path, bytes, bytes | None, bytes, object]] = []
     for provider, destination in [
         ("claude", Path(os.environ.get("CLAUDE_CONFIG_DIR", home / ".claude"))),
         ("codex", Path(os.environ.get("CODEX_HOME", home / ".codex"))),
@@ -132,48 +180,51 @@ def sync(check: bool, replace: bool) -> int:
                 continue
             regular_path(source)
             desired = source.read_bytes()
-            if source.suffix == ".json":
-                json.loads(desired)
-            elif source.suffix == ".toml":
-                tomllib.loads(desired.decode())
+            structured = source.suffix in {".json", ".toml"}
+            if structured:
+                keys = set(leaves(parse(source, desired)))
             elif source.suffix != ".md":
                 raise ValueError(f"Unsupported configuration file: {source}")
             target = destination / source.relative_to(source_dir)
             regular_path(target)
             current = target.read_bytes() if target.exists() else None
             source_content = desired
-            is_codex = source == ROOT / "config/codex/config.toml"
-            if source == ROOT / "config/pi/settings.json":
-                public = pi_managed(desired)
-                if public != json.loads(desired):
-                    raise ValueError(f"Unsupported Pi sync settings: {source}")
-                if current is not None:
-                    if pi_managed(current) == public:
-                        desired = current
-                    else:
-                        desired = (
-                            json.dumps(json.loads(current) | public, indent=2) + "\n"
-                        ).encode()
-            if is_codex and current is not None:
-                if codex_managed(current) == codex_managed(desired):
-                    desired = current
+            # A structured baseline records the digest and keys that the
+            # repository owned; target-only keys belong to the machine.
+            entry = previous.get(str(target))
+            known = digest(current) == entry
+            if structured:
+                if isinstance(entry, dict):
+                    owned = {tuple(key) for key in entry["keys"]}
+                    entry = entry["digest"]
                 else:
-                    desired = preserve_codex_state(desired, current)
+                    owned = keys
+                if current is not None:
+                    known = (
+                        known
+                        or projection_digest(parse(target, current), owned) == entry
+                    )
+                    desired = merge(target, desired, current, owned - keys)
+                baseline = {
+                    "digest": projection_digest(parse(target, desired), keys),
+                    "keys": sorted(map(list, keys)),
+                }
+            else:
+                baseline = digest(desired)
             if (
                 current != desired
                 and not replace
-                and (current is not None or str(target) in previous)
-                and digest(current) != previous.get(str(target))
-                and config_digest(source, current) != previous.get(str(target))
+                and (current is not None or entry is not None)
+                and not known
             ):
                 raise ValueError(
                     f"Local edits: {target}. Review them, then use --replace "
                     "to back up and apply the repository configuration."
                 )
-            files.append((source, target, desired, current, source_content))
+            files.append((source, target, desired, current, source_content, baseline))
 
     changed = [row for row in files if row[2] != row[3]]
-    for _, target, _, _, _ in changed:
+    for _, target, *_ in changed:
         LOG.info("%s: %s", "Would copy" if check else "Copy planned", target)
     if check:
         LOG.info("Check complete: %d files differ", len(changed))
@@ -185,7 +236,7 @@ def sync(check: bool, replace: bool) -> int:
         backups.mkdir(parents=True, exist_ok=True, mode=0o700)
         backup = Path(tempfile.mkdtemp(prefix="config-", dir=backups))
         journal = []
-        for index, (_, target, desired, current, _) in enumerate(changed):
+        for index, (_, target, _, current, *_) in enumerate(changed):
             if current is not None:
                 write_file(backup / str(index), current, 0o600)
             journal.append({"target": str(target), "before": digest(current)})
@@ -196,12 +247,12 @@ def sync(check: bool, replace: bool) -> int:
         )
         LOG.info("Backup: %s", backup)
         # Check every target before the first write; editors do not share this check.
-        for source, target, desired, current, source_content in files:
+        for source, target, _, current, source_content, _ in files:
             regular_path(target)
             observed = target.read_bytes() if target.exists() else None
             if source.read_bytes() != source_content or observed != current:
                 raise ValueError(f"Configuration changed during sync: {target}")
-        for _, target, desired, current, _ in changed:
+        for _, target, desired, current, *_ in changed:
             regular_path(target)
             observed = target.read_bytes() if target.exists() else None
             if observed != current:
@@ -209,7 +260,7 @@ def sync(check: bool, replace: bool) -> int:
             mode = target.stat().st_mode & 0o777 if target.exists() else 0o600
             write_file(target, desired, mode)
 
-    for source, target, desired, _, source_content in files:
+    for source, target, desired, _, source_content, _ in files:
         regular_path(target)
         if source.read_bytes() != source_content or target.read_bytes() != desired:
             raise ValueError(f"Configuration changed during sync: {target}")
@@ -217,10 +268,7 @@ def sync(check: bool, replace: bool) -> int:
         state_file,
         (
             json.dumps(
-                {
-                    str(target): config_digest(source, desired)
-                    for source, target, desired, _, _ in files
-                },
+                {str(target): baseline for _, target, *_, baseline in files},
                 indent=2,
             )
             + "\n"

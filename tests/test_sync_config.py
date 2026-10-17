@@ -150,18 +150,57 @@ class ConfigSyncTests(unittest.TestCase):
         self.assertIs(settings["tui"]["screen_reader_detection_done"], True)
         self.run_sync("--check")
 
-    def test_codex_other_project_and_tui_edits_are_protected(self) -> None:
+    def test_target_only_keys_survive_source_updates(self) -> None:
+        # Shape of the routing that Magpie adds to native agent configuration.
         self.run_sync()
-        before = self.codex.read_text()
-        for extra in [
-            '\n[projects."/tmp/example"]\nmodel = "local-model"\n',
-            '\n[tui]\ntheme = "local-theme"\n',
-        ]:
-            with self.subTest(extra=extra):
-                self.codex.write_text(before + extra)
-                result = self.run_sync(status=1)
-                self.assertIn("Local edits", result.stderr)
-                self.assertEqual(self.codex.read_text(), before + extra)
+        settings = json.loads(self.claude.read_text())
+        settings["env"]["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3425"
+        settings["modelPicker"] = {"options": [{"model": "claude/opus"}]}
+        self.claude.write_text(json.dumps(settings))
+        codex = self.codex.read_text()
+        self.codex.write_text(
+            'model = "local-model"\n'
+            + codex.replace("[features]\n", "[features]\nlocal_flag = true\n")
+            + '\n[model_providers.magpie]\nbase_url = "http://127.0.0.1:3425/v1"\n'
+            + 'http_headers = { "x-local" = "magpie" }\n'
+        )
+        self.run_sync("--check")
+        self.change_source()
+        source = self.repo / "config/codex/config.toml"
+        source.write_text(
+            source.read_text().replace(
+                'model_reasoning_effort = "medium"', 'model_reasoning_effort = "low"'
+            )
+        )
+        self.run_sync()
+        claude = json.loads(self.claude.read_text())
+        self.assertEqual(claude["effortLevel"], "low")
+        self.assertEqual(claude["env"]["ANTHROPIC_BASE_URL"], "http://127.0.0.1:3425")
+        self.assertEqual(claude["modelPicker"], settings["modelPicker"])
+        codex = tomllib.loads(self.codex.read_text())
+        self.assertEqual(codex["model_reasoning_effort"], "low")
+        self.assertEqual(codex["model"], "local-model")
+        self.assertIs(codex["features"]["local_flag"], True)
+        self.assertEqual(
+            codex["model_providers"]["magpie"]["http_headers"], {"x-local": "magpie"}
+        )
+        self.run_sync("--check")
+
+    def test_key_removed_from_source_is_removed_from_target(self) -> None:
+        source = self.repo / "config/claude/settings.json"
+        settings = json.loads(source.read_text())
+        settings["retiredSetting"] = True
+        source.write_text(json.dumps(settings))
+        self.run_sync()
+        local = json.loads(self.claude.read_text()) | {"localSetting": 1}
+        self.claude.write_text(json.dumps(local))
+        del settings["retiredSetting"]
+        source.write_text(json.dumps(settings))
+        self.run_sync()
+        self.assertEqual(
+            json.loads(self.claude.read_text()), settings | {"localSetting": 1}
+        )
+        self.run_sync("--check")
 
     def test_codex_replace_preserves_runtime_state(self) -> None:
         self.codex.parent.mkdir()
@@ -223,15 +262,6 @@ class ConfigSyncTests(unittest.TestCase):
         self.assertEqual(actual["theme"], "local-theme")
         self.assertEqual(actual["defaultProvider"], "local-provider")
         self.run_sync("--check")
-
-    def test_pi_unmanaged_settings_are_rejected_in_source(self) -> None:
-        source = self.repo / "config/pi/settings.json"
-        settings = json.loads(source.read_text())
-        settings["otel"] = {"endpoint": "http://localhost:4317"}
-        source.write_text(json.dumps(settings))
-        result = self.run_sync(status=1)
-        self.assertIn("Unsupported Pi sync settings", result.stderr)
-        self.assertFalse(self.claude.exists())
 
     def test_first_sync_conflict_requires_replace_and_backups(self) -> None:
         self.claude.parent.mkdir()

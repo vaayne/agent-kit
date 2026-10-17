@@ -63,10 +63,13 @@ files before writing, backs up changed targets under
 `~/.local/state/agent-kit/backups/`, and records a deployment baseline. It
 refuses local edits or a differing file on a machine's first sync. Review and
 reconcile the file with the repository, or run `mise run sync:config -- --replace`
-to save a backup and apply the repository version. Codex project trust and screen
-reader detection state stay local. Pi settings outside the two managed keys also
-stay local, including when `--replace` is used. Review other provider settings
-before replacing them.
+to save a backup and apply the repository version.
+
+In JSON and TOML files, the repository owns only the keys it sets. Keys that only
+the target sets stay local, including when `--replace` is used: Codex project
+trust, gateway routing such as Magpie's `env` and `model_providers` entries, and
+other machine state. A local change to a repository key counts as a local edit.
+A key removed from the repository is removed from the target on the next sync.
 The script respects `XDG_STATE_HOME` for deployment state and backups. File
 operations are logged to `~/.agents/sessions/agent-kit/logs/sync-config.log`.
 
