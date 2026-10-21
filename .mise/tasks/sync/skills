@@ -150,7 +150,22 @@ for skill in "${skills[@]+"${skills[@]}"}"; do
     echo "Remote skill is missing SKILL.md: $source" >&2
     exit 1
   fi
-  rsync -a "$source/" "$stage/skills/${skill##*/}/"
+  # BB loads a skill only when its directory matches the SKILL.md name, and
+  # gh skill names the directory after the upstream path.
+  name=$(awk '/^---$/ { n++; next } n == 1 && /^name:/ { print $2; exit }' \
+    "$source/SKILL.md" | tr -d "\"'")
+  name=${name:-${skill##*/}}
+  case "$name" in
+    "" | *[!a-z0-9-]*)
+      echo "Invalid skill name in $source/SKILL.md: $name" >&2
+      exit 1
+      ;;
+  esac
+  if [[ -e "$stage/skills/$name" ]]; then
+    echo "Skill names collide: $name" >&2
+    exit 1
+  fi
+  rsync -a "$source/" "$stage/skills/$name/"
 done
 
 backup_dir="../skill-backups/agent-kit-$(date -u +%Y%m%dT%H%M%SZ)-$$"
