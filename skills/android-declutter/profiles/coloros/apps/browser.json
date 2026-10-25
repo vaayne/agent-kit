@@ -1,0 +1,17 @@
+{
+  "id": "browser",
+  "name": "浏览器 com.heytap.browser",
+  "package": "com.heytap.browser",
+  "steps": [
+    { "do": "launch", "pkg": "com.heytap.browser" },
+    { "do": "tap", "id": "menu_wrapper" },
+    { "do": "tap", "id": "preferences" },
+    { "do": "tap", "text": "隐私" },
+    { "do": "tap", "text": "广告管理" },
+    { "do": "off", "titles": ["开屏广告", "摇一摇广告"] },
+    { "do": "back" },
+    { "do": "tap", "text": "个性化推荐" },
+    { "do": "off", "titles": ["个性化推荐"] }
+  ],
+  "notes": "Phone builds also have 主页设置 > 页面布局 > 简洁模式. Tablet 40.10 has no such page and no switch for search box hot words. Webpage content changes; never tap inside the page."
+}

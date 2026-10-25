@@ -1,0 +1,33 @@
+{
+  "id": "coloros",
+  "name": "OPPO / OnePlus / realme ColorOS",
+  "match": { "ro.build.version.oplusrom": "^V1[5-9]" },
+  "verified_on": [
+    {
+      "device": "OPPO Pad Mini (OPD2515)",
+      "os": "ColorOS V16.1.0 / Android 16",
+      "date": "2026-10-25"
+    }
+  ],
+  "split_settings_on_tablet": true,
+  "order": [
+    "system-ad-tracking",
+    "system-enhanced-services",
+    "system-security-recommend",
+    "system-ux-plan",
+    "assistantscreen",
+    "quicksearchbox",
+    "browser",
+    "market",
+    "themestore",
+    "phonemanager",
+    "weather",
+    "calendar",
+    "icons-art-plus"
+  ],
+  "manual": [
+    "Desktop card 应用建议: long-press the card, 移除卡片, 移除.",
+    "Desktop stack 小布建议: long-press, 服务推荐设置, turn off 资讯服务 and 赛事服务; keep 出游/外卖/课程 reminders. Do not use 卸载小布建议: the weather card lives in this stack.",
+    "Browser search box hot words: no switch in the tablet browser (40.10)."
+  ]
+}

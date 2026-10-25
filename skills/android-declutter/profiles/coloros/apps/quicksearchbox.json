@@ -1,0 +1,23 @@
+{
+  "id": "quicksearchbox",
+  "name": "全局搜索 com.heytap.quicksearchbox",
+  "package": "com.heytap.quicksearchbox",
+  "steps": [
+    { "do": "home" },
+    { "do": "gesture", "swipe": [0.5, 0.36, 0.5, 0.72] },
+    { "do": "tap", "id": "setting_text" },
+    { "do": "tap", "text": "首页卡片管理" },
+    {
+      "do": "off",
+      "titles": ["推荐卡片", "热搜榜单", "精选推荐", "热搜应用", "应用建议小卡", "未下载应用推荐"]
+    },
+    { "do": "keep", "titles": ["应用建议", "便捷服务"] },
+    { "do": "back" },
+    { "do": "tap", "text": "功能管理" },
+    { "do": "off", "titles": ["搜索框提示词"] },
+    { "do": "back" },
+    { "do": "tap", "text": "隐私" },
+    { "do": "off", "titles": ["个性化推荐"] }
+  ],
+  "notes": "Opening: swipe down on the home screen. It has no launcher activity. Do not swipe up inside it: that closes it. 应用建议 only lists installed apps once 未下载应用推荐 is off."
+}

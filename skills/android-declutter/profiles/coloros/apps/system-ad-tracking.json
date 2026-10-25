@@ -1,0 +1,13 @@
+{
+  "id": "system-ad-tracking",
+  "name": "设置 > 隐私 > 设备标识与广告 > 广告跟踪 (per-app OAID)",
+  "why": "Stops OAID-based behaviour tracking. Ads still appear; only targeting drops.",
+  "steps": [
+    { "do": "settings", "path": ["隐私", "设备标识与广告", "广告跟踪"] },
+    { "do": "tap", "text": "更多选项" },
+    { "do": "tap", "text": "显示系统应用", "optional": true },
+    { "do": "tap", "text": "更多选项" },
+    { "do": "tap", "text": "全部关闭", "optional": true },
+    { "do": "all_off", "id": "item_switch" }
+  ]
+}

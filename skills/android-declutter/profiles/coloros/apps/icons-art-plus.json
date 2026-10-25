@@ -1,0 +1,17 @@
+{
+  "id": "icons-art-plus",
+  "name": "设置 > 桌面、锁屏与个性化 > 图标 > ART+ 图标",
+  "why": "ART+ draws third-party icons (淘宝, 京东, 拼多多, 哔哩哔哩...) in a clean house style, which hides festival and promotion decorations.",
+  "requires_consent": true,
+  "consent_note": "Two notices: 壁纸 (full mode uploads chosen images for AI) and 壁纸与个性化 (storage, network). Ask the user first.",
+  "steps": [
+    { "do": "settings", "path": ["桌面、锁屏与个性化"] },
+    { "do": "tap", "text": "设置", "optional": true },
+    { "do": "consent" },
+    { "do": "tap", "id": "iconCardView" },
+    { "do": "consent" },
+    { "do": "on", "titles": ["ART+ 图标"] },
+    { "do": "tap", "id": "apply_button" }
+  ],
+  "notes": "The ART+ switch row uses id art_switch and title art_text, so `on` finds it by the row text. Do not change the icon style chips."
+}

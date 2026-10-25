@@ -1,0 +1,64 @@
+{
+  "method": "pm disable-user --user 0 (keeps data; undo with pm enable). Uninstall only after the user confirms names and impact.",
+  "groups": {
+    "third_party": {
+      "name": "第三方预装",
+      "default": "recommend",
+      "impact": "The apps stop working until re-enabled or reinstalled from the store.",
+      "packages": {
+        "com.ss.android.ugc.aweme": "抖音",
+        "com.qiyi.video.pad": "爱奇艺 HD",
+        "com.lemon.lvpro": "剪映专业版",
+        "com.fenbi.android.pedia": "斑马百科"
+      }
+    },
+    "oppo_content": {
+      "name": "OPPO 内容推广类",
+      "default": "recommend",
+      "impact": "Loses these content entries. 我的 OPPO holds member points and after-sales service.",
+      "packages": {
+        "com.heytap.yoli": "OPPO 视频",
+        "com.heytap.reader": "阅读",
+        "com.heytap.music": "音乐",
+        "com.oppo.store": "OPPO 商城",
+        "com.oplus.member": "我的 OPPO",
+        "com.nearme.gamecenter": "游戏中心",
+        "com.oplus.game.empowerment.folder": "热门游戏推荐 (文件夹)",
+        "com.oplus.tips": "使用技巧"
+      }
+    },
+    "quick_apps": {
+      "name": "快应用引擎",
+      "default": "ask",
+      "impact": "快应用 links in web pages or SMS stop opening; some mini games stop working.",
+      "packages": { "com.nearme.instant.platform": "快应用" }
+    },
+    "office": {
+      "name": "WPS Office PC",
+      "default": "ask",
+      "impact": "816 MB. No Office editing; the system 文档 app still views files.",
+      "packages": { "com.oplus.wpslauncher": "WPS Office PC" }
+    }
+  },
+  "never_touch": [
+    "com.android.launcher",
+    "com.oplus.ota",
+    "com.oplus.sau",
+    "com.oplus.romupdate",
+    "com.coloros.securityguard",
+    "com.oplus.safecenter",
+    "com.coloros.phonemanager",
+    "com.android.packageinstaller",
+    "com.oplus.appdetail",
+    "com.oplus.account",
+    "com.heytap.cloud",
+    "com.coloros.backuprestore",
+    "com.oplus.linker",
+    "com.oplus.padconnect",
+    "com.heytap.mydevices",
+    "com.coloros.oshare",
+    "com.heytap.market",
+    "com.heytap.htms",
+    "com.heytap.openid"
+  ]
+}

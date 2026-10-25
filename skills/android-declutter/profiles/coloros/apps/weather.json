@@ -1,0 +1,36 @@
+{
+  "id": "weather",
+  "name": "天气 com.coloros.weather2",
+  "package": "com.coloros.weather2",
+  "requires_consent": true,
+  "consent_note": "First launch shows a privacy agreement. Without it, only the notification channel can be changed (see notifications.json).",
+  "steps": [
+    {
+      "do": "launch",
+      "pkg": "com.coloros.weather2"
+    },
+    {
+      "do": "consent"
+    },
+    {
+      "do": "tap",
+      "text": "更多选项"
+    },
+    {
+      "do": "tap",
+      "text": "设置"
+    },
+    {
+      "do": "tap",
+      "text": "隐私"
+    },
+    {
+      "do": "off",
+      "maybe": [
+        "热门推荐",
+        "个性化推荐"
+      ]
+    }
+  ],
+  "notes": "In-app steps come from public ColorOS 16 guides; not yet verified on a device."
+}

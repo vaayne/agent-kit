@@ -147,13 +147,14 @@ The kit's workflow skills each stand alone — pick the one that fits the moment
 
 ## Tool & service skills
 
-| Skill             | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| **humanizer**     | Strip AI writing patterns from prose                    |
-| **python-script** | Robust Python automation with logging and safety checks |
-| **cmail**         | Manage Cloud Mail (Skymail) domain email                |
-| **lark-cli**      | Lark/Feishu workspace operations via `lark-cli`         |
-| **tap**           | Search public sources, read pages, and run site scripts |
+| Skill                 | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| **humanizer**         | Strip AI writing patterns from prose                                       |
+| **python-script**     | Robust Python automation with logging and safety checks                    |
+| **cmail**             | Manage Cloud Mail (Skymail) domain email                                   |
+| **lark-cli**          | Lark/Feishu workspace operations via `lark-cli`                            |
+| **tap**               | Search public sources, read pages, and run site scripts                    |
+| **android-declutter** | Cut ads and promotion pushes on Android over adb with per-app JSON configs |
 
 Remote skills installed during sync (see [skills/remote-skills.txt](skills/remote-skills.txt)): **skill-creator**, **gh-stack**, **herdr**, **bento-slides**, **tailscale**, **use-modern-go**, **grilling**, **documd-visuals**, **baoyu-design**, **design-taste-frontend**.
 

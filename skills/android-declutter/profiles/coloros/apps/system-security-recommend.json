@@ -1,0 +1,9 @@
+{
+  "id": "system-security-recommend",
+  "name": "设置 > 密码与安全 > 系统安全 > 安全应用推荐",
+  "confirm": ["继续关闭"],
+  "steps": [
+    { "do": "settings", "path": ["密码与安全", "系统安全", "安全应用推荐"] },
+    { "do": "off", "titles": ["安全应用推荐"] }
+  ]
+}

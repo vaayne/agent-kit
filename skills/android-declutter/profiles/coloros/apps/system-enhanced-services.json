@@ -1,0 +1,35 @@
+{
+  "id": "system-enhanced-services",
+  "name": "设置 > 系统与更新 > 增强服务",
+  "steps": [
+    {
+      "do": "settings",
+      "path": [
+        "系统与更新",
+        "增强服务"
+      ]
+    },
+    {
+      "do": "off",
+      "titles": [
+        "开机精选应用"
+      ],
+      "maybe": [
+        "商业服务",
+        "乐划锁屏"
+      ]
+    },
+    {
+      "do": "keep",
+      "titles": [
+        "夜间自动更新",
+        "互联安全服务",
+        "设备互联",
+        "设备快连",
+        "智能识别陌生号码",
+        "天气服务"
+      ]
+    }
+  ],
+  "notes": "商业服务 and 乐划锁屏 do not exist on the Pad Mini; they exist on many phones."
+}
