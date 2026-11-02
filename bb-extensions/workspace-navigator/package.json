@@ -23,7 +23,7 @@
     "worktree"
   ],
   "dependencies": {
-    "zod": "4.3.6"
+    "zod": "4.6.7"
   },
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
