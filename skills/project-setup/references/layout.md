@@ -11,7 +11,8 @@ CLAUDE.md -> AGENTS.md
 mise.toml            # tools and aggregate tasks (tooling.md)
 .mise/tasks/         # file tasks, one directory per group (tooling.md)
 .github/             # CI, templates, Dependabot (github.md)
-docs/, assets/       # documents and figures (documentation.md)
+docs/                # documents, with docs/AGENTS.md as their standard
+assets/              # figure sources and renders (documentation.md)
 .local/              # temporary reports; ignored by Git
 ```
 
@@ -40,7 +41,7 @@ areas, read each matching rule. Do not load all rule files by default.
 - Code, dependencies, API contracts and data: [implementation](.agents/rules/implementation.md).
 - Database schema, migrations and queries: [database](.agents/rules/database.md).
 - Writing or changing tests: [testing](.agents/rules/testing.md).
-- Documents, diagrams and public docs: [documentation](.agents/rules/documentation.md).
+- Documents, diagrams and public docs: [documentation](.agents/rules/documentation.md), then [docs/AGENTS.md](docs/AGENTS.md).
 - Selecting checks or completing work: [verification](.agents/rules/verification.md).
 - Production, deployment, releases and paid calls: [operations](.agents/rules/operations.md).
 

@@ -1,8 +1,15 @@
 # Documentation
 
-Copy these rules into `.agents/rules/documentation.md` and link the file from
-the root `AGENTS.md`. Remove the Fumadocs part when the repository has no
-public documentation site.
+Three files carry this area:
+
+- `.agents/rules/documentation.md` holds these rules, copied into the
+  repository and linked from the root `AGENTS.md`.
+- `docs/AGENTS.md` holds how to write the documents themselves. Write it from
+  [docs-agents](docs-agents.md) and link it from the root index next to the
+  rule, so an agent that edits one file under `docs/` reads the whole standard.
+- `README.md` holds the short user quick start.
+
+Remove the Fumadocs part when the repository has no public documentation site.
 
 ## Layout
 
@@ -58,6 +65,21 @@ Other rules:
   exploited.
 - **.local/** holds plans, review notes, and run reports. Add it to
   `.gitignore`. Move a result to `docs/` only when it stays true.
+
+## Document types and standards
+
+Each document answers one kind of question, following
+[Diátaxis](https://diataxis.fr/): a tutorial teaches, a how-to finishes a task,
+a reference states values, and an explanation gives the reason. Do not mix two
+kinds in one file. Architecture documents cover the areas
+[arc42](https://arc42.org/overview) names, and figures use the level
+[C4](https://c4model.com/) defines. Decisions that are hard to reverse go in an
+ADR in the Nygard format. Proposals follow a
+[Google design document](https://www.industrialempathy.com/posts/design-docs-at-google/).
+
+[docs-agents](docs-agents.md) carries the full tables: document type, arc42
+area, design sections, ADR skeleton, figure choice, and the commit checklist.
+Copy them into `docs/AGENTS.md`; do not restate them here.
 
 ## Writing rules
 

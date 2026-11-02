@@ -50,7 +50,9 @@ leftover configuration.
 
 2. **Lay out instructions.** Follow [layout](references/layout.md). Create the
    root `AGENTS.md` index and the `.agents/rules/` files. Keep existing rules
-   that still apply; move them into the matching rule file.
+   that still apply; move them into the matching rule file. When the repository
+   writes documents, also write `docs/AGENTS.md` from
+   [docs-agents](references/docs-agents.md) and link it from the index.
 
 3. **Install the common tooling and rules.** Follow these for every
    repository:
@@ -58,8 +60,8 @@ leftover configuration.
      documd, and e2e.
    - [testing](references/testing.md): test policy, tiers, coverage, and
      enforcement.
-   - [documentation](references/documentation.md): document layout, figures,
-     and Fumadocs for public docs.
+   - [documentation](references/documentation.md): document layout, the
+     `docs/AGENTS.md` standard, figures, and Fumadocs for public docs.
    - [github](references/github.md): commits, issues, PRs, CI, and
      Dependabot.
 
