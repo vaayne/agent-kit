@@ -21,3 +21,5 @@ Leonxlnx/taste-skill taste-skill
 nyblnet/bento bento-slides
 markdown-viewer/skills documd-visuals
 #cathrynlavery/diagram-design diagram-design
+
+citrolabs/ego-lite ego-browser
