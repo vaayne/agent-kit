@@ -8,14 +8,16 @@
 #   owner/repo skill@commit-sha   Pinned commit
 
 anthropics/skills skill-creator
-github/gh-stack gh-stack@v0.1.0
-herdrdev/herdr herdr@v0.8.0
-nyblnet/bento bento-slides
+github/gh-stack gh-stack
 tailscale/tailscale-skill tailscale
-#cathrynlavery/diagram-design diagram-design
-JetBrains/go-modern-guidelines use-modern-go
 mattpocock/skills grilling
-markdown-viewer/skills documd-visuals
-JimLiu/baoyu-design baoyu-design
-# Sync deploys this skill under its SKILL.md name, design-taste-frontend.
+JetBrains/go-modern-guidelines use-modern-go
+
+JimLiu/baoyu-design claude-design
+JimLiu/baoyu-design claude-design-system
+JimLiu/baoyu-design claude-dashboard
+JimLiu/baoyu-design dataviz
 Leonxlnx/taste-skill taste-skill
+nyblnet/bento bento-slides
+markdown-viewer/skills documd-visuals
+#cathrynlavery/diagram-design diagram-design

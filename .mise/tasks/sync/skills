@@ -22,12 +22,12 @@ esac
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit/bb-skills"
 REMOTE_SKILL_DIR="$CACHE_DIR/remote"
 REMOTE_SKILL_REGISTRY="$SKILL_SOURCE_DIR/remote-skills.txt"
-declare -a repos=() skills=() versions=()
+declare -a repos=() skills=() specs=() versions=()
 
 sync_remote_skills() {
   local cache_dir="$CACHE_DIR"
   local stamp="$cache_dir/remote-skills.sha256"
-  local registry_hash mode repo skill_spec extra skill version
+  local registry_hash mode repo skill_spec extra skill spec version
   local index target log failed
   local -a pids=()
 
@@ -59,25 +59,34 @@ sync_remote_skills() {
       fi
     fi
 
-    case "${skill##*/}" in
+    # A registry entry names a skill, not a directory: it may be a bare name, a
+    # path inside the repository, or a path that ends in SKILL.md. The installed
+    # directory takes the last path segment, because gh skill names the directory
+    # after the upstream path.
+    name="${skill%/}"
+    name="${name%/SKILL.md}"
+    name="${name##*/}"
+
+    case "$name" in
       "" | . | .. | *[!a-z0-9-]*)
         echo "Invalid skill directory name: $skill" >&2
         return 1
         ;;
     esac
-    if [[ -e "$SKILL_SOURCE_DIR/${skill##*/}" ]]; then
+    if [[ -e "$SKILL_SOURCE_DIR/$name" ]]; then
       echo "Local and remote skill names collide: $skill" >&2
       return 1
     fi
     for target in "${skills[@]+"${skills[@]}"}"; do
-      if [[ "${target##*/}" == "${skill##*/}" ]]; then
+      if [[ "$target" == "$name" ]]; then
         echo "Remote skill names collide: $skill" >&2
         return 1
       fi
     done
 
     repos+=("$repo")
-    skills+=("$skill")
+    skills+=("$name")
+    specs+=("$skill")
     versions+=("$version")
   done < "$REMOTE_SKILL_REGISTRY"
 
@@ -90,25 +99,26 @@ sync_remote_skills() {
   for index in "${!repos[@]}"; do
     repo=${repos[$index]}
     skill=${skills[$index]}
+    spec=${specs[$index]}
     version=${versions[$index]}
-    target="$REMOTE_SKILL_DIR/${skill##*/}"
+    target="$REMOTE_SKILL_DIR/$skill"
     log="$tmp_dir/$index.log"
 
     (
       if [[ "$mode" == update ]] && [[ -e "$target" ]]; then
         if [[ -n "$version" ]]; then
-          echo "Pinned skill already installed: $repo $skill@$version"
+          echo "Pinned skill already installed: $repo $spec@$version"
         else
-          echo "Checking skill: $repo $skill"
+          echo "Checking skill: $repo $spec"
           gh skill update "$skill" --all --dir "$REMOTE_SKILL_DIR"
         fi
       elif [[ -n "$version" ]]; then
-        echo "Installing pinned skill: $repo $skill@$version"
-        gh skill install "$repo" "$skill" \
+        echo "Installing pinned skill: $repo $spec@$version"
+        gh skill install "$repo" "$spec" \
           --pin "$version" --dir "$REMOTE_SKILL_DIR" --force
       else
-        echo "Installing skill: $repo $skill"
-        gh skill install "$repo" "$skill" --dir "$REMOTE_SKILL_DIR" --force
+        echo "Installing skill: $repo $spec"
+        gh skill install "$repo" "$spec" --dir "$REMOTE_SKILL_DIR" --force
       fi
     ) >"$log" 2>&1 &
     pids+=("$!")
@@ -145,7 +155,7 @@ trap 'rm -rf "$stage"' EXIT
 mkdir "$stage/skills"
 rsync -a --exclude=remote-skills.txt "$SKILL_SOURCE_DIR/" "$stage/skills/"
 for skill in "${skills[@]+"${skills[@]}"}"; do
-  source="$REMOTE_SKILL_DIR/${skill##*/}"
+  source="$REMOTE_SKILL_DIR/$skill"
   if [[ ! -f "$source/SKILL.md" ]]; then
     echo "Remote skill is missing SKILL.md: $source" >&2
     exit 1
