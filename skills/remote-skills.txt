@@ -17,7 +17,7 @@ JimLiu/baoyu-design claude-design
 JimLiu/baoyu-design claude-design-system
 JimLiu/baoyu-design claude-dashboard
 JimLiu/baoyu-design dataviz
-Leonxlnx/taste-skill taste-skill
+# Leonxlnx/taste-skill taste-skill
 nyblnet/bento bento-slides
 markdown-viewer/skills documd-visuals
 #cathrynlavery/diagram-design diagram-design
