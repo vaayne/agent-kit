@@ -26,9 +26,9 @@ docs/
     YYYY-MM-DD-<slug>.md  # proposals, with mockups in assets/<slug>/
   ops/                    # deploy, rollback, runbooks
 content/docs/             # public docs (Fumadocs), in the web app
-assets/
-  src/<name>.puml         # figure sources (DocumD: .puml, .mmd, ...)
-  <name>.png              # rendered figures
+docs/dev/diagrams/
+  <name>.puml             # figure source, beside the document that uses it
+  <name>.svg              # rendered figure (PNG only for an HTML figure)
 .local/                   # temporary reports and notes; ignored by Git
 ```
 
