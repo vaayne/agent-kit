@@ -7,14 +7,14 @@ not this file's job to restate it; read it directly when working on its content.
 
 - `skills/` — local skills, one directory per skill, plus `remote-skills.txt`
 - `config/claude/`, `config/codex/`, and `config/pi/` — public agent configuration
-- `.mise/tasks/sync/` — configuration, skill, and BB server sync tasks
+- `.mise/tasks/sync/` — configuration and skill sync tasks
 - `scripts/sync_config.py` — configuration deployment with backups and a baseline
 
 ## Commands
 
 - `mise run format` — dprint across TS/JSON/YAML/TOML/Markdown/HTML and ruff for Python
-- `mise run sync` — format, copy configuration, link instructions, and sync skills to BB
-- `mise run sync:skills` — copy local and remote skills to `BB_SKILLS_TARGET`
+- `mise run sync` — format, copy configuration, link instructions, and sync skills
+- `mise run sync:skills` — mirror local and remote skills into `~/.agents/skills`
 - `mise run sync:config -- --check` — check configuration without writing files
 - `"$(mise which python3)" -m unittest discover -s tests -v` — configuration and skill sync tests
 

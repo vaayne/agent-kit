@@ -1,25 +1,15 @@
 #!/usr/bin/env bash
-#MISE description="Sync local and remote skills to the BB server"
+#MISE description="Mirror local and remote skills into ~/.agents/skills"
 
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/../../.." && pwd)
 SKILL_SOURCE_DIR="$ROOT_DIR/skills"
-if [[ $# -gt 1 ]]; then
-  echo "Usage: mise run sync:skills -- [ssh-host:]<bb-data-dir>/skills/" >&2
-  exit 2
-fi
-BB_TARGET="${1:-${BB_SKILLS_TARGET:-}}"
-if [[ -z "$BB_TARGET" ]]; then
-  echo "Set BB_SKILLS_TARGET to [ssh-host:]<bb-data-dir>/skills/, or pass the target." >&2
-  exit 2
-fi
-case "$BB_TARGET" in
-  */skills/) ;;
-  *) echo "BB skills target must end with /skills/: $BB_TARGET" >&2; exit 2 ;;
-esac
+# Agent Kit owns this directory. Sync deletes skills that are not in the repo or
+# the remote registry.
+TARGET="$HOME/.agents/skills/"
 
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit/bb-skills"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agent-kit/skills"
 REMOTE_SKILL_DIR="$CACHE_DIR/remote"
 REMOTE_SKILL_REGISTRY="$SKILL_SOURCE_DIR/remote-skills.txt"
 declare -a repos=() skills=() specs=() versions=()
@@ -36,7 +26,10 @@ sync_remote_skills() {
   mode=update
   if [[ ! -f "$stamp" ]] || [[ $(cat "$stamp") != "$registry_hash" ]]; then
     mode=install
+    # A full reinstall also drops cached skills that left the registry.
+    rm -rf "$REMOTE_SKILL_DIR"
   fi
+  mkdir -p "$REMOTE_SKILL_DIR"
 
   while read -r repo skill_spec extra || [[ -n "${repo:-}" ]]; do
     case "$repo" in
@@ -144,8 +137,6 @@ sync_remote_skills() {
   echo "Remote skills synced"
 }
 
-mkdir -p "$REMOTE_SKILL_DIR"
-
 if [[ -f "$REMOTE_SKILL_REGISTRY" ]]; then
   sync_remote_skills
 fi
@@ -153,14 +144,15 @@ fi
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 mkdir "$stage/skills"
-rsync -a --exclude=remote-skills.txt "$SKILL_SOURCE_DIR/" "$stage/skills/"
+rsync -a --exclude=remote-skills.txt --exclude=__pycache__ --exclude=.ruff_cache \
+  "$SKILL_SOURCE_DIR/" "$stage/skills/"
 for skill in "${skills[@]+"${skills[@]}"}"; do
   source="$REMOTE_SKILL_DIR/$skill"
   if [[ ! -f "$source/SKILL.md" ]]; then
     echo "Remote skill is missing SKILL.md: $source" >&2
     exit 1
   fi
-  # BB loads a skill only when its directory matches the SKILL.md name, and
+  # Agents load a skill only when its directory matches the SKILL.md name, and
   # gh skill names the directory after the upstream path.
   name=$(awk '/^---$/ { n++; next } n == 1 && /^name:/ { print $2; exit }' \
     "$source/SKILL.md" | tr -d "\"'")
@@ -178,7 +170,6 @@ for skill in "${skills[@]+"${skills[@]}"}"; do
   rsync -a "$source/" "$stage/skills/$name/"
 done
 
-backup_dir="../skill-backups/agent-kit-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-rsync -a --checksum --delay-updates --backup --backup-dir="$backup_dir" \
-  "$stage/skills/" "$BB_TARGET"
-echo "Synced local and remote Agent Kit skills to $BB_TARGET"
+mkdir -p "$TARGET"
+rsync -a --checksum --delete --itemize-changes "$stage/skills/" "$TARGET"
+echo "Synced Agent Kit skills to $TARGET"

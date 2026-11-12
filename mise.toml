@@ -8,7 +8,7 @@ description = "Format code using dprint"
 run = "dprint fmt"
 
 [tasks.sync]
-description = "Sync local agent configuration and instructions, then skills to BB"
+description = "Sync local agent configuration, instructions, and skills"
 run = """
 set -e
 mise run format

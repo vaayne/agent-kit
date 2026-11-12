@@ -2,12 +2,12 @@
 
 A Git repository for public agent configuration, skills, BB extensions, and
 shared instructions. Claude Code, Codex, and Pi configuration deploys from `config/`.
-Skills sync to the BB server; `_AGENTS.md` provides shared instructions.
+Skills sync to `~/.agents/skills`; `_AGENTS.md` provides shared instructions.
 
 ## Setup
 
 Requires [mise](https://mise.jdx.dev/), Python 3.12+, and the agent CLIs you use.
-Skills sync also needs `gh skill`, `rsync`, and SSH access for a remote target.
+Skills sync also needs `gh skill` and `rsync`.
 
 ```bash
 git clone https://github.com/vaayne/agent-kit.git
@@ -15,16 +15,10 @@ cd agent-kit
 
 mise install             # install the tools declared by this repository
 
-# Set the BB destination once per checkout. This local file is ignored by Git.
-cat > .mise.local.toml <<'EOF'
-[env]
-BB_SKILLS_TARGET = "MacMini:/Users/vaayne/.bb-machines/vaayne-mbp.getbb.app/skills/"
-EOF
-
 mise run sync             # configuration, then instructions and skills
 mise run sync:config      # Claude Code, Codex, and Pi configuration
 mise run sync:config -- --check  # check configuration without writing files
-mise run sync:skills      # copy local and remote skills to BB
+mise run sync:skills      # mirror local and remote skills into ~/.agents/skills
 mise run sync:agents      # _AGENTS.md → CLAUDE.md / AGENTS.md symlinks for every framework
 ```
 
@@ -101,38 +95,25 @@ Restart Claude Code and Codex sessions after sync. Run `/reload` in Pi or start 
 new Pi session. For BB, stop an idle thread
 and send its next message so the provider creates a process with the new files.
 
-### BB server skills
+### Skills
 
-Use the BB server's data directory, which `bb status --json` reports as
-`dataDir`. A connected machine's `~/.bb` directory may belong to another server.
-Set `BB_SKILLS_TARGET` in `.mise.local.toml`, or pass the destination directly.
-The destination must end with `/skills/`. Use a local path when running on the
-server, or an SSH destination when running on a connected machine:
+`mise run sync:skills` mirrors the local skills and the entries in
+`skills/remote-skills.txt` into `~/.agents/skills/`. Codex, OpenCode, and Pi read
+that directory. On this machine, `~/.claude/skills` is a symlink to it.
 
-```bash
-mise run sync:skills
-mise run sync:skills -- MacMini:/Users/vaayne/.bb-machines/vaayne-mbp.getbb.app/skills/
-bb skill list --json
-```
+Agent Kit owns `~/.agents/skills/`. Sync deletes any skill that is not in the
+repository or the registry, without a backup. Edit skills in this repository,
+not in `~/.agents/skills/`.
 
-The existing `gh skill` flow installs or updates the entries in
-`skills/remote-skills.txt`. Pinned tags and commits stay pinned. Downloads use
-`~/.cache/agent-kit/bb-skills/`, with `XDG_CACHE_HOME` supported. The task combines
-the selected remote skills with the local skills before copying them to BB.
-If a remote operation fails or names collide, the task does not copy to BB.
+`gh skill` installs or updates the registry entries. Pinned tags and commits stay
+pinned. Downloads use `~/.cache/agent-kit/skills/`, and `XDG_CACHE_HOME` changes
+that location. A change to the registry reinstalls every entry and clears
+skills that left the registry from the cache. If a remote operation fails or
+names collide, sync does not change `~/.agents/skills/`.
 
-BB provides these user skills to threads on its connected machines. Sync copies
-scripts and references, preserves unrelated skills, and backs up overwritten
-files under `<dataDir>/skill-backups/`. It does not delete retired skills or
-files; review and remove them in BB. Existing sessions load new skill content
-when their agent configuration is rebuilt. `sync:bb` is an alias for the same
-flow.
-
-Skills that call a CLI still need that CLI and its credentials on the execution
-machine. Sync does not install skills into `~/.agents/skills` or
-`~/.claude/skills`. Existing native copies from earlier syncs remain until they
-are backed up and removed. For agents running outside BB, install the required
-skills separately.
+`skills/rex/` holds the stub that `rex skill setup` writes, without its hooks.
+The stub reads the guide from the installed `rex` CLI. Do not run
+`rex skill setup`: it also adds SessionStart hooks to Claude Code and Codex.
 
 ## Development workflow skills
 
