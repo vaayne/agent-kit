@@ -111,9 +111,9 @@ that location. A change to the registry reinstalls every entry and clears
 skills that left the registry from the cache. If a remote operation fails or
 names collide, sync does not change `~/.agents/skills/`.
 
-`skills/rex/` holds the stub that `rex skill setup` writes, without its hooks.
-The stub reads the guide from the installed `rex` CLI. Do not run
-`rex skill setup`: it also adds SessionStart hooks to Claude Code and Codex.
+`skills/coding/` covers the rex CLI and points to the full guide that
+`rex __internal skill` prints. Do not run `rex skill setup`: it installs a
+separate rex skill and adds SessionStart hooks to Claude Code and Codex.
 
 ## Development workflow skills
 
