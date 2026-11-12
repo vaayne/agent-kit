@@ -44,5 +44,15 @@
   "theme": "auto",
   "editorMode": "normal",
   "remoteControlAtStartup": false,
-  "agentPushNotifEnabled": false
+  "agentPushNotifEnabled": false,
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/ccline/ccline",
+    "padding": 0,
+    "refreshInterval": 2
+  },
+  "subagentStatusLine": {
+    "type": "command",
+    "command": "~/.claude/ccline/ccline"
+  }
 }
