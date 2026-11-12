@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code (workers in ccvm containers by default) or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, ccvm, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
+description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code (workers in ccvm containers by default) or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, ccvm, "派 worker", "让 gpt review"); or the task is large, such as a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
 ---
 
 # Coding through Rex
