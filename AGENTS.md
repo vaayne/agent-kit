@@ -16,7 +16,7 @@ not this file's job to restate it; read it directly when working on its content.
 - `mise run sync` — format, copy configuration, link instructions, and sync skills
 - `mise run sync:skills` — mirror local and remote skills into `~/.agents/skills`
 - `mise run sync:config -- --check` — check configuration without writing files
-- `"$(mise which python3)" -m unittest discover -s tests -v` — configuration and skill sync tests
+- `"$(mise which python3)" -m unittest discover -s tests -v` — configuration sync, skill sync, and role consistency tests
 
 Keep tokens, login state, transcripts, and machine-specific provider settings out
 of `config/`. Configuration sync uses copies, backs up changes, and refuses local

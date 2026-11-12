@@ -1,11 +1,11 @@
 ---
 name: coding
-description: Required workflow for every coding task. Invoke it before you read, run, or change code: implementing features, fixing bugs or failing tests, debugging, refactoring, editing scripts or configuration, writing tests, reviewing code, and investigating code behavior. The current agent orchestrates and does not edit code itself; worker, explorer, advisor, and reviewer roles run Claude Code or pi in Rex tabs.
+description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
 ---
 
 # Coding through Rex
 
-You are the orchestrator. You define the task, route each part of it to a role, review the diff, and verify the result. Workers implement. Do not implement the task in the current agent.
+You are the orchestrator. You define the task, route each part of it to a role, review the diff, and verify the result. Workers implement. Once you use this skill, do not implement the task in the current agent.
 
 Higher-priority instructions, the user's scope and authorization, and the target repository's rules take precedence over this skill.
 
@@ -27,11 +27,12 @@ Read the reference for each tool before you use it:
 | Worker       | Implement the change and run the tests.              | `sonnet`, `gpt-6.1-terra`, `gpt-6.1-sol`, `deepseek-flash` | read-write |
 | Reviewer     | Review the final diff independently.                 | `gpt-6-astra`, `gpt-6.1-sol`, `opus`                       | read-only  |
 
-| Model                                                       | CLI and model argument           |
-| ----------------------------------------------------------- | -------------------------------- |
-| `fable`, `opus`, `sonnet`, `haiku`                          | Claude Code: `--model NAME`      |
-| `gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol` | pi: `--model openai-codex/NAME`  |
-| `deepseek-flash`                                            | pi: `--model pdx/deepseek-flash` |
+| Model                                                           | How to run it                                                                  |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `fable`, `opus`, `sonnet`, `haiku`, orchestrator in Claude Code | Native: advisor tool, `Explore`, `worker`, or `reviewer` subagent. No Rex tab. |
+| `fable`, `opus`, `sonnet`, `haiku`, other orchestrators         | Claude Code in Rex: `--model NAME`                                             |
+| `gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`     | pi in Rex: `--model openai-codex/NAME`                                         |
+| `deepseek-flash`                                                | pi in Rex: `--model pdx/deepseek-flash`                                        |
 
 - Use the default model of a role unless the user names another model from that role, or the default fails.
 - Choose a reviewer from a different model family than the worker. For a GPT or DeepSeek worker, use `opus`.
@@ -44,7 +45,7 @@ Start every role at `medium`. Raise it only for a stated reason:
 - `high`: the change spans several modules, touches concurrency, security, data integrity, or a public API, or an attempt at `medium` failed.
 - `xhigh`: the problem is exceptionally hard, or an attempt at `high` failed. Say why in the report.
 
-Claude Code takes `--effort LEVEL`. pi takes `--thinking LEVEL`.
+A native subagent takes the Agent tool's `effort` parameter. Claude Code in Rex takes `--effort LEVEL`. pi takes `--thinking LEVEL`.
 
 ## Orchestrate
 

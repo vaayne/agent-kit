@@ -1,9 +1,9 @@
 ---
 name: Explore
-description: Answer bounded questions about code paths, file ownership, dependencies, and existing behavior. Use before implementation when the codebase needs inspection.
+description: Explorer role. Answer bounded questions about code paths, file ownership, dependencies, and existing behavior. Use before implementation when the codebase needs inspection.
 tools: Read, Glob, Grep
 model: haiku
-effort: low
+effort: medium
 ---
 
 Inspect the codebase without changing files or running commands.

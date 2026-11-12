@@ -78,22 +78,19 @@ The script does not delete files removed from the repository. Remove a retired
 agent or rule from HOME after reviewing it. Close settings editors before sync;
 the checks do not provide a transaction against other processes.
 
-Claude Code 2.1.293+ resolves the Haiku alias to Haiku 5.5. Opus owns the approach
-and final review; Sonnet `worker` edits and tests at medium effort. Haiku `Explore`
-and `researcher` use read-only tools at low effort. Opus 5.5 uses high effort,
-and Fable is the configured advisor for substantial decisions and long tasks.
+Claude Code 2.1.293+ resolves the Haiku alias to Haiku 5.5. Opus orchestrates and
+uses high effort. The other roles match the `coding` skill and start at medium
+effort: Haiku `Explore` reads code, Sonnet `worker` edits and tests, Opus
+`reviewer` reviews diffs, and Fable is the advisor. GPT and DeepSeek roles run
+through the `coding` skill.
 Codex settings preserve the imported local configuration.
 
-In BB, Claude Code and Codex native subagents are disabled. BB Custom Instructions
-manages delegation rules separately from this repository. BB's explicit model and effort can override
-native defaults. Fable advisor calls
-require account access, feature-flag fetching, and a compatible gateway. Some
+Fable advisor calls require account access, feature-flag fetching, and a compatible gateway. Some
 plans require usage-credits consent through `/model fable`; then `/model opus`
 returns to the main model. Configuration sync does not accept billing consent.
 
 Restart Claude Code and Codex sessions after sync. Run `/reload` in Pi or start a
-new Pi session. For BB, stop an idle thread
-and send its next message so the provider creates a process with the new files.
+new Pi session.
 
 ### Skills
 
