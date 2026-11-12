@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, ccvm, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
+description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code (workers in ccvm containers by default) or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, ccvm, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
 ---
 
 # Coding through Rex
@@ -28,14 +28,14 @@ Read the reference for each tool before you use it:
 | Worker       | Implement the change and run the tests.              | `sonnet`, `gpt-6.1-terra`, `gpt-6.1-sol`, `deepseek-flash` | read-write |
 | Reviewer     | Review the final diff independently.                 | `gpt-6-astra`, `gpt-6.1-sol`, `opus`                       | read-only  |
 
-| Model                                                           | How to run it                                                                  |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `fable`, `opus`, `sonnet`, `haiku`, orchestrator in Claude Code | Native: advisor tool, `Explore`, `worker`, or `reviewer` subagent. No Rex tab. |
-| `fable`, `opus`, `sonnet`, `haiku`, other orchestrators         | Claude Code in Rex: `--model NAME`                                             |
-| `gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`     | pi in Rex: `--model openai-codex/NAME`                                         |
-| `deepseek-flash`                                                | pi in Rex: `--model pdx/deepseek-flash`                                        |
+| Model                                                           | How to run it                                                                                      |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `fable`, `opus`, `sonnet`, `haiku`, orchestrator in Claude Code | Native: advisor tool, `Explore` or `reviewer` subagent, `worker` subagent on the host. No Rex tab. |
+| `fable`, `opus`, `sonnet`, `haiku`, other orchestrators         | Claude Code in Rex: `--model NAME`                                                                 |
+| `gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`     | pi in Rex: `--model openai-codex/NAME`                                                             |
+| `deepseek-flash`                                                | pi in Rex: `--model pdx/deepseek-flash`                                                            |
 
-- Run a Claude worker in ccvm instead when the user asks for isolation, when several workers change the same repository at the same time, or for a long unattended run. See [references/ccvm.md](references/ccvm.md).
+- **A Claude worker runs in ccvm by default:** Claude Code in a container, started from a Rex tab. Use a host worker (the rows above) only when the task needs the host. [references/ccvm.md](references/ccvm.md) lists those cases. pi workers and all read-only roles run on the host.
 - Use the default model of a role unless the user names another model from that role, or the default fails.
 - Choose a reviewer from a different model family than the worker. For a GPT or DeepSeek worker, use `opus`.
 - If a default model is not available, try the next model of the same role and report the change. If no model of the role works, or the user named the model that failed, stop and report.
@@ -77,6 +77,7 @@ Write each message to a file outside the repository for print-mode roles. Paste 
 | Situation                                                | Action                                                                                                                               |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Rex, the CLI, `cc`, or credentials are not available     | Report the exact error and stop. Do not implement the task yourself.                                                                 |
+| ccvm cannot start a task                                 | Report the error, then use a host worker.                                                                                            |
 | A model is not available                                 | Use the next model of the same role, as described in Roles.                                                                          |
 | A CLI exits with a non-zero status, or Claude Code exits | Capture the pane, then report the exit status and the last error.                                                                    |
 | A command times out                                      | Inspect the state before you retry. The first attempt can succeed.                                                                   |

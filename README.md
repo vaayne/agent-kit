@@ -81,8 +81,9 @@ the checks do not provide a transaction against other processes.
 Claude Code 2.1.293+ resolves the Haiku alias to Haiku 5.5. Opus orchestrates and
 uses high effort. The other roles match the `coding` skill and start at medium
 effort: Haiku `Explore` reads code, Sonnet `worker` edits and tests, Opus
-`reviewer` reviews diffs, and Fable is the advisor. GPT and DeepSeek roles run
-through the `coding` skill.
+`reviewer` reviews diffs, and Fable is the advisor. A Sonnet worker runs in a
+ccvm container by default; the native `worker` subagent is for tasks that need
+the host. GPT and DeepSeek roles run through the `coding` skill.
 Codex settings preserve the imported local configuration.
 
 Fable advisor calls require account access, feature-flag fetching, and a compatible gateway. Some

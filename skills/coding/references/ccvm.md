@@ -4,19 +4,15 @@
 
 ## When to use it
 
-Use a ccvm worker when one of these is true:
+A Claude worker runs in ccvm by default. Use a host worker (see [claude-code.md](claude-code.md)) only when one of these is true:
 
-- The user asks for ccvm, a container, or isolation.
-- Two or more workers change the same repository at the same time.
-- The task is a long unattended run, where permission prompts would stop a host worker.
-
-Otherwise use a host worker. Do not use ccvm when:
-
+- The task needs macOS: Xcode, a macOS app build, the Keychain, or a service that runs on the host.
+- The task needs files that git ignores, such as `.env` or a local database. ccvm does not copy them.
 - The repository is not a git checkout.
-- The task needs macOS: Xcode, a macOS app build, the Keychain, or host services.
 - `command -v ccvm` fails, or `container` is not installed on the machine.
+- The user asks for a host worker.
 
-Only Claude models run in ccvm. Read-only roles stay on the host.
+Say in the report when you use a host worker, and why. pi workers and all read-only roles run on the host.
 
 ## What the container has
 

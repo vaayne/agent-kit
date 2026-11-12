@@ -27,7 +27,7 @@ rex capture -s "$REX_SESSION" -b "$block" --trim | tail -n 80
 
 ## Interactive mode: worker
 
-A Claude worker runs interactively, so that you can supervise it and send review findings in the same session:
+A Claude worker runs interactively, so that you can supervise it and send review findings in the same session. By default it runs in ccvm: start it as [ccvm.md](ccvm.md) shows, then supervise it as this section describes. A host worker starts with `cc`:
 
 ```sh
 out=$(rex run -s "$REX_SESSION" -c "$project_dir" --label Coding --keep-open --focus=false --json \
