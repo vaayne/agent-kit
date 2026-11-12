@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Required workflow for every coding task. Invoke it before you read, run, or change code: implementing features, fixing bugs or failing tests, debugging, refactoring, editing scripts or configuration, writing tests, reviewing code, and investigating code behavior. The current agent orchestrates and does not edit code itself; worker, explorer, advisor, and reviewer roles run Claude Code or pi in Rex tabs. Also the reference for the rex CLI.
+description: Required workflow for every coding task. Invoke it before you read, run, or change code: implementing features, fixing bugs or failing tests, debugging, refactoring, editing scripts or configuration, writing tests, reviewing code, and investigating code behavior. The current agent orchestrates and does not edit code itself; worker, explorer, advisor, and reviewer roles run Claude Code or pi in Rex tabs.
 ---
 
 # Coding through Rex
@@ -13,7 +13,7 @@ Higher-priority instructions, the user's scope and authorization, and the target
 
 Read the reference for each tool before you use it:
 
-- [references/rex.md](references/rex.md): Rex commands, IDs, input, polling, and gotchas. Read it first.
+- [references/rex.md](references/rex.md): the Rex commands, IDs, input, polling, and gotchas for coding sessions. Read it first. The rex skill covers other Rex tasks.
 - [references/claude-code.md](references/claude-code.md): Claude Code through `cc`. The interactive worker, and print mode for the other roles.
 - [references/pi.md](references/pi.md): pi in print mode (`pi -p`). Sessions, read-only runs, and exit status.
 
