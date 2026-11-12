@@ -44,15 +44,21 @@ Paste the whole task message with `rex send`, capture to confirm it, then press 
 
 ### Busy and idle
 
-While Claude Code works, its status line shows `esc to interrupt`. When it waits for input, that text is not there.
+Read the status line above the input box. The fullscreen interface does not show `esc to interrupt`, so do not look for that text.
+
+- **Busy.** A line with `…` and an elapsed time, for example `✢ Bunning… (12s · ↓ 123 tokens)`. The first character and the verb change.
+- **Idle.** No such line. The last turn ends with a line such as `✻ Cooked for 22s · done`.
+- **Idle, but not finished.** The done line ends with `· 1 shell still running`. A background command still runs, and Claude Code continues when it ends. Keep polling.
 
 ```sh
 rex wait -s "$REX_SESSION" "$block" --for 30s 2>/dev/null || true
-rex capture -s "$REX_SESSION" -b "$block" --trim | tail -n 40
+rex capture -s "$REX_SESSION" -b "$block" --trim | grep -v '^\s*$' | tail -n 40
 ```
+
+The fullscreen pane has many empty lines between the banner and the input box; the `grep` removes them.
 
 When it is idle, read the screen. It finished, asks a question, or shows a permission prompt. Permission prompts are menus: confirm the `❯` position before you press `enter`.
 
 ### Exit
 
-Send `/exit`, then press `enter`. Then close the tab with `rex window close`.
+Send `/exit`, then press `enter`. Then close the tab with `rex window close`. A ccvm worker asks one more question before the tab is done; see [ccvm.md](ccvm.md).

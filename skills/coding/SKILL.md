@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
+description: Delegate coding work to worker, explorer, advisor, and reviewer roles that run Claude Code or pi in Rex tabs, while the current agent orchestrates and verifies. Use when the user asks to delegate or to use a worker, reviewer, or advisor; names a model, CLI, or role for the work (sonnet, opus, fable, gpt, deepseek, pi, ccvm, "派 worker", "让 gpt review"); or the task is large: a feature across several files, a cross-module refactor, a long debugging session, or a change that needs an independent review. Do not use for small local edits, configuration tweaks, typo fixes, reading code, or answering questions about code; do those directly.
 ---
 
 # Coding through Rex
@@ -16,6 +16,7 @@ Read the reference for each tool before you use it:
 - [references/rex.md](references/rex.md): the Rex commands, IDs, input, polling, and gotchas for coding sessions. Read it first. The rex skill covers other Rex tasks.
 - [references/claude-code.md](references/claude-code.md): Claude Code through `cc`. The interactive worker, and print mode for the other roles.
 - [references/pi.md](references/pi.md): pi in print mode (`pi -p`). Sessions, read-only runs, and exit status.
+- [references/ccvm.md](references/ccvm.md): a Claude worker in a ccvm container. When to use it, and how to bring its diff back.
 
 ## Roles
 
@@ -34,6 +35,7 @@ Read the reference for each tool before you use it:
 | `gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`     | pi in Rex: `--model openai-codex/NAME`                                         |
 | `deepseek-flash`                                                | pi in Rex: `--model pdx/deepseek-flash`                                        |
 
+- Run a Claude worker in ccvm instead when the user asks for isolation, when several workers change the same repository at the same time, or for a long unattended run. See [references/ccvm.md](references/ccvm.md).
 - Use the default model of a role unless the user names another model from that role, or the default fails.
 - Choose a reviewer from a different model family than the worker. For a GPT or DeepSeek worker, use `opus`.
 - If a default model is not available, try the next model of the same role and report the change. If no model of the role works, or the user named the model that failed, stop and report.
@@ -52,7 +54,7 @@ A native subagent takes the Agent tool's `effort` parameter. Claude Code in Rex 
 1. **Prepare.** Read the repository's `AGENTS.md` and linked rules. Note the existing changes, the scope, the acceptance criteria, and the operations that need approval. Keep the existing changes. Set `project_dir` to the absolute repository path.
 2. **Explore** when the task needs code that you have not read across several files. Ask specific questions and use the answers to write the task message.
 3. **Advise** before a substantial plan, such as a design decision or a change across modules, and when the same failure happens twice. Give the advisor the decision and the uncertainty, not the whole history. Skip it for routine changes.
-4. **Work.** Start one worker with the task message. Supervise it until the turn ends. Answer only within the user's authorization.
+4. **Work.** Start one worker with the task message. Supervise it until the turn ends. Answer only within the user's authorization. A ccvm worker changes a clone: review its diff with `ccvm diff`, and apply it to `project_dir` before you verify.
 5. **Review.** Read the diff yourself. Your review is enough for most diffs. Also run a reviewer when the user asks for one, or when the diff has a risk that a second model can catch: it spans several modules, touches concurrency, security, data integrity, or a public API, or the worker needed more than one round to get it right. Send the findings that you accept to the worker, and repeat until the diff is acceptable.
 6. **Verify.** Run the smallest sufficient tests on the final revision yourself and read their real output. If the code changes after a check, run the affected check again.
 7. **Close.** Exit each CLI and close its tab, unless the user wants to keep it.
