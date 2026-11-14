@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   describeUsageBody,
   formatUsageReset,
@@ -136,7 +136,10 @@ describe("usage presentation", () => {
         isLoading: false,
       }),
     ).toEqual({ kind: "windows", windows: [weekly, fiveHour] });
-    expect(usageSummary(usageWithResets).items).toContainEqual({
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const summary = usageSummary(usageWithResets);
+    clock.mockRestore();
+    expect(summary.items).toContainEqual({
       id: "claude-code",
       name: "Claude",
       usedPercent: 44,

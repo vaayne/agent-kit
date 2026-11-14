@@ -18,7 +18,7 @@
     "server": "./src/server.ts"
   },
   "dependencies": {
-    "zod": "4.3.6"
+    "zod": "4.6.6"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
