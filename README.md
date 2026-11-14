@@ -109,9 +109,15 @@ that location. A change to the registry reinstalls every entry and clears
 skills that left the registry from the cache. If a remote operation fails or
 names collide, sync does not change `~/.agents/skills/`.
 
-`skills/rex/` holds the stub that `rex skill setup` writes, without its hooks.
-The stub reads the guide from the installed `rex` CLI. Do not run
-`rex skill setup`: it also adds SessionStart hooks to Claude Code and Codex.
+## Rules
+
+`_AGENTS.md` indexes task-specific rules in `rules/`. `mise run sync:agents`
+links that directory to `~/.agents/rules/` for all frameworks. Agents read only
+rules that match the task.
+
+The Lark CLI and Rex rules point to guides from the installed CLIs. The Python
+script rule contains short local conventions, without a template.
+Do not run `rex skill setup`: it also adds SessionStart hooks to Claude Code and Codex.
 
 ## Development workflow skills
 
@@ -129,9 +135,7 @@ The kit's workflow skills each stand alone — pick the one that fits the moment
 | Skill                 | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
 | **humanizer**         | Strip AI writing patterns from prose                                       |
-| **python-script**     | Robust Python automation with logging and safety checks                    |
 | **cmail**             | Manage Cloud Mail (Skymail) domain email                                   |
-| **lark-cli**          | Lark/Feishu workspace operations via `lark-cli`                            |
 | **tap**               | Search public sources, read pages, and run site scripts                    |
 | **android-declutter** | Cut ads and promotion pushes on Android over adb with per-app JSON configs |
 
@@ -157,6 +161,7 @@ bb plugin install ./bb-extensions/workspace-navigator --yes
 agent-kit/
 ├── _AGENTS.md    # Shared agent instructions, symlinked to every framework
 ├── config/       # Public Claude Code, Codex, and Pi configuration
+├── rules/        # Task-specific conventions and CLI guide entry points
 ├── skills/       # Local skills + remote-skills.txt registry
 └── bb-extensions/   # BB plugins
 ```

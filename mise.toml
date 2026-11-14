@@ -18,8 +18,9 @@ mise run sync:skills
 """
 
 [tasks."sync:agents"]
-description = "Sync _AGENTS.md to all agent frameworks"
+description = "Sync shared instructions and rules to all agent frameworks"
 run = """
+set -e
 AGENTS_FILE="$PWD/_AGENTS.md"
 
 link_path() {
@@ -43,8 +44,9 @@ link_path() {
   ln -s "$source" "$target"
 }
 
+link_path "$PWD/rules" ~/.agents/rules
 link_path "$AGENTS_FILE" ~/.pi/agent/AGENTS.md
 link_path "$AGENTS_FILE" ~/.codex/AGENTS.md
 link_path "$AGENTS_FILE" ~/.claude/CLAUDE.md
-echo "Linked _AGENTS.md to all frameworks"
+echo "Linked shared instructions and rules"
 """
