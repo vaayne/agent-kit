@@ -22,10 +22,8 @@ class ConfigSyncTests(unittest.TestCase):
         self.home = self.base / "home"
         self.home.mkdir()
         shutil.copytree(ROOT / "config", self.repo / "config")
-        (self.repo / "scripts").mkdir()
-        shutil.copy2(
-            ROOT / "scripts/sync_config.py", self.repo / "scripts/sync_config.py"
-        )
+        (self.repo / ".mise/tasks/sync").mkdir(parents=True)
+        shutil.copy2(ROOT / ".mise/tasks/sync/config", self.repo / ".mise/tasks/sync/config")
         self.env = {
             "HOME": str(self.home),
             "PATH": os.defpath,
@@ -38,7 +36,7 @@ class ConfigSyncTests(unittest.TestCase):
 
     def run_sync(self, *args: str, status: int = 0) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
-            [sys.executable, str(self.repo / "scripts/sync_config.py"), *args],
+            [sys.executable, str(self.repo / ".mise/tasks/sync/config"), *args],
             env=self.env,
             capture_output=True,
             text=True,
